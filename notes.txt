@@ -1,0 +1,11 @@
+Datasets
+    [ ] Implement MTG Jamendo
+    [ ] Implement MTAT
+    [ ] Implement TinySOL
+    [ ] Implement Beatport
+    [ ] Unify implementations
+        - pretrain vs finetune
+        - train vs validation vs test
+        - embedding paths
+Dataloaders
+    [ ] Item and track logic
