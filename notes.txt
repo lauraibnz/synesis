@@ -8,4 +8,8 @@ Datasets
         - train vs validation vs test
         - embedding paths
 Dataloaders
-    [ ] Item and track logic
+    [ ] item and track logic
+
+Non-music Datasets
+    [ ] Search for a few representative Datasets
+    [ ] Implement a few
