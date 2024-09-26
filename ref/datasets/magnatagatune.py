@@ -6,7 +6,10 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import numpy as np
+import torch
+import torchaudio
 import wget
+from torch import Tensor
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
@@ -140,6 +143,7 @@ class MagnaTagATune(Dataset):
                 if line[0] not in ["35644", "55753", "57881"]
             ]
 
+        # load labels
         # get the list of top 50 tags used in Minz Won et al. 2020
         tags = np.load(os.path.join(self.root, "metadata", "tags.npy"))
 
@@ -162,3 +166,56 @@ class MagnaTagATune(Dataset):
 
         if not self.split:
             return self.audio_paths, self.labels
+
+        # load splits
+        relative_paths_in_split = np.load(
+            os.path.join(self.root, "metadata", f"{self.split}.npy")
+        )
+        # clean up
+        relative_paths_in_split = [
+            rp.split("\t")[1] for rp in relative_paths_in_split
+        ]
+
+        # get the indices of the tracks in the split
+        indices = [
+            i for i, path in enumerate(self.audio_paths)
+            if path in relative_paths_in_split
+        ]
+
+        # keep these indices in path and labels
+        self.audio_paths = [self.audio_paths[i] for i in indices]
+        self.labels = self.labels[indices]
+
+        feature_paths = [
+            path.replace(
+                f".{self.feature_config['audio_format']}", ".pt"
+            ).replace("mp3", self.feature) for path in self.audio_paths]
+
+        return feature_paths, self.labels
+
+        def load_track(self, path) -> Tensor:
+            if self.split:
+                # if split is specified, dataset is used for downstream task, thus load features
+                return torch.load(path, weights_only=True)
+            else:
+                # if split is None, dataset is used for pretraining, thus load audio
+                waveform, original_sample_rate = torchaudio.load(path, normalize=True)
+                if waveform.size(0) != 1:  # make mono if stereo (or more)
+                    waveform = waveform.mean(dim=0, keepdim=True)
+                if original_sample_rate != self.sample_rate:
+                    resampler = torchaudio.transforms.Resample(
+                        orig_freq=original_sample_rate, new_freq=self.sample_rate
+                    )
+                    waveform = resampler(waveform)
+                return waveform
+
+        def __len__(self) -> int:
+            return len(self.paths)
+
+        def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
+            path = self.paths[idx]
+            label = self.labels[idx]
+
+            track = self.load_track(path)
+
+            return track, label
