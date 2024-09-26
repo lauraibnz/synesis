@@ -76,7 +76,7 @@ class MTGJamendo(Dataset):
 
         self.paths, self.labels = self._load_metadata()
 
-    def _download(self):
+    def _download(self) -> None:
         warnings.warn(
             "Audio download not implemented yet, downloading metadata only.",
             stacklevel=2,
@@ -101,7 +101,7 @@ class MTGJamendo(Dataset):
                 save_dir=str(self.root / "metadata"),
             )
 
-    def _load_metadata(self):
+    def _load_metadata(self) -> Tuple[list, np.ndarray]:
         with open(self.metadata_path, "r") as f:
             metadata = f.readlines()
         # paths in the metadata file look like 65/765.mp3
