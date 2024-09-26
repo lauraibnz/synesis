@@ -172,7 +172,9 @@ data/
 
 # checkpoints
 checkpoints/
+checkpoint/
 ckpts/
+ckpt/
 
 # wandb
 wandb/
@@ -180,3 +182,6 @@ wandb/
 # test scipts
 test.py
 test.ipynb
+
+# nano temp files
+*.txt.*
