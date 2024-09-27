@@ -1,6 +1,5 @@
 import csv
 import os.path
-import warnings
 import zipfile
 from pathlib import Path
 from typing import Optional, Tuple, Union
@@ -22,6 +21,7 @@ class MagnaTagATune(Dataset):
         split: Optional[str] = None,
         download: bool = False,
         feature_config: Optional[dict] = None,
+        item_format: str = "audio",
         seed: int = 42,
     ) -> None:
         """MagnaTagATune dataset implementation.
@@ -43,9 +43,12 @@ class MagnaTagATune(Dataset):
                 f"Invalid split: {split} " + "Options: None, 'train', 'test', 'val'"
             )
         self.split = split
+        self.item_format = item_format
 
         if download:
             self._download()
+
+        self._load_metadata()
 
     def _download(self) -> None:
         # make data dir if it doesn't exist or if it exists but is empty
@@ -126,7 +129,8 @@ class MagnaTagATune(Dataset):
             annotations = csv.reader(f, delimiter="\t")
             next(annotations)  # skip header
             self.track_ids = [
-                line[0] for line in annotations
+                line[0]
+                for line in annotations
                 if line[0] not in ["35644", "55753", "57881"]
             ]
 
@@ -152,7 +156,8 @@ class MagnaTagATune(Dataset):
         ) as f:
             annotations = csv.reader(f, delimiter="\t")
             annotations_header = next(annotations)
-            self.labels = [[
+            self.labels = [
+                [
                     annotations_header[j]
                     for j in range(1, len(line) - 1)
                     # only add the tag if it's in the tags list
@@ -165,6 +170,7 @@ class MagnaTagATune(Dataset):
             self.labels = np.array(self.labels)
 
         if not self.split:
+
             return self.audio_paths, self.labels
 
         # load splits
@@ -172,13 +178,12 @@ class MagnaTagATune(Dataset):
             os.path.join(self.root, "metadata", f"{self.split}.npy")
         )
         # clean up
-        relative_paths_in_split = [
-            rp.split("\t")[1] for rp in relative_paths_in_split
-        ]
+        relative_paths_in_split = [rp.split("\t")[1] for rp in relative_paths_in_split]
 
         # get the indices of the tracks in the split
         indices = [
-            i for i, path in enumerate(self.audio_paths)
+            i
+            for i, path in enumerate(self.audio_paths)
             if path in relative_paths_in_split
         ]
 
@@ -187,15 +192,18 @@ class MagnaTagATune(Dataset):
         self.labels = self.labels[indices]
 
         feature_paths = [
-            path.replace(
-                f".{self.feature_config['audio_format']}", ".pt"
-            ).replace("mp3", self.feature) for path in self.audio_paths]
+            path.replace(f".{self.feature_config['audio_format']}", ".pt").replace(
+                "mp3", self.feature
+            )
+            for path in self.audio_paths
+        ]
 
         return feature_paths, self.labels
 
         def load_track(self, path) -> Tensor:
             if self.split:
-                # if split is specified, dataset is used for downstream task, thus load features
+                # if split is specified, dataset is used for downstream task,
+                # thus load features
                 return torch.load(path, weights_only=True)
             else:
                 # if split is None, dataset is used for pretraining, thus load audio

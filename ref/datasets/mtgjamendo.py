@@ -24,7 +24,8 @@ class MTGJamendo(Dataset):
         feature_config: Optional[dict] = None,
         seed: int = 42,
     ) -> None:
-        """MTG Jamendo (and subset) dataset implementation.
+        """
+        MTG Jamendo (and subset) dataset implementation.
 
         Args:
             feature: If split is None, prepare dataset for this feature extractor.
@@ -47,7 +48,8 @@ class MTGJamendo(Dataset):
             )
         if split not in [None, "train", "test", "validation"]:
             raise ValueError(
-                f"Invalid split: {split} " + "Options: None, 'train', 'test', 'validation'"
+                f"Invalid split: {split} "
+                + "Options: None, 'train', 'test', 'validation'"
             )
         self.subset = subset
         self.split = split
@@ -147,7 +149,8 @@ class MTGJamendo(Dataset):
 
     def load_track(self, path) -> Tensor:
         if self.split:
-            # if split is specified, dataset is used for downstream task, thus load features
+            # if split is specified, dataset is used for downstream task,
+            # thus load features
             return torch.load(path, weights_only=True)
         else:
             # if split is None, dataset is used for pretraining, thus load audio
