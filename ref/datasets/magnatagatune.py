@@ -170,7 +170,6 @@ class MagnaTagATune(Dataset):
             self.labels = np.array(self.labels)
 
         if not self.split:
-
             return self.audio_paths, self.labels
 
         # load splits

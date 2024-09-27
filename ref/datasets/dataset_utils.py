@@ -37,7 +37,7 @@ class DatasetFactory:
         default_params = {
             k: v.default
             for k, v in dataset_class.__init__.__annotations__.items()
-            if k != 'return' and hasattr(v, 'default')
+            if k != "return" and hasattr(v, "default")
         }
 
         # Update default parameters with provided kwargs
