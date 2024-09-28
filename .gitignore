@@ -185,3 +185,6 @@ test.ipynb
 
 # nano temp files
 *.txt.*
+
+# ruff cache
+.ruff_cache/
