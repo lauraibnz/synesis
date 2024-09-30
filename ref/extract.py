@@ -1,7 +1,7 @@
 import torch
 import argparse
 from typing import Optional
-from ref.features.feature_utils import get_pretrained_model, smart_batch_processor
+from ref.features.feature_utils import get_pretrained_model, dynamic_batch_extractor
 from ref.datasets.dataset_utils import get_dataset
 from config.features import feature_config as fc
 
@@ -28,8 +28,6 @@ def extract_features(
     if not device:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    feature_config = fc[feature]
-
     extractor = get_pretrained_model(feature)
     extractor.to(device)
 
@@ -40,10 +38,10 @@ def extract_features(
         download=download_dataset,
     )
 
-    smart_batch_processor(
+    dynamic_batch_extractor(
         dataset=dataset,
         extractor=extractor,
-        item_len=feature_config["item_len"],
+        item_len=fc[feature]["item_len"],
         batch_size=batch_size,
     )
 
