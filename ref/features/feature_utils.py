@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from tqdm import tqdm
+from torch.utils.data import Sampler
 
 
 def get_pretrained_model(model_name: str):
@@ -20,7 +21,7 @@ def get_pretrained_model(model_name: str):
     return model
 
 
-def smart_batch_processor(
+def dynamic_batch_extractor(
     dataset,
     extractor,
     item_len: int,
@@ -105,3 +106,64 @@ def smart_batch_processor(
         save_or_append(embeddings, batch_paths)
 
     pbar.close()
+
+
+class DynamicBatchSampler(Sampler):
+    """
+    Dynamic batch sampler for variable length items.
+
+    Unlike the dynamic_batch_extractor, it doesn't rely on
+    saving and identifying saved features for deciding
+    how to batch items, so it can be used for training.
+    However, it also needs to load the whole dataset once
+    at the start to determine the total length.
+
+    Args:
+        dataset: PyTorch dataset that returns [audio, label].
+        batch_size: Batch size.
+    """
+    def __init__(self, dataset, batch_size):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.item_lengths = [len(item[0]) for item in dataset]
+
+    def __iter__(self):
+        current_batch = []
+        current_length = 0
+        indices = np.random.permutation(len(self.dataset))
+
+        for idx in indices:
+            item_length = self.item_lengths[idx]
+            if current_length + item_length > self.batch_size:
+                yield current_batch
+                current_batch = [idx]
+                current_length = item_length
+            else:
+                current_batch.append(idx)
+                current_length += item_length
+
+        if current_batch:
+            yield current_batch
+
+    def __len__(self):
+        return (sum(self.item_lengths) + self.batch_size - 1) // self.batch_size
+
+
+def collate_packed_batch(batch):
+    """
+    Collate a batch of variable length items into a packed sequence.
+    """
+    sequences = []
+    labels = []
+    # offsets = [0]
+
+    for seq, label in batch:
+        sequences.append(seq)
+        labels.append(label)
+        # offsets.append(offsets[-1] + len(seq))
+
+    packed_sequences = torch.cat(sequences)
+    packed_labels = torch.tensor(labels)
+    # offsets = torch.tensor(offsets[:-1])
+
+    return packed_sequences, packed_labels
