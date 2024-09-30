@@ -1,14 +1,10 @@
 import torch.nn as nn
-from typing import List, Optional
+from typing import Any
+
 
 def get_probe(
-    model_type: str,
-    in_features: int,
-    n_outputs: int,
-    hidden_units: Optional[List[int]] = None,
-    weight_decay: float = 0,
-    output_activation: str = "softmax"
-):
+    model_type: str, in_features: int, n_outputs: int, **kwargs: Any
+) -> nn.Module:
     """
     Factory function to create and return a model based on the specified type.
 
@@ -28,27 +24,24 @@ def get_probe(
         ValueError: If an unsupported model type is specified.
     """
     if model_type == "classifier":
-        return Classifier(
-            in_features, n_outputs, hidden_units, weight_decay, output_activation
-        )
+        return Classifier(in_features, n_outputs, **kwargs)
     elif model_type == "regressor":
-        return Regressor(
-            in_features, n_outputs, hidden_units, weight_decay, output_activation
-        )
+        return Regressor(in_features, n_outputs, **kwargs)
     else:
         raise ValueError(f"Model type '{model_type}' not supported.")
 
+
 class Classifier(nn.Module):
     """Customizable NN classifier."""
-    def __init__(
-        self, in_features, n_classes, hidden_units, weight_decay, output_activation
-    ):
+
+    def __init__(self, in_features, n_classes, **kwargs):
         super(Classifier, self).__init__()
+
         self.in_features = in_features
         self.n_classes = n_classes
-        self.hidden_units = hidden_units
-        self.weight_decay = weight_decay
-        self.output_activation = output_activation
+        self.hidden_units = kwargs.get("hidden_units", [])
+        self.weight_decay = kwargs.get("weight_decay", 0.0)
+        self.output_activation = kwargs.get("output_activation", None)
 
         self.layers = nn.ModuleList()
         self.build_layers()
@@ -58,7 +51,7 @@ class Classifier(nn.Module):
         layer_sizes = [self.in_features] + (self.hidden_units or []) + [self.n_classes]
 
         for i in range(len(layer_sizes) - 1):
-            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
+            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
             if i < len(layer_sizes) - 2:
                 self.layers.append(nn.ReLU())
 
@@ -77,15 +70,14 @@ class Classifier(nn.Module):
 class Regressor(nn.Module):
     """Customizable NN regressor."""
 
-    def __init__(
-        self, in_features, n_outputs, hidden_units, weight_decay, output_activation
-    ):
+    def __init__(self, in_features, n_outputs, **kwargs):
         super(Regressor, self).__init__()
+
         self.in_features = in_features
         self.n_outputs = n_outputs
-        self.hidden_units = hidden_units
-        self.weight_decay = weight_decay
-        self.output_activation = output_activation
+        self.hidden_units = kwargs.get("hidden_units", [])
+        self.weight_decay = kwargs.get("weight_decay", 0.0)
+        self.output_activation = kwargs.get("output_activation", None)
 
         self.layers = nn.ModuleList()
         self.build_layers()
@@ -95,7 +87,7 @@ class Regressor(nn.Module):
         layer_sizes = [self.in_features] + (self.hidden_units or []) + [self.n_outputs]
 
         for i in range(len(layer_sizes) - 1):
-            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i+1]))
+            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
             if i < len(layer_sizes) - 2:
                 self.layers.append(nn.ReLU())
 
