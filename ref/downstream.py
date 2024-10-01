@@ -87,10 +87,10 @@ def train(
         model_type=tc[task]["model"]["type"],
         in_feaures=len(train_dataset[0][0][0]),
         n_outputs=len(train_dataset[0][1]),
-        **tc[task],
+        **tc[task]["model"]["params"],
     ).to(device)
-    criterion = tc[task]["criterion"]
-    optimizer_class = tc[task]["optimizer"]["class"]
+    criterion = tc[task]["trainin"]["criterion"]
+    optimizer_class = tc[task]["training"]["optimizer"]["class"]
     optimizer = optimizer_class(model.parameters(), **tc[task]["optimizer"]["params"])
 
     # train and validation loop

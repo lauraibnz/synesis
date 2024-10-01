@@ -9,7 +9,7 @@ task_config = {
             "params": {"hidden_units": [512, 256]},
         },
         "training": {
-            "loss": nn.BCEWithLogitsLoss,
+            "criterion": nn.BCEWithLogitsLoss,
             "optimizer": {
                 "class": Adam,
                 "params": {"lr": 0.001, "weight_decay": 0.01}
@@ -30,7 +30,7 @@ task_config = {
             "params": {"hidden_units": [512, 256]},
         },
         "training": {
-            "loss": nn.CrossEntropyLoss,
+            "criterion": nn.CrossEntropyLoss,
             "optimizer": {
                 "class": Adam,
                 "params": {"lr": 0.001, "weight_decay": 0.01}
@@ -51,7 +51,7 @@ task_config = {
             "params": {"hidden_units": [512, 256]},
         },
         "training": {
-            "loss": nn.CrossEntropyLoss,
+            "criterion": nn.CrossEntropyLoss,
             "optimizer": {
                 "class": Adam,
                 "params": {"lr": 0.001, "weight_decay": 0.01}
