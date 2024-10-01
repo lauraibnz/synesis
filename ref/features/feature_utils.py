@@ -122,6 +122,7 @@ class DynamicBatchSampler(Sampler):
         dataset: PyTorch dataset that returns [audio, label].
         batch_size: Batch size.
     """
+
     def __init__(self, dataset, batch_size):
         self.dataset = dataset
         self.batch_size = batch_size

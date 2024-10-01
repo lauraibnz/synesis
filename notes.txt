@@ -1,3 +1,10 @@
+Downstream
+===>[ ] Task template/config?
+    [ ] Build logic
+    [ ] Implement training from audio
+    [ ] Test DynamicBatchSampler
+        [ ] Can it be shuffled?
+
 Datasets
     [ ] Implement MTG Jamendo
     [ ] Implement MTAT

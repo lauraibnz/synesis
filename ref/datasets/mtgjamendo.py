@@ -39,6 +39,8 @@ class MTGJamendo(Dataset):
             feature_config: Configuration for the feature extractor.
             seed: Random seed for reproducibility.
         """
+        self.tasks = ["tagging"]
+
         root = Path(root)
         self.root = root
         if subset not in [None, "top50tags", "genre", "instrument", "moodtheme"]:
