@@ -4,6 +4,7 @@ import argparse
 from typing import Optional
 
 import torch
+from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -12,6 +13,7 @@ from ref.datasets.dataset_utils import get_dataset
 from ref.features.feature_utils import DynamicBatchSampler, collate_packed_batch
 from ref.probes import get_probe
 from ref.utils import deep_update
+from metrics import instantiate_metrics
 
 
 def train(
@@ -77,7 +79,8 @@ def train(
         )
     else:
         sampler = DynamicBatchSampler(
-            dataset=val_dataset, batch_size=tc[task]["evaluation"]["batch_size"])
+            dataset=val_dataset, batch_size=tc[task]["evaluation"]["batch_size"]
+        )
         val_dataloader = DataLoader(
             val_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
         )
@@ -93,8 +96,13 @@ def train(
     optimizer_class = tc[task]["training"]["optimizer"]["class"]
     optimizer = optimizer_class(model.parameters(), **tc[task]["optimizer"]["params"])
 
+    val_metrics = instantiate_metrics(
+        metric_configs=tc[task]["evaluation"]["metrics"],
+        num_classes=(train_dataset[0][1]),
+    )
+
     # train and validation loop
-    best_val_loss = float('inf')
+    best_val_loss = float("inf")
     epochs_without_improvement = 0
     best_model_state = None
     num_epochs = tc[task]["training"]["num_epochs"]
@@ -117,10 +125,12 @@ def train(
             total_loss += loss.item()
             avg_loss = total_loss / (progress_bar.n + 1)
 
-            progress_bar.set_postfix({'loss': f'{avg_loss:.4f}'})
+            progress_bar.set_postfix({"loss": f"{avg_loss:.4f}"})
 
         model.eval()
         val_loss = 0
+        val_outputs = []
+        val_targets = []
         with torch.no_grad():
             for val_item, val_target in val_dataloader:
                 val_item = val_item.to(device)
@@ -128,12 +138,27 @@ def train(
                 val_output = model(val_item)
                 val_loss += criterion(val_output, val_target).item()
 
+                # Store outputs and targets for metric calculation
+                val_outputs.append(val_output)
+                val_targets.append(val_target)
+
+        # Concatenate all outputs and targets
+        val_outputs = torch.cat(val_outputs, dim=0)
+        val_targets = torch.cat(val_targets, dim=0)
+
+        # Calculate metrics
+        val_metric_results = {}
+        for metric_cfg, metric in zip(tc[task]["evaluation"]["metrics"], val_metrics):
+            val_metric_results[metric_cfg["name"]] = metric(val_outputs, val_targets)
+
         avg_val_loss = val_loss / len(val_dataloader)
         print(
             f"Epoch {epoch+1}/{num_epochs} -",
             f"Avg train loss: {avg_loss:.4f},",
-            f"Avg val loss: {avg_val_loss:.4f}"
+            f"Avg val loss: {avg_val_loss:.4f}",
         )
+        for name, value in val_metric_results.items():
+            print(f"{name}: {value:.4f}")
 
         # Check if the validation loss improved
         if avg_val_loss < best_val_loss:
@@ -151,11 +176,97 @@ def train(
     # Load the best model state
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
-        print(f"Best model with validation loss {best_val_loss:.4f} has been loaded")
 
-    return model, best_val_loss
+    return model
 
 
+def evaluate(
+    model: nn.Module,
+    feature: str,
+    dataset: str,
+    task: str,
+    task_config: Optional[dict] = None,
+    device: Optional[str] = None,
+):
+    """
+    Evaluate a given trained downstream model.
+
+    Args:
+        model: Trained downstream model.
+        feature: Name of the feature/embedding model.
+        dataset: Name of the dataset.
+        task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
+        device: Device to use for evaluation (defaults to "cuda" if available).
+    """
+
+    if task_config:
+        tc[task] = deep_update(tc[task], task_config)
+
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    test_dataset = get_dataset(
+        name=dataset,
+        feature=feature,
+        split="test",
+        download=False,
+    )
+
+    assert task in test_dataset.tasks
+
+    metrics = instantiate_metrics(
+        metric_configs=tc[task]["evaluation"]["metrics"],
+        num_classes=len(test_dataset[0][1]),
+    )
+
+    if tc[task]["evaluation"]["feature_aggregation"]:
+        dataloader = DataLoader(
+            test_dataset,
+            batch_size=tc[task]["evaluation"]["batch_size"],
+            shuffle=False,
+        )
+    else:
+        sampler = DynamicBatchSampler(
+            dataset=test_dataset, batch_size=tc[task]["evaluation"]["batch_size"]
+        )
+        dataloader = DataLoader(
+            test_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
+        )
+
+    model.eval()
+    total_loss = 0
+    test_outputs = []
+    test_targets = []
+    criterion = tc[task]["evaluation"]["criterion"]()
+
+    with torch.no_grad():
+        for item, target in dataloader:
+            item = item.to(device)
+            target = target.to(device)
+            output = model(item)
+            total_loss += criterion(output, target).item()
+
+            # Store outputs and targets for metric calculation
+            test_outputs.append(output)
+            test_targets.append(target)
+
+    # Concatenate all outputs and targets
+    test_outputs = torch.cat(test_outputs, dim=0)
+    test_targets = torch.cat(test_targets, dim=0)
+
+    # Calculate metrics
+    test_metric_results = {}
+    for metric_cfg, metric in zip(tc[task]["evaluation"]["metrics"], metrics):
+        test_metric_results[metric_cfg["name"]] = metric(test_outputs, test_targets)
+
+    avg_loss = total_loss / len(dataloader)
+    print(f"Avg test loss: {avg_loss:.4f}")
+
+    for name, value in test_metric_results.items():
+        print(f"{name}: {value:.4f}")
+
+    return test_metric_results
 
 
 if __name__ == "__main__":
@@ -186,4 +297,21 @@ if __name__ == "__main__":
         type=str,
         required=False,
         help="Device to use for training.",
+    )
+
+    args = parser.parse_args()
+
+    model = train(
+        feature=args.feature,
+        dataset=args.dataset,
+        task=args.task,
+        device=args.device,
+    )
+
+    results = evaluate(
+        model=model,
+        feature=args.feature,
+        dataset=args.dataset,
+        task=args.task,
+        device=args.device,
     )

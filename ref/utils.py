@@ -1,5 +1,6 @@
 """General utility functions."""
 
+
 def deep_update(d, u):
     """
     Recursively update a dict with another (that potentially

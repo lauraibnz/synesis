@@ -1,5 +1,6 @@
 from torch import nn
 from torch.optim import Adam
+from torchmetrics import AUROC, AveragePrecision, Accuracy, F1Score
 
 
 task_config = {
@@ -10,18 +11,23 @@ task_config = {
         },
         "training": {
             "criterion": nn.BCEWithLogitsLoss,
-            "optimizer": {
-                "class": Adam,
-                "params": {"lr": 0.001, "weight_decay": 0.01}
-            },
+            "optimizer": {"class": Adam, "params": {"lr": 0.001, "weight_decay": 0.01}},
             "batch_size": 32,
             "num_epochs": 100,
             "patience": 10,
-            "feautre_aggregation": True
+            "feature_aggregation": True,
         },
         "evaluation": {
             "feature_aggregation": True,
             "batch_size": 32,
+            "metrics": [
+                {"name": "AUC_ROC", "class": AUROC, "params": {"task": "multilabel"}},
+                {
+                    "name": "AP",
+                    "class": AveragePrecision,
+                    "params": {"task": "multilabel"},
+                },
+            ],
         },
     },
     "pitch_class_classification": {
@@ -31,10 +37,7 @@ task_config = {
         },
         "training": {
             "criterion": nn.CrossEntropyLoss,
-            "optimizer": {
-                "class": Adam,
-                "params": {"lr": 0.001, "weight_decay": 0.01}
-            },
+            "optimizer": {"class": Adam, "params": {"lr": 0.001, "weight_decay": 0.01}},
             "batch_size": 32,
             "num_epochs": 100,
             "patience": 10,
@@ -43,6 +46,22 @@ task_config = {
         "evaluation": {
             "feature_aggregation": True,
             "batch_size": 32,
+            "metrics": [
+                {
+                    "name": "Accuracy",
+                    "class": Accuracy,
+                    "params": {
+                        "task": "multiclass",
+                    },
+                },
+                {
+                    "name": "F1",
+                    "class": F1Score,
+                    "params": {
+                        "task": "multiclass",
+                    },
+                },
+            ],
         },
     },
     "instrument_classification": {
@@ -52,10 +71,7 @@ task_config = {
         },
         "training": {
             "criterion": nn.CrossEntropyLoss,
-            "optimizer": {
-                "class": Adam,
-                "params": {"lr": 0.001, "weight_decay": 0.01}
-            },
+            "optimizer": {"class": Adam, "params": {"lr": 0.001, "weight_decay": 0.01}},
             "batch_size": 32,
             "num_epochs": 100,
             "patience": 10,
@@ -64,6 +80,22 @@ task_config = {
         "evaluation": {
             "feature_aggregation": True,
             "batch_size": 32,
+            "metrics": [
+                {
+                    "name": "Accuracy",
+                    "class": Accuracy,
+                    "params": {
+                        "task": "multiclass",
+                    },
+                },
+                {
+                    "name": "F1",
+                    "class": F1Score,
+                    "params": {
+                        "task": "multiclass",
+                    },
+                },
+            ],
         },
     },
 }
