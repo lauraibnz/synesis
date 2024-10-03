@@ -1,21 +1,18 @@
-Downstream
-===>[ ] Task template/config?
-    [ ] Build logic
-    [ ] Implement training from audio
+Test
+    [ ] MTAT
+    [ ] MTG Jamendo
+    [ ] Feature extraction
+    [ ] Downstream - full
+    [ ] Downstream - aggregated
     [ ] Test DynamicBatchSampler
         [ ] Can it be shuffled?
 
+Logging
+    [ ] Implement wandb
+
 Datasets
-    [ ] Implement MTG Jamendo
-    [ ] Implement MTAT
     [ ] Implement TinySOL
     [ ] Implement Beatport
-    [ ] Unify implementations
-        - pretrain vs finetune
-        - train vs validation vs test
-        - embedding paths
-Dataloaders
-    [ ] item and track logic
 
 Non-music Datasets
     [ ] Search for a few representative Datasets

@@ -4,22 +4,27 @@ import argparse
 from typing import Optional
 
 import torch
+from metrics import instantiate_metrics
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config.tasks import task_config as tc
 from ref.datasets.dataset_utils import get_dataset
-from ref.features.feature_utils import DynamicBatchSampler, collate_packed_batch
+from ref.features.feature_utils import (
+    DynamicBatchSampler,
+    collate_packed_batch,
+    get_pretrained_model,
+)
 from ref.probes import get_probe
 from ref.utils import deep_update
-from metrics import instantiate_metrics
 
 
 def train(
     feature: str,
     dataset: str,
     task: str,
+    item_format: str = "feature",
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
@@ -31,6 +36,9 @@ def train(
                  are already generated)
         dataset: Name of the dataset.
         task: Name of the downstream task (needs to be supported by dataset).
+        item_format: Format of the input data: ["audio", "feature"].
+                     Defaults to "feature". If audio, feature is
+                     extracted on-the-fly.
         task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
     """
@@ -85,6 +93,11 @@ def train(
             val_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
         )
 
+    # if audio is being returned from dataset, extract features on-the-fly
+    if item_format == "audio":
+        extractor = get_pretrained_model(feature)
+        extractor.to(device)
+
     # train setup
     model = get_probe(
         model_type=tc[task]["model"]["type"],
@@ -116,6 +129,11 @@ def train(
         for item, target in progress_bar:
             item = item.to(device)
             target = target.to(device)
+
+            if item_format == "audio":
+                with torch.no_grad():
+                    item = extractor(item)
+
             optimizer.zero_grad()
             output = model(item)
             loss = criterion(output, target)
@@ -185,6 +203,7 @@ def evaluate(
     feature: str,
     dataset: str,
     task: str,
+    item_format: str = "feature",
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
@@ -196,6 +215,9 @@ def evaluate(
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         task: Name of the downstream task.
+        item_format: Format of the input data: ["audio", "feature"].
+                     Defaults to "feature". If audio, feature is
+                     extracted on-the-fly.
         task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
     """
@@ -234,6 +256,11 @@ def evaluate(
             test_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
         )
 
+    # if audio is being returned from dataset, extract features on-the-fly
+    if item_format == "audio":
+        extractor = get_pretrained_model(feature)
+        extractor.to(device)
+
     model.eval()
     total_loss = 0
     test_outputs = []
@@ -244,6 +271,11 @@ def evaluate(
         for item, target in dataloader:
             item = item.to(device)
             target = target.to(device)
+
+            if item_format == "audio":
+                with torch.no_grad():
+                    item = extractor(item)
+
             output = model(item)
             total_loss += criterion(output, target).item()
 
