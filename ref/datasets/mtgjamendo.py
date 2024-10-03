@@ -22,6 +22,7 @@ class MTGJamendo(Dataset):
         split: Optional[str] = None,
         download: bool = False,
         feature_config: Optional[dict] = None,
+        item_format: str = "feature",
         seed: int = 42,
     ) -> None:
         """
@@ -37,6 +38,7 @@ class MTGJamendo(Dataset):
                      None uses the full dataset (e.g. for feature extraction).
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
+            item_format: Format of the items to return: ["audio", "feature"].
             seed: Random seed for reproducibility.
         """
         self.tasks = ["tagging"]
@@ -55,6 +57,7 @@ class MTGJamendo(Dataset):
             )
         self.subset = subset
         self.split = split
+        self.item_format = item_format
 
         if download:
             self._download()
@@ -112,8 +115,7 @@ class MTGJamendo(Dataset):
         relative_paths = [
             line.split("\t")[3][:-4].strip() for line in metadata[1:] if line
         ]
-        if not self.split:
-            # pretrain mode, so loading audio
+        if self.item_format == "audio":
             audio_format = self.feature_config["audio_format"]
             paths = [
                 self.root / audio_format / f"{rel_path}.{audio_format}"
@@ -150,12 +152,9 @@ class MTGJamendo(Dataset):
         return paths, encoded_labels
 
     def load_track(self, path) -> Tensor:
-        if self.split:
-            # if split is specified, dataset is used for downstream task,
-            # thus load features
+        if self.item_format == "feature":
             return torch.load(path, weights_only=True)
         else:
-            # if split is None, dataset is used for pretraining, thus load audio
             waveform, original_sample_rate = torchaudio.load(path, normalize=True)
             if waveform.size(0) != 1:  # make mono if stereo (or more)
                 waveform = waveform.mean(dim=0, keepdim=True)

@@ -21,7 +21,7 @@ class MagnaTagATune(Dataset):
         split: Optional[str] = None,
         download: bool = False,
         feature_config: Optional[dict] = None,
-        item_format: str = "audio",
+        item_format: str = "feature",
         seed: int = 42,
     ) -> None:
         """MagnaTagATune dataset implementation.
@@ -34,6 +34,7 @@ class MagnaTagATune(Dataset):
                      None uses the full dataset (e.g. for feature extraction).
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
+            item_format: Format of the items to return: ["audio", "feature"].
             seed: Random seed for reproducibility.
         """
         self.tasks = ["tagging"]
@@ -171,7 +172,7 @@ class MagnaTagATune(Dataset):
             ]
             self.labels = np.array(self.labels)
 
-        if not self.split:
+        if self.item_format == "audio":
             return self.audio_paths, self.labels
 
         # load splits
@@ -202,12 +203,9 @@ class MagnaTagATune(Dataset):
         return feature_paths, self.labels
 
         def load_track(self, path) -> Tensor:
-            if self.split:
-                # if split is specified, dataset is used for downstream task,
-                # thus load features
+            if self.item_format == "feature":
                 return torch.load(path, weights_only=True)
             else:
-                # if split is None, dataset is used for pretraining, thus load audio
                 waveform, original_sample_rate = torchaudio.load(path, normalize=True)
                 if waveform.size(0) != 1:  # make mono if stereo (or more)
                     waveform = waveform.mean(dim=0, keepdim=True)
