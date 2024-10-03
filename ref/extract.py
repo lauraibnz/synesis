@@ -34,6 +34,7 @@ def extract_features(
     dataset = get_dataset(
         name=dataset,
         feature=feature,
+        item_format="audio",
         split=None,  # Use full dataset for feature extraction
         download=download_dataset,
     )
