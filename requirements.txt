@@ -1,2 +1,8 @@
 ruff
 pre-commit
+torch
+torchaudio
+scikit-learn
+wget
+tqdm
+pytest
