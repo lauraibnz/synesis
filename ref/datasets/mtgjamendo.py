@@ -10,7 +10,7 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 from config.features import feature_config as fc
-from ref.datasets.dataset_utils import download_github_dir, download_github_file
+from ref.utils import download_github_dir, download_github_file
 
 
 class MTGJamendo(Dataset):
