@@ -6,3 +6,4 @@ scikit-learn
 wget
 tqdm
 pytest
+requests
