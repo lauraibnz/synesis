@@ -57,7 +57,7 @@ class MTGJamendo(Dataset):
             )
         self.subset = subset
         self.split = split
-        self.item_format = item_format
+        self.feature = feature
 
         if download:
             self._download()
@@ -78,6 +78,7 @@ class MTGJamendo(Dataset):
         if not feature_config:
             # load default feature config
             feature_config = fc[feature]
+        self.feature_config = feature_config
 
         self.mlb = MultiLabelBinarizer()
 

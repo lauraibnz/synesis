@@ -12,6 +12,8 @@ from torch import Tensor
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from config.features import feature_config as fc
+
 
 class MagnaTagATune(Dataset):
     def __init__(
@@ -47,6 +49,12 @@ class MagnaTagATune(Dataset):
             )
         self.split = split
         self.item_format = item_format
+        self.feature = feature
+
+        if not feature_config:
+            # load default feature config
+            feature_config = fc[feature]
+        self.feature_config = feature_config
 
         if download:
             self._download()
@@ -67,19 +75,18 @@ class MagnaTagATune(Dataset):
             )
             self.download_metadata()
             return
-        (Path(self.root) / "audio").mkdir(parents=True, exist_ok=True)
+        (Path(self.root) / "mp3").mkdir(parents=True, exist_ok=True)
 
         print(f"Downloading MagnaTagATune to {self.root}...")
         for i in tqdm(["001", "002", "003"]):
             wget.download(
                 url=f"https://mirg.city.ac.uk/datasets/magnatagatune/mp3.zip.{i}",
-                out=os.path.join(self.root, "audio/"),
+                out=str(Path(self.root) / "mp3"),
             )
 
-        archive_dir = os.path.join(self.root, "mp3")
-
+        archive_dir = Path(self.root) / "mp3"
         # Combine the split archive files into a single file
-        with open(os.path.join(archive_dir, "mp3.zip"), "wb") as f:
+        with open(archive_dir / "mp3.zip", "wb") as f:
             for i in ["001", "002", "003"]:
                 with open(
                     os.path.join(archive_dir, f"mp3.zip.{i}"),
@@ -88,8 +95,8 @@ class MagnaTagATune(Dataset):
                     f.write(part.read())
 
         # Extract the contents of the archive
-        with zipfile.ZipFile(os.path.join(archive_dir, "mp3.zip"), "r") as zip_ref:
-            zip_ref.extractall()
+        with zipfile.ZipFile(archive_dir / "mp3.zip", "r") as zip_ref:
+            zip_ref.extractall(path=archive_dir)
 
         # Remove zips
         for i in ["", ".001", ".002", ".003"]:
@@ -127,7 +134,7 @@ class MagnaTagATune(Dataset):
     def _load_metadata(self) -> Tuple[list, np.ndarray]:
         # load track ids
         with open(
-            os.path.join(self.data_dir, "metadata", "annotations_final.csv"), "r"
+            os.path.join(self.root, "metadata", "annotations_final.csv"), "r"
         ) as f:
             annotations = csv.reader(f, delimiter="\t")
             next(annotations)  # skip header
@@ -144,7 +151,7 @@ class MagnaTagATune(Dataset):
             annotations = csv.reader(f, delimiter="\t")
             next(annotations)  # skip header
             self.audio_paths = [
-                os.path.join(self.root, "audio", line[-1])
+                os.path.join(self.root, "mp3", line[-1])
                 for line in annotations
                 # remove some corrupted files
                 if line[0] not in ["35644", "55753", "57881"]
