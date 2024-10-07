@@ -22,6 +22,7 @@ class MTGJamendo(Dataset):
         split: Optional[str] = None,
         download: bool = False,
         feature_config: Optional[dict] = None,
+        audio_format: str = "mp3",
         item_format: str = "feature",
         seed: int = 42,
     ) -> None:
@@ -38,6 +39,7 @@ class MTGJamendo(Dataset):
                      None uses the full dataset (e.g. for feature extraction).
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
+            audio_format: Format of the audio files: ["mp3", "wav", "ogg"].
             item_format: Format of the items to return: ["audio", "feature"].
             seed: Random seed for reproducibility.
         """
@@ -58,6 +60,8 @@ class MTGJamendo(Dataset):
         self.subset = subset
         self.split = split
         self.feature = feature
+        self.item_format = item_format
+        self.audio_format = audio_format
 
         if download:
             self._download()
@@ -117,9 +121,8 @@ class MTGJamendo(Dataset):
             line.split("\t")[3][:-4].strip() for line in metadata[1:] if line
         ]
         if self.item_format == "audio":
-            audio_format = self.feature_config["audio_format"]
             paths = [
-                self.root / audio_format / f"{rel_path}.{audio_format}"
+                self.root / self.audio_format / f"{rel_path}.{self.audio_format}"
                 for rel_path in relative_paths
             ]
         else:

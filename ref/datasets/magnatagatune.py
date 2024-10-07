@@ -24,6 +24,7 @@ class MagnaTagATune(Dataset):
         split: Optional[str] = None,
         download: bool = False,
         feature_config: Optional[dict] = None,
+        audio_format: str = "mp3",
         item_format: str = "feature",
         seed: int = 42,
     ) -> None:
@@ -37,6 +38,7 @@ class MagnaTagATune(Dataset):
                      None uses the full dataset (e.g. for feature extraction).
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
+            audio_format: Format of the audio files: ["mp3", "wav", "ogg"].
             item_format: Format of the items to return: ["audio", "feature"].
             seed: Random seed for reproducibility.
         """
@@ -50,6 +52,7 @@ class MagnaTagATune(Dataset):
             )
         self.split = split
         self.item_format = item_format
+        self.audio_format = audio_format
         self.feature = feature
         self.mlb = MultiLabelBinarizer()
 
@@ -189,27 +192,28 @@ class MagnaTagATune(Dataset):
             return self.audio_paths, self.labels
 
         # load splits
-        relative_paths_in_split = np.load(
-            os.path.join(self.root, "metadata", f"{self.split}.npy")
-        )
-        # clean up
-        relative_paths_in_split = [rp.split("\t")[1] for rp in relative_paths_in_split]
+        if self.split:
+            relative_paths_in_split = np.load(
+                os.path.join(self.root, "metadata", f"{self.split}.npy")
+            )
+            # clean up
+            relative_paths_in_split = [
+                rp.split("\t")[1] for rp in relative_paths_in_split
+            ]
 
-        # get the indices of the tracks in the split
-        indices = [
-            i
-            for i, path in enumerate(self.audio_paths)
-            if path in relative_paths_in_split
-        ]
+            # get the indices of the tracks in the split
+            indices = [
+                i
+                for i, path in enumerate(self.audio_paths)
+                if path in relative_paths_in_split
+            ]
 
-        # keep these indices in path and labels
-        self.audio_paths = [self.audio_paths[i] for i in indices]
-        self.labels = self.labels[indices]
+            # keep these indices in path and labels
+            self.audio_paths = [self.audio_paths[i] for i in indices]
+            self.labels = self.labels[indices]
 
         feature_paths = [
-            path.replace(f".{self.feature_config['audio_format']}", ".pt").replace(
-                "mp3", self.feature
-            )
+            path.replace(f".{self.audio_format}", ".pt").replace("mp3", self.feature)
             for path in self.audio_paths
         ]
 
