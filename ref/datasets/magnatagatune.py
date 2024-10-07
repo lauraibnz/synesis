@@ -64,7 +64,7 @@ class MagnaTagATune(Dataset):
         if download:
             self._download()
 
-        self._load_metadata()
+        self.paths, self.labels = self._load_metadata()
 
     def _download(self) -> None:
         # make data dir if it doesn't exist or if it exists but is empty
@@ -186,10 +186,10 @@ class MagnaTagATune(Dataset):
         encoded_labels = self.mlb.fit(labels)
         encoded_labels = self.mlb.transform(labels)
 
-        self.labels = np.array(encoded_labels)
+        labels = np.array(encoded_labels)
 
         if self.item_format == "audio":
-            return self.audio_paths, self.labels
+            return self.audio_paths, labels
 
         # load splits
         if self.split:
@@ -210,36 +210,36 @@ class MagnaTagATune(Dataset):
 
             # keep these indices in path and labels
             self.audio_paths = [self.audio_paths[i] for i in indices]
-            self.labels = self.labels[indices]
+            labels = labels[indices]
 
         feature_paths = [
             path.replace(f".{self.audio_format}", ".pt").replace("mp3", self.feature)
             for path in self.audio_paths
         ]
 
-        return feature_paths, self.labels
+        return feature_paths, labels
 
-        def load_track(self, path) -> Tensor:
-            if self.item_format == "feature":
-                return torch.load(path, weights_only=True)
-            else:
-                waveform, original_sample_rate = torchaudio.load(path, normalize=True)
-                if waveform.size(0) != 1:  # make mono if stereo (or more)
-                    waveform = waveform.mean(dim=0, keepdim=True)
-                if original_sample_rate != self.sample_rate:
-                    resampler = torchaudio.transforms.Resample(
-                        orig_freq=original_sample_rate, new_freq=self.sample_rate
-                    )
-                    waveform = resampler(waveform)
-                return waveform
+    def load_track(self, path) -> Tensor:
+        if self.item_format == "feature":
+            return torch.load(path, weights_only=True)
+        else:
+            waveform, original_sample_rate = torchaudio.load(path, normalize=True)
+            if waveform.size(0) != 1:  # make mono if stereo (or more)
+                waveform = waveform.mean(dim=0, keepdim=True)
+            if original_sample_rate != self.sample_rate:
+                resampler = torchaudio.transforms.Resample(
+                    orig_freq=original_sample_rate, new_freq=self.sample_rate
+                )
+                waveform = resampler(waveform)
+            return waveform
 
-        def __len__(self) -> int:
-            return len(self.paths)
+    def __len__(self) -> int:
+        return len(self.paths)
 
-        def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
-            path = self.paths[idx]
-            label = self.labels[idx]
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
+        path = self.paths[idx]
+        label = self.labels[idx]
 
-            track = self.load_track(path)
+        track = self.load_track(path)
 
-            return track, label
+        return track, label
