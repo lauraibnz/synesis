@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torchaudio
 import wget
+from sklearn.preprocessing import MultiLabelBinarizer
 from torch import Tensor
 from torch.utils.data import Dataset
 from tqdm import tqdm
@@ -50,6 +51,7 @@ class MagnaTagATune(Dataset):
         self.split = split
         self.item_format = item_format
         self.feature = feature
+        self.mlb = MultiLabelBinarizer()
 
         if not feature_config:
             # load default feature config
@@ -166,7 +168,7 @@ class MagnaTagATune(Dataset):
         ) as f:
             annotations = csv.reader(f, delimiter="\t")
             annotations_header = next(annotations)
-            self.labels = [
+            labels = [
                 [
                     annotations_header[j]
                     for j in range(1, len(line) - 1)
@@ -177,7 +179,11 @@ class MagnaTagATune(Dataset):
                 # remove some corrupted files
                 if line[0] not in ["35644", "55753", "57881"]
             ]
-            self.labels = np.array(self.labels)
+        # encode labels
+        encoded_labels = self.mlb.fit(labels)
+        encoded_labels = self.mlb.transform(labels)
+
+        self.labels = np.array(encoded_labels)
 
         if self.item_format == "audio":
             return self.audio_paths, self.labels
