@@ -8,7 +8,7 @@ from torch.utils.data import Sampler
 
 def get_pretrained_model(model_name: str):
     match model_name:
-        case "vggish-mtat":
+        case "vggish_mtat":
             from ref.features.vggish import VGGish
 
             model = VGGish()
