@@ -34,8 +34,8 @@ class MagnaTagATune(Dataset):
             feature: If split is None, prepare dataset for this feature extractor.
                      If split is not None, load these extracted features.
             root: Root directory of the dataset. Defaults to "data/MagnaTagATune".
-            split: Split of the dataset to use: ["train", "test", "val", None], where
-                     None uses the full dataset (e.g. for feature extraction).
+            split: Split of the dataset to use: ["train", "test", "validation", None],
+                     where None uses the full dataset (e.g. for feature extraction).
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
             audio_format: Format of the audio files: ["mp3", "wav", "ogg"].
@@ -46,9 +46,10 @@ class MagnaTagATune(Dataset):
 
         root = Path(root)
         self.root = root
-        if split not in [None, "train", "test", "val"]:
+        if split not in [None, "train", "test", "validation"]:
             raise ValueError(
-                f"Invalid split: {split} " + "Options: None, 'train', 'test', 'val'"
+                f"Invalid split: {split} "
+                + "Options: None, 'train', 'test', 'validation'"
             )
         self.split = split
         self.item_format = item_format
@@ -155,7 +156,7 @@ class MagnaTagATune(Dataset):
         ) as f:
             annotations = csv.reader(f, delimiter="\t")
             next(annotations)  # skip header
-            self.audio_paths = [
+            audio_paths = [
                 os.path.join(self.root, "mp3", line[-1])
                 for line in annotations
                 # remove some corrupted files
@@ -188,13 +189,14 @@ class MagnaTagATune(Dataset):
 
         labels = np.array(encoded_labels)
 
-        if self.item_format == "audio":
-            return self.audio_paths, labels
-
         # load splits
         if self.split:
             relative_paths_in_split = np.load(
-                os.path.join(self.root, "metadata", f"{self.split}.npy")
+                os.path.join(
+                    self.root,
+                    "metadata",
+                    "valid.npy" if self.split == "validation" else f"{self.split}.npy",
+                )
             )
             # clean up
             relative_paths_in_split = [
@@ -204,17 +206,22 @@ class MagnaTagATune(Dataset):
             # get the indices of the tracks in the split
             indices = [
                 i
-                for i, path in enumerate(self.audio_paths)
-                if path in relative_paths_in_split
+                for i, path in enumerate(audio_paths)
+                # I just want the name and its parent :')
+                if str(Path(Path(path).parent.name) / Path(path).name)
+                in relative_paths_in_split
             ]
 
             # keep these indices in path and labels
-            self.audio_paths = [self.audio_paths[i] for i in indices]
+            audio_paths = [audio_paths[i] for i in indices]
             labels = labels[indices]
+
+        if self.item_format == "audio":
+            return audio_paths, labels
 
         feature_paths = [
             path.replace(f".{self.audio_format}", ".pt").replace("mp3", self.feature)
-            for path in self.audio_paths
+            for path in audio_paths
         ]
 
         return feature_paths, labels
@@ -226,9 +233,10 @@ class MagnaTagATune(Dataset):
             waveform, original_sample_rate = torchaudio.load(path, normalize=True)
             if waveform.size(0) != 1:  # make mono if stereo (or more)
                 waveform = waveform.mean(dim=0, keepdim=True)
-            if original_sample_rate != self.sample_rate:
+            if original_sample_rate != self.feature_config["sample_rate"]:
                 resampler = torchaudio.transforms.Resample(
-                    orig_freq=original_sample_rate, new_freq=self.sample_rate
+                    orig_freq=original_sample_rate,
+                    new_freq=self.feature_config["sample_rate"],
                 )
                 waveform = resampler(waveform)
             return waveform

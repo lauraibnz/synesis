@@ -35,8 +35,8 @@ class MTGJamendo(Dataset):
             root: Root directory of the dataset. Defaults to "data/MTGJamendo".
             subset: Subset of the dataset to use: ["top50tags", "genre", "instrument",
                     "moodtheme", None], where None uses the full dataset.
-            split: Split of the dataset to use: ["train", "test", "val", None], where
-                     None uses the full dataset (e.g. for feature extraction).
+            split: Split of the dataset to use: ["train", "test", "validation", None],
+                     where None uses the full dataset (e.g. for feature extraction).
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
             audio_format: Format of the audio files: ["mp3", "wav", "ogg"].
@@ -77,7 +77,12 @@ class MTGJamendo(Dataset):
                 )
         else:
             # train, test, or validation splits for downstream
-            self.metadata_path = root / "metadata" / f"autotagging_{subset}-{split}.tsv"
+            if self.subset:
+                self.metadata_path = (
+                    root / "metadata" / f"autotagging_{subset}-{split}.tsv"
+                )
+            else:
+                self.metadata_path = root / "metadata" / f"autotagging-{split}.tsv"
 
         if not feature_config:
             # load default feature config
@@ -104,6 +109,7 @@ class MTGJamendo(Dataset):
             "autotagging_genre.tsv",
             "autotagging_instrument.tsv",
             "autotagging_moodtheme.tsv",
+            "autotagging_top50tags.tsv",
             "raw_30s_cleantags_50artists.tsv",
         ]:
             download_github_file(
@@ -162,9 +168,10 @@ class MTGJamendo(Dataset):
             waveform, original_sample_rate = torchaudio.load(path, normalize=True)
             if waveform.size(0) != 1:  # make mono if stereo (or more)
                 waveform = waveform.mean(dim=0, keepdim=True)
-            if original_sample_rate != self.sample_rate:
+            if original_sample_rate != self.feature_config["sample_rate"]:
                 resampler = torchaudio.transforms.Resample(
-                    orig_freq=original_sample_rate, new_freq=self.sample_rate
+                    orig_freq=original_sample_rate,
+                    new_freq=self.feature_config["sample_rate"],
                 )
                 waveform = resampler(waveform)
             return waveform

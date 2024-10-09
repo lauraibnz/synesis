@@ -1,6 +1,7 @@
+import numpy as np
 import pytest
 import torch
-import numpy as np
+
 from ref.datasets.magnatagatune import MagnaTagATune
 from ref.datasets.mtgjamendo import MTGJamendo
 
@@ -9,8 +10,8 @@ DATASETS = [
         MagnaTagATune,
         {
             "root": "data/MagnaTagATune",
-            "splits": [None, "train", "test", "val"],
-            "item_format": ["audio"],
+            "splits": [None, "train", "test", "validation"],
+            "item_format": "audio",
         },
     ),
     (
@@ -19,7 +20,7 @@ DATASETS = [
             "root": "data/MTGJamendo",
             "splits": [None, "train", "test", "validation"],
             "subsets": [None, "top50tags", "genre", "instrument", "moodtheme"],
-            "item_format": ["audio"],
+            "item_format": "audio",
         },
     ),
 ]
