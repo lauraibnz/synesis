@@ -13,7 +13,9 @@ def get_pretrained_model(model_name: str):
 
             model = VGGish(feature_extractor=True)
             model.load_state_dict(
-                torch.load(Path("models") / "pretrained" / "vggish_mtat.pt")
+                torch.load(
+                    Path("models") / "pretrained" / "vggish_mtat.pt", weights_only=True
+                )
             )
             model.eval()
         case _:
@@ -92,7 +94,7 @@ def dynamic_batch_extractor(
 
             if len(batch) == batch_size:
                 batch = torch.stack(batch)
-                batch.to(device)
+                batch = batch.to(device)
                 with torch.no_grad():
                     embeddings = extractor(batch)
                 save_or_append(embeddings.cpu(), batch_paths)
@@ -107,10 +109,10 @@ def dynamic_batch_extractor(
             batch.append(torch.zeros_like(batch[-1]))
             batch_paths.append(batch_paths[-1])
         batch = torch.stack(batch)
-        batch.to(device)
+        batch = batch.to(device)
         with torch.no_grad():
             embeddings = extractor(batch)
-        save_or_append(embeddings, batch_paths)
+        save_or_append(embeddings.cpu(), batch_paths)
 
     pbar.close()
 
