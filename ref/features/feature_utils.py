@@ -2,8 +2,8 @@ from pathlib import Path
 
 import numpy as np
 import torch
-from tqdm import tqdm
 from torch.utils.data import Sampler
+from tqdm import tqdm
 
 
 def get_pretrained_model(model_name: str):
@@ -66,20 +66,23 @@ def dynamic_batch_extractor(
         x, _ = dataset[i]  # Ignore the label
         output_path = dataset.feature_paths[i]
 
-        for buffer in range(0, len(x), item_len):
-            x_item = x[buffer : buffer + item_len]
-            if len(x_item) < item_len:
+        for buffer in range(0, x.shape[1], item_len):
+            x_item = x[:, buffer : buffer + item_len]
+            if x_item.shape[1] < item_len:
                 match padding:
                     case "repeat":
-                        x_item = x_item.repeat(int(np.ceil(item_len / len(x_item))))
-                        x_item = x_item[:item_len]
+                        if x_item.shape[1] < item_len:
+                            # repeat the first part of the item, and add it in front
+                            # e.g. if x_item is [1, 2, 3] and item_len is 5, then
+                            # the resulting x_item is [1, 2, 1, 2, 3]
+                            repeated_part = x_item[:, : item_len - x_item.shape[1]]
+                            while x_item.shape[1] < item_len:
+                                x_item = torch.cat([repeated_part, x_item], dim=1)
+                            x_item = x_item[:, :item_len]
                     case "zero":
-                        x_item = torch.nn.functional.pad(
-                            x_item,
-                            (0, item_len - len(x_item)),
-                            "constant",
-                            0,
-                        )
+                        # Implement zero padding
+                        padding_size = item_len - x_item.shape[1]
+                        x_item = torch.nn.functional.pad(x_item, (0, padding_size))
                     case _:
                         raise Exception(f"Padding method '{padding}' not implemented.")
             batch.append(x_item)
