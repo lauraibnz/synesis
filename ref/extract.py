@@ -1,9 +1,11 @@
-import torch
 import argparse
 from typing import Optional
-from ref.features.feature_utils import get_pretrained_model, dynamic_batch_extractor
-from ref.datasets.dataset_utils import get_dataset
+
+import torch
+
 from config.features import feature_config as fc
+from ref.datasets.dataset_utils import get_dataset
+from ref.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
 
 
 def extract_features(
@@ -29,7 +31,6 @@ def extract_features(
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     extractor = get_pretrained_model(feature)
-    extractor.to(device)
 
     dataset = get_dataset(
         name=dataset,
@@ -44,6 +45,7 @@ def extract_features(
         extractor=extractor,
         item_len=fc[feature]["item_len"],
         batch_size=batch_size,
+        device=device,
     )
 
 

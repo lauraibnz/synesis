@@ -1,12 +1,14 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 import torch
-from pathlib import Path
 
+from config.features import feature_config
 from ref.datasets.magnatagatune import MagnaTagATune
 from ref.datasets.mtgjamendo import MTGJamendo
-from ref.features.feature_utils import get_pretrained_model, dynamic_batch_extractor
-from config.features import feature_config
+from ref.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
+
 
 @pytest.fixture(params=[MagnaTagATune, MTGJamendo])
 def dataset_sample(request):
@@ -15,13 +17,14 @@ def dataset_sample(request):
         feature="vggish_mtat",
         root=f"data/{DatasetClass.__name__}",
         item_format="audio",
-        split=None
+        split=None,
     )
     # Take a small subset of paths for testing
     subset_size = min(5, len(dataset))
     dataset.paths = dataset.paths[:subset_size]
     dataset.labels = dataset.labels[:subset_size]
     return dataset
+
 
 def test_feature_extraction(dataset_sample, tmp_path):
     # Set up temporary output directory
@@ -34,7 +37,9 @@ def test_feature_extraction(dataset_sample, tmp_path):
     ]
 
     # Get the pretrained model
-    model = get_pretrained_model("vggish-mtat")
+    model = get_pretrained_model("vggish_mtat")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Test if model is in eval mode
     assert not model.training, "Model should be in eval mode"
@@ -49,7 +54,8 @@ def test_feature_extraction(dataset_sample, tmp_path):
         model,
         item_len=item_len_samples,
         padding="repeat",
-        batch_size=2
+        batch_size=2,
+        device=device,
     )
 
     # Check if features were extracted and saved correctly
@@ -62,11 +68,18 @@ def test_feature_extraction(dataset_sample, tmp_path):
 
         # Check feature shape
         assert feature.ndim == 2, f"Feature {feature_path} should be 2-dimensional"
-        assert feature.shape[1] == 128, f"Feature {feature_path} should have 128 dimensions"
+        assert (
+            feature.shape[1] == 128
+        ), f"Feature {feature_path} should have 128 dimensions"
 
         # Check if the number of feature frames is reasonable
-        expected_frames = int(np.ceil(config["item_len_sec"] / 0.96))  # VGGish uses 0.96s frames
-        assert abs(feature.shape[0] - expected_frames) <= 1, f"Unexpected number of frames in {feature_path}"
+        expected_frames = int(
+            np.ceil(config["item_len_sec"] / 0.96)
+        )  # VGGish uses 0.96s frames
+        assert (
+            abs(feature.shape[0] - expected_frames) <= 1
+        ), f"Unexpected number of frames in {feature_path}"
+
 
 if __name__ == "__main__":
     pytest.main()

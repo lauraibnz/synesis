@@ -42,8 +42,11 @@ class VGGish(nn.Module):
         f_max=8000.0,
         n_mels=128,
         n_class=50,
+        feature_extractor=False,
     ):
         super(VGGish, self).__init__()
+
+        self.feature_extractor = feature_extractor
 
         # Spectrogram
         self.spec = torchaudio.transforms.MelSpectrogram(
@@ -73,10 +76,15 @@ class VGGish(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, x):
+        # support various input configurations
+        if len(x.shape) == 1:
+            x = x.unsqueeze(0)
+        if len(x.shape) == 2:
+            x = x.unsqueeze(1)
+
         # Spectrogram
         x = self.spec(x)
         x = self.to_db(x)
-        x = x.unsqueeze(1)
         x = self.spec_bn(x)
 
         # CNN
@@ -93,6 +101,9 @@ class VGGish(nn.Module):
         if x.size(-1) != 1:
             x = nn.MaxPool1d(x.size(-1))(x)
         x = x.squeeze(2)
+
+        if self.feature_extractor:
+            return x
 
         # Dense
         x = self.dense1(x)

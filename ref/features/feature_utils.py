@@ -11,7 +11,7 @@ def get_pretrained_model(model_name: str):
         case "vggish_mtat":
             from ref.features.vggish import VGGish
 
-            model = VGGish()
+            model = VGGish(feature_extractor=True)
             model.load_state_dict(
                 torch.load(Path("models") / "pretrained" / "vggish_mtat.pt")
             )
@@ -27,6 +27,7 @@ def dynamic_batch_extractor(
     item_len: int,
     padding: str = "repeat",
     batch_size: int = 32,
+    device: str = "cpu",
 ):
     """
     Create and process batches from a PyTorch dataset with items of
@@ -61,6 +62,7 @@ def dynamic_batch_extractor(
     pbar = tqdm(total=len(dataset))
     batch = []
     batch_paths = []
+    extractor.to(device)
 
     for i in range(len(dataset)):
         x, _ = dataset[i]  # Ignore the label
@@ -90,9 +92,10 @@ def dynamic_batch_extractor(
 
             if len(batch) == batch_size:
                 batch = torch.stack(batch)
+                batch.to(device)
                 with torch.no_grad():
                     embeddings = extractor(batch)
-                save_or_append(embeddings, batch_paths)
+                save_or_append(embeddings.cpu(), batch_paths)
                 batch = []
                 batch_paths = []
 

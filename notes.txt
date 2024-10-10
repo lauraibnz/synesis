@@ -1,6 +1,4 @@
 Test
-    [ ] MTAT
-    [ ] MTG Jamendo
     [ ] Feature extraction
     [ ] Downstream - full
     [ ] Downstream - aggregated
