@@ -107,6 +107,7 @@ def dynamic_batch_extractor(
             batch.append(torch.zeros_like(batch[-1]))
             batch_paths.append(batch_paths[-1])
         batch = torch.stack(batch)
+        batch.to(device)
         with torch.no_grad():
             embeddings = extractor(batch)
         save_or_append(embeddings, batch_paths)
