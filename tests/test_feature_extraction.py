@@ -1,7 +1,8 @@
+from pathlib import Path
+
+import numpy as np
 import pytest
 import torch
-import numpy as np
-from pathlib import Path
 
 from config.features import feature_config
 from ref.datasets.magnatagatune import MagnaTagATune
@@ -13,9 +14,11 @@ from ref.features.feature_utils import dynamic_batch_extractor, get_pretrained_m
 def dataset_class(request):
     return request.param
 
+
 @pytest.fixture(params=feature_config.keys())
 def feature_name(request):
     return request.param
+
 
 def test_feature_extraction(dataset_class, feature_name, tmp_path):
     # Set up dataset with the correct feature
@@ -75,12 +78,13 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
         # If feature_dim is specified in the config, check it
         if "feature_dim" in config:
             assert feature.shape[1] == config["feature_dim"], (
-                f"Feature {feature_path} should have {config['feature_dim']} dimensions, "
+                f"Feature {feature_path} should have {config['feature_dim']} dims, "
                 f"but has {feature.shape[1]}"
             )
 
         # Check that not all entries are zero
         assert np.any(feature), f"All entries in feature {feature_path} are zero"
+
 
 if __name__ == "__main__":
     pytest.main()
