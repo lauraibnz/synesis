@@ -1,5 +1,4 @@
 Test
-    [ ] Add test for all feature extractors
     [ ] Downstream - full
     [ ] Downstream - aggregated
     [ ] Test DynamicBatchSampler
