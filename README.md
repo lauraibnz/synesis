@@ -1,6 +1,8 @@
 # synesis
 Tools for holistic representation evaluation and understanding
 
+*synesis*: unification, to bring (something) together that thereby gives meaning
+
 ### Develop
 Before working with the repo, please install requirements (or ruff and pre-commit) and run
 ```pre-commit install``` to install the pre-commit ruff formatting hook.
