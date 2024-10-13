@@ -9,7 +9,7 @@ from tqdm import tqdm
 def get_pretrained_model(model_name: str):
     match model_name:
         case "vggish_mtat":
-            from ref.features.vggish import VGGish
+            from synesis.features.vggish import VGGish
 
             model = VGGish(feature_extractor=True)
             model.load_state_dict(

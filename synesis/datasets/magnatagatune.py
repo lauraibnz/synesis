@@ -43,6 +43,7 @@ class MagnaTagATune(Dataset):
             seed: Random seed for reproducibility.
         """
         self.tasks = ["tagging"]
+        self.fvs = ["pitch", "tempo", "eq"]
 
         root = Path(root)
         self.root = root

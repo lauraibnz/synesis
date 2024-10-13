@@ -4,8 +4,8 @@ from typing import Optional
 import torch
 
 from config.features import feature_config as fc
-from ref.datasets.dataset_utils import get_dataset
-from ref.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
+from synesis.datasets.dataset_utils import get_dataset
+from synesis.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
 
 
 def extract_features(

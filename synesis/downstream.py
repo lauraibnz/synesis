@@ -10,14 +10,14 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config.tasks import task_config as tc
-from ref.datasets.dataset_utils import get_dataset
-from ref.features.feature_utils import (
+from synesis.datasets.dataset_utils import get_dataset
+from synesis.features.feature_utils import (
     DynamicBatchSampler,
     collate_packed_batch,
     get_pretrained_model,
 )
-from ref.probes import get_probe
-from ref.utils import deep_update
+from synesis.probes import get_probe
+from synesis.utils import deep_update
 
 
 def train(

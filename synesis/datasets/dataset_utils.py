@@ -2,8 +2,8 @@ from typing import Dict, Type
 
 from torch.utils.data import Dataset
 
-from ref.datasets.magnatagatune import MagnaTagATune
-from ref.datasets.mtgjamendo import MTGJamendo
+from synesis.datasets.magnatagatune import MagnaTagATune
+from synesis.datasets.mtgjamendo import MTGJamendo
 
 
 class DatasetFactory:

@@ -10,7 +10,7 @@ from torch import Tensor
 from torch.utils.data import Dataset
 
 from config.features import feature_config as fc
-from ref.utils import download_github_dir, download_github_file
+from synesis.utils import download_github_dir, download_github_file
 
 
 class MTGJamendo(Dataset):
@@ -44,6 +44,7 @@ class MTGJamendo(Dataset):
             seed: Random seed for reproducibility.
         """
         self.tasks = ["tagging"]
+        self.fvs = ["key", "tempo", "eq"]
 
         root = Path(root)
         self.root = root

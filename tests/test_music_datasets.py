@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 import torch
 
-from ref.datasets.magnatagatune import MagnaTagATune
-from ref.datasets.mtgjamendo import MTGJamendo
+from synesis.datasets.magnatagatune import MagnaTagATune
+from synesis.datasets.mtgjamendo import MTGJamendo
 
 DATASETS = [
     (

@@ -5,9 +5,9 @@ import pytest
 import torch
 
 from config.features import feature_config
-from ref.datasets.magnatagatune import MagnaTagATune
-from ref.datasets.mtgjamendo import MTGJamendo
-from ref.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
+from synesis.datasets.magnatagatune import MagnaTagATune
+from synesis.datasets.mtgjamendo import MTGJamendo
+from synesis.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
 
 
 @pytest.fixture(params=[MagnaTagATune, MTGJamendo])
