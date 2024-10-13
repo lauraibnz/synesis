@@ -62,7 +62,7 @@ def train(
         download=False,
     )
 
-    assert task in train_dataset.tasks
+    assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
 
     if tc[task]["data"]["train"]["feature_aggregation"]:
         dataloader = DataLoader(
