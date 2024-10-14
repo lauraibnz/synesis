@@ -9,11 +9,11 @@ import torch
 from torch.utils.data import DataLoader
 from torch import nn
 from tqdm import tqdm
+import argparse
 
 from synesis.utils import deep_update
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.transforms.transform_utils import get_transform
-from synesis.features.feature_utils import get_pretrained_model
 from synesis.features.feature_utils import (
     DynamicBatchSampler,
     collate_packed_batch,
@@ -70,20 +70,15 @@ def train(
     ), f"Transform {transform} not available in {dataset}"
 
     feature_extractor = get_pretrained_model(feature).to(device)
-    feature_extractor.eval()
 
     transform_obj = get_transform(tc[transform])
 
-    train_sampler = DynamicBatchSampler(
-        dataset=train_dataset, batch_size=batch_size
-    )
+    train_sampler = DynamicBatchSampler(dataset=train_dataset, batch_size=batch_size)
     train_loader = DataLoader(
         train_dataset, batch_sampler=train_sampler, collate_fn=collate_packed_batch
     )
 
-    val_sampler = DynamicBatchSampler(
-        dataset=val_dataset, batch_size=batch_size
-    )
+    val_sampler = DynamicBatchSampler(dataset=val_dataset, batch_size=batch_size)
     val_loader = DataLoader(
         val_dataset, batch_sampler=val_sampler, collate_fn=collate_packed_batch
     )
@@ -99,7 +94,7 @@ def train(
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    best_val_loss = float('inf')
+    best_val_loss = float("inf")
     epochs_without_improvement = 0
     best_model_state = None
 
@@ -107,20 +102,26 @@ def train(
         # Training
         model.train()
         total_train_loss = 0
-        for batch_audio, _ in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"):
+        for batch_audio, _ in tqdm(
+            train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"
+        ):
             batch_audio = batch_audio.to(device)
 
             with torch.no_grad():
                 original_features = feature_extractor(batch_audio)
 
-            transformed_audio, transform_params = zip(*[transform_obj(audio) for audio in batch_audio])
+            transformed_audio, transform_params = zip(
+                *[transform_obj(audio) for audio in batch_audio]
+            )
             transformed_audio = torch.stack(transformed_audio).to(device)
             transform_params = torch.tensor(transform_params).float().to(device)
 
             with torch.no_grad():
                 transformed_features = feature_extractor(transformed_audio)
 
-            combined_features = torch.cat([original_features, transformed_features], dim=1)
+            combined_features = torch.cat(
+                [original_features, transformed_features], dim=1
+            )
 
             optimizer.zero_grad()
             predicted_params = model(combined_features)
@@ -137,18 +138,24 @@ def train(
         model.eval()
         total_val_loss = 0
         with torch.no_grad():
-            for batch_audio, _ in tqdm(val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"):
+            for batch_audio, _ in tqdm(
+                val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
+            ):
                 batch_audio = batch_audio.to(device)
 
                 original_features = feature_extractor(batch_audio)
 
-                transformed_audio, transform_params = zip(*[transform_obj(audio) for audio in batch_audio])
+                transformed_audio, transform_params = zip(
+                    *[transform_obj(audio) for audio in batch_audio]
+                )
                 transformed_audio = torch.stack(transformed_audio).to(device)
                 transform_params = torch.tensor(transform_params).float().to(device)
 
                 transformed_features = feature_extractor(transformed_audio)
 
-                combined_features = torch.cat([original_features, transformed_features], dim=1)
+                combined_features = torch.cat(
+                    [original_features, transformed_features], dim=1
+                )
 
                 predicted_params = model(combined_features)
                 loss = criterion(predicted_params, transform_params)
@@ -157,7 +164,9 @@ def train(
 
         avg_val_loss = total_val_loss / len(val_loader)
 
-        print(f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+        print(
+            f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}"
+        )
 
         # Check for improvement
         if avg_val_loss < best_val_loss:
@@ -215,16 +224,16 @@ def evaluate(
         item_format="audio",
     )
 
-    assert transform in test_dataset.transforms, f"Transform {transform} not available in {dataset}"
+    assert (
+        transform in test_dataset.transforms
+    ), f"Transform {transform} not available in {dataset}"
 
     feature_extractor = get_pretrained_model(feature).to(device)
     feature_extractor.eval()
 
     transform_obj = get_transform(tc[transform])
 
-    test_sampler = DynamicBatchSampler(
-        dataset=test_dataset, batch_size=batch_size
-    )
+    test_sampler = DynamicBatchSampler(dataset=test_dataset, batch_size=batch_size)
     test_loader = DataLoader(
         test_dataset, batch_sampler=test_sampler, collate_fn=collate_packed_batch
     )
@@ -242,13 +251,17 @@ def evaluate(
 
             original_features = feature_extractor(batch_audio)
 
-            transformed_audio, transform_params = zip(*[transform_obj(audio) for audio in batch_audio])
+            transformed_audio, transform_params = zip(
+                *[transform_obj(audio) for audio in batch_audio]
+            )
             transformed_audio = torch.stack(transformed_audio).to(device)
             transform_params = torch.tensor(transform_params).float().to(device)
 
             transformed_features = feature_extractor(transformed_audio)
 
-            combined_features = torch.cat([original_features, transformed_features], dim=1)
+            combined_features = torch.cat(
+                [original_features, transformed_features], dim=1
+            )
 
             predicted_params = model(combined_features)
             loss = criterion(predicted_params, transform_params)
@@ -278,9 +291,52 @@ def evaluate(
     print(f"Mean Absolute Error: {mae:.4f}")
     print(f"R-squared: {r_squared:.4f}")
 
-    return {
-        "avg_loss": avg_loss,
-        "mse": mse,
-        "mae": mae,
-        "r_squared": r_squared.item()
-    }
+    return {"avg_loss": avg_loss, "mse": mse, "mae": mae, "r_squared": r_squared.item()}
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train a transform prediction model.")
+    parser.add_argument(
+        "--feature",
+        "-f",
+        type=str,
+        required=True,
+        help="Feature name.",
+    )
+    parser.add_argument(
+        "--dataset",
+        "-d",
+        type=str,
+        required=True,
+        help="Dataset name.",
+    )
+    parser.add_argument(
+        "--transform",
+        "-t",
+        type=str,
+        required=True,
+        help="Data transform name.",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        required=False,
+        help="Device to use for training.",
+    )
+
+    args = parser.parse_args()
+
+    model = train(
+        feature=args.feature,
+        dataset=args.dataset,
+        transform=args.transform,
+        device=args.device,
+    )
+
+    results = evaluate(
+        model=model,
+        feature=args.feature,
+        dataset=args.dataset,
+        transform=args.transform,
+        device=args.device,
+    )
