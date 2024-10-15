@@ -1,3 +1,6 @@
+Disentanglement
+    [ ] 
+
 Test
     [ ] Downstream - full
     [ ] Downstream - aggregated
@@ -14,3 +17,4 @@ Datasets
 Non-music Datasets
     [ ] Search for a few representative Datasets
     [ ] Implement a few
+    [ ] Make adjustments to fit new data types
