@@ -8,6 +8,7 @@ from metrics import instantiate_metrics
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from pathlib import Path
 
 from config.tasks import task_config as tc
 from synesis.datasets.dataset_utils import get_dataset
@@ -194,6 +195,10 @@ def train(
     # Load the best model state
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
+
+    # Save the best model
+    save_path = Path("ckpt") / "downstream" / f"{feature}_{dataset}_{task}.pt"
+    save_path.parent.mkdir(parents=True, exist_ok=True)
 
     return model
 
