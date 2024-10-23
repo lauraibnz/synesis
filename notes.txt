@@ -1,13 +1,8 @@
 Robustness
-    [ ] Implement covariate robustness
-	[ ] Train or load model
-	[ ] Evaluate transformed
-        [X] representation distance
-	    [X] model predictions
-	===>[ ] model uncertainty<===
+    [ ] Implement label shift
 
 Disentanglement
-    [ ] 
+    [ ]
 
 Test
     [ ] Downstream - full
