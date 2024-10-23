@@ -17,6 +17,7 @@ from synesis.features.feature_utils import (
     collate_packed_batch,
     get_pretrained_model,
 )
+from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update
@@ -75,7 +76,6 @@ def train(
 
 
 def evaluate_representation_distance(
-    model: nn.Module,
     feature: str,
     dataset: str,
     transform: str,
@@ -91,7 +91,6 @@ def evaluate_representation_distance(
     The input is tranformed by varying degrees.
 
     Args:
-        model: Trained downstream model.
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         item_format: Format of the input data: ["audio", "feature"].
@@ -150,8 +149,6 @@ def evaluate_representation_distance(
     )
 
     feature_extractor = get_pretrained_model(feature).to(device)
-
-    model.eval()
 
     # We will iterate over all degrees of the transform, computing distances
     # for all representations in the dataset for each.
@@ -214,5 +211,140 @@ def evaluate_representation_distance(
     # average distances for each pv
     for pv in results:
         results[pv] = sum(results[pv]) / len(results[pv])
+
+    return results
+
+
+def evaluate_model_predictions(
+    model: nn.Module,
+    feature: str,
+    dataset: str,
+    transform: str,
+    task: str,
+    item_format: str = "audio",
+    transform_config: Optional[dict] = None,
+    task_config: Optional[dict] = None,
+    device: Optional[str] = None,
+    batch_size: int = 32,
+):
+    """
+    Evaluate downstream model predictions when the input is
+    transformed by varying degrees.
+
+    Args:
+        model: Downstream model.
+        feature: Name of the feature/embedding model.
+        dataset: Name of the dataset.
+        item_format: Format of the input data: ["audio", "feature"].
+                Defaults to "audio".
+        task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
+        transform: Name of the transform (factor of variation).
+        transform_config: Override certain values of the transform configuration.
+        device: Device to use for evaluation (defaults to "cuda" if available).
+        batch_size: Batch size for evaluation.
+    """
+
+    if transform_config:
+        transform_configs[transform] = deep_update(
+            transform_configs[transform], transform_config
+        )
+
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    test_dataset = get_dataset(
+        name=dataset,
+        feature=feature,
+        split="test",
+        download=False,
+        item_format="audio",
+    )
+
+    assert (
+        transform in test_dataset.transforms
+    ), f"Transform {transform} not available in {dataset}"
+
+    test_sampler = DynamicBatchSampler(dataset=test_dataset, batch_size=batch_size)
+    test_loader = DataLoader(
+        test_dataset,
+        batch_sampler=test_sampler,
+        collate_fn=collate_packed_batch,
+    )
+
+    metrics = instantiate_metrics(
+        metric_configs=task_configs[task]["evaluation"]["metrics"],
+        num_classes=len(test_dataset[0][1]),
+    )
+
+    # We will iterate over all degrees of the transform, computing distances
+    # for all representations in the dataset for each.
+
+    # for each transform, there's a param starting from "min" and one from "max"
+    # that we need to find in order to define the first and last transform
+    min_key = ""
+    max_key = ""
+    transform_params = transform_configs[transform]["params"]
+    for key in transform_params:
+        if key.startswith("min"):
+            min_key = key
+            max_key = key.replace("min", "max")
+            break
+    if not min_key or not max_key:
+        raise (ValueError("Could not find min and max keys in transform params"))
+
+    param_values = range(
+        transform_configs[transform]["params"][min_key],
+        transform_configs[transform]["params"][max_key],
+        transform_configs[transform]["step"],
+    )
+
+    # Evaluation loop
+    model.to(device)
+    model.eval()
+    results = {}
+
+    for pv in param_values:
+        # Replace parameter range with the specific value for both min and maxs
+        controlled_transform_config = transform_configs[transform].copy()
+        controlled_transform_config["params"][min_key] = pv
+        controlled_transform_config["params"][max_key] = pv
+
+        # Iterate through clean embeddings and audio, transforming the audio
+        # and computing features from it.
+        total_loss = 0
+        test_outputs = []
+        test_targets = []
+        with torch.no_grad():
+            for audio_batch, targets in test_loader:
+                audio_batch = audio_batch.to(device)
+
+                transform_obj = get_transform(controlled_transform_config)
+                transformed_audio, _ = transform_obj(audio_batch)
+
+                with torch.no_grad():
+                    output = model(transformed_audio)
+                    total_loss += model.loss(output, targets).item()
+
+                # Store outputs and targets for metric calculation
+                test_outputs.append(output)
+                test_targets.append(targets)
+
+        # Concatenate all outputs and targets
+        test_outputs = torch.cat(test_outputs, dim=0)
+        test_targets = torch.cat(test_targets, dim=0)
+
+        # Calculate metrics
+        results[pv] = {}
+        for metric_cfg, metric in zip(
+            task_configs[task]["evaluation"]["metrics"], metrics
+        ):
+            results[pv][metric_cfg["name"]] = metric(test_outputs, test_targets).item()
+
+        avg_loss = total_loss / len(test_loader)
+        print(f"Avg test loss: {avg_loss:.4f}")
+
+        for name, value in results.items():
+            print(f"{name}: {value:.4f}")
 
     return results

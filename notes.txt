@@ -2,9 +2,9 @@ Robustness
     [ ] Implement covariate robustness
 	[ ] Train or load model
 	[ ] Evaluate transformed
-    ===>[ ] representation distance<===
-		[ ] model predictions
-		[ ] model uncertainty
+        [X] representation distance
+	    [X] model predictions
+	===>[ ] model uncertainty<===
 
 Disentanglement
     [ ] 
