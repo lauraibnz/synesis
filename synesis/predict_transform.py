@@ -235,7 +235,6 @@ def evaluate(
     ), f"Transform {transform} not available in {dataset}"
 
     feature_extractor = get_pretrained_model(feature).to(device)
-    feature_extractor.eval()
 
     transform_obj = get_transform(transform_configs[transform])
 
