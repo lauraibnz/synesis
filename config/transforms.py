@@ -1,8 +1,4 @@
-from torch_audiomentations import (
-    AddColoredNoise,
-    Gain,
-    PitchShift,
-)
+from torch_audiomentations import AddColoredNoise, Gain, PitchShift
 
 transform_configs = {
     "AddColoredNoise": {
@@ -13,6 +9,7 @@ transform_configs = {
             "max_snr_in_db": 20,
             "p": 1,
         },
+        "step": 1,
     },
     "Gain": {
         "class": Gain,
@@ -21,6 +18,7 @@ transform_configs = {
             "max_gain_in_db": 10,
             "p": 1,
         },
+        "step": 1,
     },
     "PitchShift": {
         "class": PitchShift,
@@ -29,5 +27,6 @@ transform_configs = {
             "max_semitones": 6,
             "p": 1,
         },
+        "step": 1,
     },
 }
