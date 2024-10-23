@@ -1,9 +1,8 @@
 from torch import nn
 from torch.optim import Adam
-from torchmetrics import AUROC, AveragePrecision, Accuracy, F1Score
+from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score
 
-
-task_config = {
+task_configs = {
     "tagging": {
         "model": {
             "type": "classifier",

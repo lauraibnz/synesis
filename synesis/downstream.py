@@ -1,6 +1,7 @@
 """Methods for training and evaluating downstream models."""
 
 import argparse
+from pathlib import Path
 from typing import Optional
 
 import torch
@@ -8,9 +9,8 @@ from metrics import instantiate_metrics
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from pathlib import Path
 
-from config.tasks import task_config as tc
+from config.tasks import task_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.features.feature_utils import (
     DynamicBatchSampler,
@@ -45,7 +45,7 @@ def train(
     """
 
     if task_config:
-        tc[task] = deep_update(tc[task], task_config)
+        task_configs[task] = deep_update(task_configs[task], task_config)
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -65,30 +65,31 @@ def train(
 
     assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
 
-    if tc[task]["data"]["train"]["feature_aggregation"]:
+    if task_configs[task]["data"]["train"]["feature_aggregation"]:
         dataloader = DataLoader(
             train_dataset,
-            batch_size=tc[task]["training"]["batch_size"],
+            batch_size=task_configs[task]["training"]["batch_size"],
             shuffle=True,
         )
     else:
         # use custom sampling for dynamic batching
         sampler = DynamicBatchSampler(
-            dataset=dataset, batch_size=tc[task]["training"]["batch_size"]
+            dataset=dataset, batch_size=task_configs[task]["training"]["batch_size"]
         )
         dataloader = DataLoader(
             train_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
         )
 
-    if tc[task]["data"]["evaluation"]["feature_aggregation"]:
+    if task_configs[task]["data"]["evaluation"]["feature_aggregation"]:
         val_dataloader = DataLoader(
             val_dataset,
-            batch_size=tc[task]["training"]["batch_size"],
+            batch_size=task_configs[task]["training"]["batch_size"],
             shuffle=False,
         )
     else:
         sampler = DynamicBatchSampler(
-            dataset=val_dataset, batch_size=tc[task]["evaluation"]["batch_size"]
+            dataset=val_dataset,
+            batch_size=task_configs[task]["evaluation"]["batch_size"],
         )
         val_dataloader = DataLoader(
             val_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
@@ -101,17 +102,19 @@ def train(
 
     # train setup
     model = get_probe(
-        model_type=tc[task]["model"]["type"],
+        model_type=task_configs[task]["model"]["type"],
         in_feaures=len(train_dataset[0][0][0]),
         n_outputs=len(train_dataset[0][1]),
-        **tc[task]["model"]["params"],
+        **task_configs[task]["model"]["params"],
     ).to(device)
-    criterion = tc[task]["trainin"]["criterion"]
-    optimizer_class = tc[task]["training"]["optimizer"]["class"]
-    optimizer = optimizer_class(model.parameters(), **tc[task]["optimizer"]["params"])
+    criterion = task_configs[task]["trainin"]["criterion"]
+    optimizer_class = task_configs[task]["training"]["optimizer"]["class"]
+    optimizer = optimizer_class(
+        model.parameters(), **task_configs[task]["optimizer"]["params"]
+    )
 
     val_metrics = instantiate_metrics(
-        metric_configs=tc[task]["evaluation"]["metrics"],
+        metric_configs=task_configs[task]["evaluation"]["metrics"],
         num_classes=(train_dataset[0][1]),
     )
 
@@ -119,8 +122,8 @@ def train(
     best_val_loss = float("inf")
     epochs_without_improvement = 0
     best_model_state = None
-    num_epochs = tc[task]["training"]["num_epochs"]
-    patience = tc[task]["training"]["patience"]
+    num_epochs = task_configs[task]["training"]["num_epochs"]
+    patience = task_configs[task]["training"]["patience"]
 
     for epoch in range(num_epochs):
         model.train()
@@ -167,7 +170,9 @@ def train(
 
         # Calculate metrics
         val_metric_results = {}
-        for metric_cfg, metric in zip(tc[task]["evaluation"]["metrics"], val_metrics):
+        for metric_cfg, metric in zip(
+            task_configs[task]["evaluation"]["metrics"], val_metrics
+        ):
             val_metric_results[metric_cfg["name"]] = metric(val_outputs, val_targets)
 
         avg_val_loss = val_loss / len(val_dataloader)
@@ -228,7 +233,7 @@ def evaluate(
     """
 
     if task_config:
-        tc[task] = deep_update(tc[task], task_config)
+        task_configs[task] = deep_update(task_configs[task], task_config)
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -243,19 +248,20 @@ def evaluate(
     assert task in test_dataset.tasks
 
     metrics = instantiate_metrics(
-        metric_configs=tc[task]["evaluation"]["metrics"],
+        metric_configs=task_configs[task]["evaluation"]["metrics"],
         num_classes=len(test_dataset[0][1]),
     )
 
-    if tc[task]["evaluation"]["feature_aggregation"]:
+    if task_configs[task]["evaluation"]["feature_aggregation"]:
         dataloader = DataLoader(
             test_dataset,
-            batch_size=tc[task]["evaluation"]["batch_size"],
+            batch_size=task_configs[task]["evaluation"]["batch_size"],
             shuffle=False,
         )
     else:
         sampler = DynamicBatchSampler(
-            dataset=test_dataset, batch_size=tc[task]["evaluation"]["batch_size"]
+            dataset=test_dataset,
+            batch_size=task_configs[task]["evaluation"]["batch_size"],
         )
         dataloader = DataLoader(
             test_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
@@ -270,7 +276,7 @@ def evaluate(
     total_loss = 0
     test_outputs = []
     test_targets = []
-    criterion = tc[task]["evaluation"]["criterion"]()
+    criterion = task_configs[task]["evaluation"]["criterion"]()
 
     with torch.no_grad():
         for item, target in dataloader:
@@ -294,7 +300,7 @@ def evaluate(
 
     # Calculate metrics
     test_metric_results = {}
-    for metric_cfg, metric in zip(tc[task]["evaluation"]["metrics"], metrics):
+    for metric_cfg, metric in zip(task_configs[task]["evaluation"]["metrics"], metrics):
         test_metric_results[metric_cfg["name"]] = metric(test_outputs, test_targets)
 
     avg_loss = total_loss / len(dataloader)

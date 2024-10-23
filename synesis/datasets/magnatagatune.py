@@ -13,7 +13,7 @@ from torch import Tensor
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from config.features import feature_config as fc
+from config.features import feature_configs
 
 
 class MagnaTagATune(Dataset):
@@ -60,7 +60,7 @@ class MagnaTagATune(Dataset):
 
         if not feature_config:
             # load default feature config
-            feature_config = fc[feature]
+            feature_config = feature_configs[feature]
         self.feature_config = feature_config
 
         if download:

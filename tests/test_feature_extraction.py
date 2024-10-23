@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import torch
 
-from config.features import feature_config
+from config.features import feature_configs
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
@@ -15,7 +15,7 @@ def dataset_class(request):
     return request.param
 
 
-@pytest.fixture(params=feature_config.keys())
+@pytest.fixture(params=feature_configs.keys())
 def feature_name(request):
     return request.param
 
@@ -52,7 +52,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
     assert not model.training, f"Model {feature_name} should be in eval mode"
 
     # Get feature config
-    config = feature_config[feature_name]
+    config = feature_configs[feature_name]
     item_len_samples = int(config["item_len_sec"] * config["sample_rate"])
 
     # Perform feature extraction

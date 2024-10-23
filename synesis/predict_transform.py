@@ -3,22 +3,23 @@ transformation parameter of a given original and augmented
 representation pair.
 """
 
-from config.transforms import transform_config as tc
-from typing import Optional
-import torch
-from torch.utils.data import DataLoader
-from torch import nn
-from tqdm import tqdm
 import argparse
+from typing import Optional
 
-from synesis.utils import deep_update
+import torch
+from torch import nn
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from config.transforms import transform_configs
 from synesis.datasets.dataset_utils import get_dataset
-from synesis.transforms.transform_utils import get_transform
 from synesis.features.feature_utils import (
     DynamicBatchSampler,
     collate_packed_batch,
     get_pretrained_model,
 )
+from synesis.transforms.transform_utils import get_transform
+from synesis.utils import deep_update
 
 
 def train(
@@ -45,7 +46,9 @@ def train(
     """
 
     if transform_config:
-        tc[transform] = deep_update(tc[transform], transform_config)
+        transform_configs[transform] = deep_update(
+            transform_configs[transform], transform_config
+        )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -71,7 +74,7 @@ def train(
 
     feature_extractor = get_pretrained_model(feature).to(device)
 
-    transform_obj = get_transform(tc[transform])
+    transform_obj = get_transform(transform_configs[transform])
 
     train_sampler = DynamicBatchSampler(dataset=train_dataset, batch_size=batch_size)
     train_loader = DataLoader(
@@ -165,7 +168,8 @@ def train(
         avg_val_loss = total_val_loss / len(val_loader)
 
         print(
-            f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}"
+            f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f}, "
+            + f"Val Loss: {avg_val_loss:.4f}"
         )
 
         # Check for improvement
@@ -211,7 +215,9 @@ def evaluate(
     """
 
     if transform_config:
-        tc[transform] = deep_update(tc[transform], transform_config)
+        transform_configs[transform] = deep_update(
+            transform_configs[transform], transform_config
+        )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -231,7 +237,7 @@ def evaluate(
     feature_extractor = get_pretrained_model(feature).to(device)
     feature_extractor.eval()
 
-    transform_obj = get_transform(tc[transform])
+    transform_obj = get_transform(transform_configs[transform])
 
     test_sampler = DynamicBatchSampler(dataset=test_dataset, batch_size=batch_size)
     test_loader = DataLoader(

@@ -1,4 +1,4 @@
-feature_config = {
+feature_configs = {
     "vggish_mtat": {
         "item_len_sec": 3.69,
         "sample_rate": 16000,

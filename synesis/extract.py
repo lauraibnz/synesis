@@ -3,7 +3,7 @@ from typing import Optional
 
 import torch
 
-from config.features import feature_config as fc
+from config.features import feature_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
 
@@ -43,7 +43,7 @@ def extract_features(
     dynamic_batch_extractor(
         dataset=dataset,
         extractor=extractor,
-        item_len=fc[feature]["item_len"],
+        item_len=feature_configs[feature]["item_len"],
         batch_size=batch_size,
         device=device,
     )

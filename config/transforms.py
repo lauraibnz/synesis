@@ -1,14 +1,10 @@
 from torch_audiomentations import (
     AddColoredNoise,
-    ApplyImpulseResponse,
     Gain,
     PitchShift,
-    HighPassFilter,
 )
-from torchaudio.transforms import TimeStretch, Resample
 
-
-transform_config = {
+transform_configs = {
     "AddColoredNoise": {
         "class": AddColoredNoise,
         "params": {
