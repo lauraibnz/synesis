@@ -234,11 +234,7 @@ def evaluate(
 
             original_features = feature_extractor(batch_audio)
 
-            transformed_audio, transform_params = zip(
-                *[transform_obj(audio) for audio in batch_audio]
-            )
-            transformed_audio = torch.stack(transformed_audio).to(device)
-            transform_params = torch.tensor(transform_params).float().to(device)
+            transformed_audio, transform_params = transform_obj(batch_audio)
 
             transformed_features = feature_extractor(transformed_audio)
 
