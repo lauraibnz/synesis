@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional
 
 import torch
-from metrics import instantiate_metrics
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -17,6 +16,7 @@ from synesis.features.feature_utils import (
     collate_packed_batch,
     get_pretrained_model,
 )
+from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.utils import deep_update
 
