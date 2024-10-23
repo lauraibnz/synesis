@@ -7,6 +7,7 @@ from typing import Optional
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+import numpy as np
 
 from config.tasks import task_configs
 from config.transforms import transform_configs
@@ -346,5 +347,117 @@ def evaluate_model_predictions(
 
         for name, value in results.items():
             print(f"{name}: {value:.4f}")
+
+    return results
+
+
+def evaluate_prediction_uncertainty(
+    model: nn.Module,
+    feature: str,
+    dataset: str,
+    transform: str,
+    task: str,
+    uncertainty_metric: str = "entropy",
+    item_format: str = "audio",
+    transform_config: Optional[dict] = None,
+    device: Optional[str] = None,
+    batch_size: int = 32,
+):
+    """
+    Evaluate model prediction uncertainty when the input is transformed.
+
+    Args:
+        model: Downstream model
+        uncertainty_metric: Method to compute uncertainty ["entropy", "max_prob"]
+        feature: Name of the feature/embedding model.
+        dataset: Name of the dataset.
+        item_format: Format of the input data: ["audio", "feature"].
+                Defaults to "audio".
+        task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
+        transform: Name of the transform (factor of variation).
+        transform_config: Override certain values of the transform configuration.
+        device: Device to use for evaluation (defaults to "cuda" if available).
+        batch_size: Batch size for evaluation.
+    """
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Setup dataset and loader similar to evaluate_model_predictions
+    test_dataset = get_dataset(
+        name=dataset,
+        feature=feature,
+        split="test",
+        download=False,
+        item_format="audio",
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        collate_fn=collate_packed_batch,
+    )
+
+    # We will iterate over all degrees of the transform, computing distances
+    # for all representations in the dataset for each.
+
+    # for each transform, there's a param starting from "min" and one from "max"
+    # that we need to find in order to define the first and last transform
+    min_key = ""
+    max_key = ""
+    transform_params = transform_configs[transform]["params"]
+    for key in transform_params:
+        if key.startswith("min"):
+            min_key = key
+            max_key = key.replace("min", "max")
+            break
+    if not min_key or not max_key:
+        raise (ValueError("Could not find min and max keys in transform params"))
+
+    param_values = range(
+        transform_configs[transform]["params"][min_key],
+        transform_configs[transform]["params"][max_key],
+        transform_configs[transform]["step"],
+    )
+
+    results = {}
+    model.eval()
+
+    for pv in param_values:
+        # Replace parameter range with the specific value for both min and maxs
+        controlled_transform_config = transform_configs[transform].copy()
+        controlled_transform_config["params"][min_key] = pv
+        controlled_transform_config["params"][max_key] = pv
+        transform_obj = get_transform(controlled_transform_config)
+
+        uncertainties = []
+
+        with torch.no_grad():
+            for audio_batch, _ in test_loader:
+                audio_batch = audio_batch.to(device)
+
+                # Apply transform
+                transformed_audio, _ = transform_obj(audio_batch)
+
+                # Get model predictions
+                logits = model(transformed_audio)
+                probs = torch.softmax(logits, dim=1)
+
+                # Compute uncertainty
+                if uncertainty_metric == "entropy":
+                    uncertainty = -(probs * torch.log(probs + 1e-10)).sum(dim=1)
+                elif uncertainty_metric == "max_prob":
+                    uncertainty = 1 - probs.max(dim=1)[0]
+                else:
+                    raise ValueError(
+                        f"Unknown uncertainty metric: {uncertainty_metric}"
+                    )
+
+                uncertainties.extend(uncertainty.cpu().numpy())
+
+        results[pv] = {
+            "mean": float(np.mean(uncertainties)),
+            "std": float(np.std(uncertainties))
+        }
 
     return results
