@@ -1,13 +1,17 @@
-"""Methods for evaluating downstream model robustness
-to label shift. Currently only supports single-label
-classification tasks."""
+"""Methods for evaluating downstream model robustness to label shift.
+
+!NOTE Currently only supports single-label classification tasks.
+!NOTE Currently for variable-item-length dataset, consider the
+whole item as a single sample to calculate class distribution,
+rather than individual, constant-length items.
+"""
 
 import numpy as np
 from scipy.stats import entropy
 from sklearn.utils import shuffle
 
 
-def create_balanced_subsample(dataset, indices_by_class, target_size):
+def create_balanced_subsample(dataset, indices_by_class, target_size, seed=42):
     """
     Creates a class-balanced subsample of specified size.
 
@@ -16,7 +20,7 @@ def create_balanced_subsample(dataset, indices_by_class, target_size):
         indices_by_class: List of lists with item indices belonging
                           to each class
         target_size: Number of samples to include in the subsample
-
+        seed: Random seed
     Returns:
         List of indices for the subsample
     """
@@ -26,7 +30,7 @@ def create_balanced_subsample(dataset, indices_by_class, target_size):
     all_indices = []
     for class_indices in indices_by_class:
         selected = np.random.choice(
-            class_indices, size=samples_per_class, replace=False
+            class_indices, size=samples_per_class, replace=False, seed=seed
         )
         all_indices.extend(selected)
 
@@ -34,15 +38,25 @@ def create_balanced_subsample(dataset, indices_by_class, target_size):
 
 
 def create_shifted_subsample(
-    dataset, target_distribution, indices_by_class, target_size
+    dataset, target_distribution, indices_by_class, target_size, seed=42
 ):
-    """Creates a subsample with specified class distribution without replacement."""
+    """
+    Creates a subsample with specified class distribution without replacement.
+
+    Args:
+        dataset: Dataset object with labels and data
+        target_distribution: Desired class distribution for the subsample
+        indices_by_class: List of lists with item indices belonging
+                          to each class
+        target_size: Number of samples to include in the subsample
+        seed: Random seed
+    """
     all_indices = []
 
     # Calculate number of samples needed for each class
     samples_per_class = (target_distribution * target_size).astype(int)
 
-    # Ensure we maintain total number of samples
+    # Ensure we maintain total number of samples by adjusting last class
     samples_per_class[-1] = target_size - samples_per_class[:-1].sum()
 
     # Subsample indices for each class
@@ -56,7 +70,7 @@ def create_shifted_subsample(
             )
 
         selected_indices = np.random.choice(
-            indices_by_class[class_idx], size=n_samples, replace=False
+            indices_by_class[class_idx], size=n_samples, replace=False, seed=seed
         )
         all_indices.extend(selected_indices)
 
@@ -64,7 +78,15 @@ def create_shifted_subsample(
 
 
 def get_controlled_shifts(original_distribution, n_steps, max_kl):
-    """Generate a series of distributions with approximately constant KL steps."""
+    """
+    Generate a series of distributions with approximately constant KL steps.
+
+    Args:
+        original_distribution: Array with class distribution
+        n_steps: Number of steps to generate
+        max_kl: Maximum KL divergence between distributions
+        seed: Random seed
+    """
     n_classes = len(original_distribution)
 
     # Create increasingly imbalanced distributions
@@ -100,7 +122,7 @@ def get_controlled_shifts(original_distribution, n_steps, max_kl):
     return shifted_distributions
 
 
-def create_shifted_datasets(dataset, n_steps, max_kl=2.0):
+def create_shifted_datasets(dataset, n_steps, max_kl=2.0, seed=42):
     """
     Creates multiple subsampled versions of dataset with controlled label shift.
 
@@ -112,7 +134,7 @@ def create_shifted_datasets(dataset, n_steps, max_kl=2.0):
         dataset: Dataset object with labels and data
         n_steps: Number of steps to take from original distribution
         max_kl: Maximum KL divergence between original and shifted distributions
-
+        seed: Random seed
     Returns:
         List of lists of indices for each shifted dataset,
         List of KL divergences between original and shifted distributions
@@ -140,7 +162,9 @@ def create_shifted_datasets(dataset, n_steps, max_kl=2.0):
     )
 
     # Get target distributions with controlled KL steps
-    target_distributions = get_controlled_shifts(original_distribution, n_steps, max_kl)
+    target_distributions = get_controlled_shifts(
+        original_distribution, n_steps, max_kl
+    )
 
     # Create datasets with these distributions
     shifted_datasets = [balanced_indices]  # Start with balanced subsample
