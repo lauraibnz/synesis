@@ -457,7 +457,7 @@ def evaluate_prediction_uncertainty(
 
         results[pv] = {
             "mean": float(np.mean(uncertainties)),
-            "std": float(np.std(uncertainties))
+            "std": float(np.std(uncertainties)),
         }
 
     return results
