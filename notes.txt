@@ -1,5 +1,8 @@
 Robustness
     [ ] Implement label shift
+        [ ] subset creation <============
+        [ ] training
+        [ ] evaluation
 
 Disentanglement
     [ ]

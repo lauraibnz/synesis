@@ -1,5 +1,6 @@
 """Methods for evaluating downstream model robustness
-to label shift."""
+to label shift. Currently only supports single-label
+classification tasks."""
 
 import numpy as np
 from scipy.stats import entropy
@@ -7,7 +8,18 @@ from sklearn.utils import shuffle
 
 
 def create_balanced_subsample(dataset, indices_by_class, target_size):
-    """Creates a class-balanced subsample of specified size."""
+    """
+    Creates a class-balanced subsample of specified size.
+
+    Args:
+        dataset: Dataset object with labels and data
+        indices_by_class: List of lists with item indices belonging
+                          to each class
+        target_size: Number of samples to include in the subsample
+
+    Returns:
+        List of indices for the subsample
+    """
     n_classes = len(indices_by_class)
     samples_per_class = target_size // n_classes
 
@@ -88,27 +100,39 @@ def get_controlled_shifts(original_distribution, n_steps, max_kl):
     return shifted_distributions
 
 
-def create_shifted_datasets(dataset, n_steps, subsample_size=None, max_kl=2.0):
-    """Creates multiple subsampled versions of dataset with controlled label shift."""
-    # Get original distribution
-    labels = [label for _, label in dataset]
-    unique_labels = np.unique(labels)
+def create_shifted_datasets(dataset, n_steps, max_kl=2.0):
+    """
+    Creates multiple subsampled versions of dataset with controlled label shift.
 
+    NOTE! Currently, the subset size is determined by the number of examples in
+    the smallest class, to ensure enough data is available for all classes.
+    However, that might be seriously limiting in some cases.
+
+    Args:
+        dataset: Dataset object with labels and data
+        n_steps: Number of steps to take from original distribution
+        max_kl: Maximum KL divergence between original and shifted distributions
+
+    Returns:
+        List of lists of indices for each shifted dataset,
+        List of KL divergences between original and shifted distributions
+    """
     # Calculate original distribution
-    original_distribution = np.zeros(len(unique_labels))
-    indices_by_class = [[] for _ in range(len(unique_labels))]
+    num_classes = len(dataset.labels[0])
+    original_distribution = np.zeros(num_classes)  # num of items per class
+    indices_by_class = [[] for _ in range(num_classes)]  # item idxs per class
 
-    for idx, label in enumerate(labels):
-        original_distribution[label] += 1
-        indices_by_class[label].append(idx)
+    for idx, label in enumerate(dataset.labels):
+        # labels are one-hot encoded, so we can find the class index by argmax
+        class_idx = np.argmax(label)
+        original_distribution[class_idx] += 1
+        indices_by_class[class_idx].append(idx)
 
-    original_distribution = original_distribution / len(labels)
+    original_distribution = original_distribution / len(dataset.labels)
 
-    # Determine subsample size if not provided
-    if subsample_size is None:
-        # Use size that ensures we can create all shifted distributions
-        min_class_size = min(len(indices) for indices in indices_by_class)
-        subsample_size = min_class_size * len(unique_labels)
+    # Determine subsample size that ensures we can create all shifted distributions
+    min_class_size = min(len(indices) for indices in indices_by_class)
+    subsample_size = min_class_size * num_classes
 
     # Create balanced subsample of original distribution
     balanced_indices = create_balanced_subsample(
