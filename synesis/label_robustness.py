@@ -77,47 +77,53 @@ def create_shifted_subsample(
     return shuffle(all_indices)
 
 
-def get_controlled_shifts(original_distribution, n_steps, max_kl):
+def get_controlled_shifts(original_distribution, n_steps, max_kl, seed=42):
     """
-    Generate a series of distributions with approximately constant KL steps.
+    Generate random distributions with controlled KL divergence steps.
+    We do this by generating random distributions and accepting them
+    if their KL divergence from the original distribution is close
+    enough to the target KL divergence.
 
     Args:
         original_distribution: Array with class distribution
-        n_steps: Number of steps to generate
+        n_steps: Number of KL divergence steps
         max_kl: Maximum KL divergence between distributions
         seed: Random seed
+    Returns:
+        List of distributions, one for each KL step
     """
+    np.random.seed(seed)
     n_classes = len(original_distribution)
 
-    # Create increasingly imbalanced distributions
+    # Create target KL divergences
+    target_kls = np.linspace(0, max_kl, n_steps)
     shifted_distributions = []
-    # current_kl = 0
 
-    alpha_values = np.linspace(0, 1, n_steps)
+    for target_kl in target_kls:
+        found = False
+        attempts = 0
+        max_attempts = 1000  # Avoid infinite loops
 
-    for alpha in alpha_values:
-        shifted_dist = original_distribution.copy()
-        dominant_class = np.argmax(original_distribution)
+        while not found and attempts < max_attempts:
+            # Generate random distribution
+            dist = np.random.dirichlet(np.ones(n_classes))
 
-        # Increase probability of dominant class
-        shifted_dist[dominant_class] = (1 - alpha) * original_distribution[
-            dominant_class
-        ] + alpha
+            # Calculate KL divergence
+            kl = entropy(original_distribution, dist)
 
-        # Decrease others proportionally
-        others = np.arange(n_classes) != dominant_class
-        shifted_dist[others] *= (1 - shifted_dist[dominant_class]) / shifted_dist[
-            others
-        ].sum()
+            # Accept if KL is close enough to target
+            # Tolerance becomes larger as KL increases to maintain feasibility
+            tolerance = max(0.1 * target_kl, 0.01)
+            if abs(kl - target_kl) <= tolerance:
+                shifted_distributions.append(dist)
+                found = True
 
-        # Calculate KL divergence
-        kl = entropy(original_distribution, shifted_dist)
+            attempts += 1
 
-        if kl > max_kl:
-            break
-
-        shifted_distributions.append(shifted_dist)
-        # current_kl = kl
+        if not found:
+            print(
+                f"Warning: Could not generate distribution for KL step {target_kl:.2f}"
+            )
 
     return shifted_distributions
 
@@ -158,12 +164,12 @@ def create_shifted_datasets(dataset, n_steps, max_kl=2.0, seed=42):
 
     # Create balanced subsample of original distribution
     balanced_indices = create_balanced_subsample(
-        dataset, indices_by_class, subsample_size
+        dataset, indices_by_class, subsample_size, seed=seed
     )
 
     # Get target distributions with controlled KL steps
     target_distributions = get_controlled_shifts(
-        original_distribution, n_steps, max_kl
+        original_distribution, n_steps, max_kl, seed=seed
     )
 
     # Create datasets with these distributions
@@ -172,8 +178,10 @@ def create_shifted_datasets(dataset, n_steps, max_kl=2.0, seed=42):
 
     for target_dist in target_distributions:
         try:
+            # in this, seed is used to choose item indices, so has nothing
+            # to do with the class distribution
             indices = create_shifted_subsample(
-                dataset, target_dist, indices_by_class, subsample_size
+                dataset, target_dist, indices_by_class, subsample_size, seed=seed
             )
             shifted_datasets.append(indices)
             kl = entropy(original_distribution, target_dist)
