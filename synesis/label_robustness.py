@@ -9,6 +9,11 @@ rather than individual, constant-length items.
 import numpy as np
 from scipy.stats import entropy
 from sklearn.utils import shuffle
+from typing import Optional
+import torch
+
+from config.tasks import task_configs
+from synesis.utils import deep_update
 
 
 def create_balanced_subsample(dataset, indices_by_class, target_size, seed=42):
@@ -191,3 +196,40 @@ def create_shifted_datasets(dataset, n_steps, max_kl=2.0, seed=42):
             break
 
     return shifted_datasets, kl_divergences
+
+
+def train(
+    feature: str,
+    dataset: str,
+    task: str,
+    item_format: str = "feature",
+    task_config: Optional[dict] = None,
+    device: Optional[str] = None,
+    seed: int = 42,
+):
+    """
+    Train downstream models with subsets of the dataset with
+    increasing KL divergence from a balanced distribution.
+
+    Args:
+        feature: Name of the feature/embedding model.
+        dataset: Name of the dataset.
+        task: Name of the downstream task (needs to be supported by dataset).
+        item_format: Format of the input data: ["audio", "feature"].
+                     Defaults to "feature". If audio, feature is
+                     extracted on-the-fly.
+        task_config: Override certain values of the task configuration.
+        device: Device to use for training (defaults to "cuda" if available).
+        seed: Random seed to use for subset distribution and item selection.
+
+    Returns:
+        List of models trained on subsets with increasing KL divergence,
+        List of KL divergences between balanced and shifted distributions.
+    """
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    if task_config:
+        task_configs[task] = deep_update(task_configs[task], task_config)
+
+    pass
