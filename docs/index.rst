@@ -5,9 +5,8 @@
 synesis documentation
 =====================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+Docs for the `synesis <https://github.com/chrispla/synesis>`_
+holistic representation evaluation package.
 
 
 .. toctree::
