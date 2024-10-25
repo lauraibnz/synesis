@@ -1,6 +1,8 @@
 # synesis
 Tools for holistic representation evaluation and understanding
 
+[Read the Docs](https://synesis.rtfd.io)
+
 *synesis*: unification, to bring (something) together that thereby gives meaning
 
 ### Develop
