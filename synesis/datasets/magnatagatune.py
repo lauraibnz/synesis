@@ -44,6 +44,7 @@ class MagnaTagATune(Dataset):
         """
         self.tasks = ["tagging"]
         self.fvs = ["pitch", "tempo", "eq"]
+        self.name = "MagnaTagATune"
 
         root = Path(root)
         self.root = root
@@ -80,34 +81,33 @@ class MagnaTagATune(Dataset):
                 + "Skipping audio download.",
                 stacklevel=2,
             )
-            self.download_metadata()
-            return
-        (Path(self.root) / "mp3").mkdir(parents=True, exist_ok=True)
+        else:
+            (Path(self.root) / "mp3").mkdir(parents=True, exist_ok=True)
 
-        print(f"Downloading MagnaTagATune to {self.root}...")
-        for i in tqdm(["001", "002", "003"]):
-            wget.download(
-                url=f"https://mirg.city.ac.uk/datasets/magnatagatune/mp3.zip.{i}",
-                out=str(Path(self.root) / "mp3"),
-            )
+            print(f"Downloading MagnaTagATune to {self.root}...")
+            for i in tqdm(["001", "002", "003"]):
+                wget.download(
+                    url=f"https://mirg.city.ac.uk/datasets/magnatagatune/mp3.zip.{i}",
+                    out=str(Path(self.root) / "mp3"),
+                )
 
-        archive_dir = Path(self.root) / "mp3"
-        # Combine the split archive files into a single file
-        with open(archive_dir / "mp3.zip", "wb") as f:
-            for i in ["001", "002", "003"]:
-                with open(
-                    os.path.join(archive_dir, f"mp3.zip.{i}"),
-                    "rb",
-                ) as part:
-                    f.write(part.read())
+            archive_dir = Path(self.root) / "mp3"
+            # Combine the split archive files into a single file
+            with open(archive_dir / "mp3.zip", "wb") as f:
+                for i in ["001", "002", "003"]:
+                    with open(
+                        os.path.join(archive_dir, f"mp3.zip.{i}"),
+                        "rb",
+                    ) as part:
+                        f.write(part.read())
 
-        # Extract the contents of the archive
-        with zipfile.ZipFile(archive_dir / "mp3.zip", "r") as zip_ref:
-            zip_ref.extractall(path=archive_dir)
+            # Extract the contents of the archive
+            with zipfile.ZipFile(archive_dir / "mp3.zip", "r") as zip_ref:
+                zip_ref.extractall(path=archive_dir)
 
-        # Remove zips
-        for i in ["", ".001", ".002", ".003"]:
-            os.remove(os.path.join(archive_dir, f"mp3.zip{i}"))
+            # Remove zips
+            for i in ["", ".001", ".002", ".003"]:
+                os.remove(os.path.join(archive_dir, f"mp3.zip{i}"))
 
         # Download metadata
         if os.path.exists(os.path.join(self.root, "metadata")) and (

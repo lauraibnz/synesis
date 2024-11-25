@@ -1,3 +1,6 @@
+Now
+[ ] Implement tinysol
+
 Test
     [ ] Downstream - full
     [ ] Downstream - aggregated
@@ -19,7 +22,6 @@ Robustness
         [ ] evaluation
 
 Datasets
-    [ ] Implement TinySOL
     [ ] Implement Beatport
 
 Non-music Datasets
