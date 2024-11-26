@@ -1,9 +1,10 @@
 Now
-[ ] Implement tinysol
+[X] Implement tinysol
+[ ] Test Downstream - full
+[ ] Test Downstream - aggregated
+[ ] Implement NSynth
 
 Test
-    [ ] Downstream - full
-    [ ] Downstream - aggregated
     [ ] Test DynamicBatchSampler
         [ ] Can it be shuffled?
     [ ] Predict transform
@@ -32,3 +33,4 @@ Non-music Datasets
 Transforms
     [ ] Enclose torchaudio transforms to be callable from config
     [ ] Add more transforms
+
