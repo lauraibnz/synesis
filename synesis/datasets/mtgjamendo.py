@@ -90,7 +90,7 @@ class MTGJamendo(Dataset):
             feature_config = feature_configs[feature]
         self.feature_config = feature_config
 
-        self.mlb = MultiLabelBinarizer()
+        self.label_encoder = MultiLabelBinarizer()
 
         self.paths, self.labels = self._load_metadata()
 
@@ -157,8 +157,8 @@ class MTGJamendo(Dataset):
         labels = [label for idx, label in enumerate(labels) if idx not in idx_to_remove]
 
         # encode labels
-        encoded_labels = self.mlb.fit(labels)
-        encoded_labels = self.mlb.transform(labels)
+        encoded_labels = self.label_encoder.fit(labels)
+        encoded_labels = self.label_encoder.transform(labels)
 
         return paths, encoded_labels
 

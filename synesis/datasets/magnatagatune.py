@@ -57,7 +57,7 @@ class MagnaTagATune(Dataset):
         self.item_format = item_format
         self.audio_format = audio_format
         self.feature = feature
-        self.mlb = MultiLabelBinarizer()
+        self.label_encoder = MultiLabelBinarizer()
 
         if not feature_config:
             # load default feature config
@@ -185,8 +185,8 @@ class MagnaTagATune(Dataset):
                 if line[0] not in ["35644", "55753", "57881"]
             ]
         # encode labels
-        encoded_labels = self.mlb.fit(labels)
-        encoded_labels = self.mlb.transform(labels)
+        encoded_labels = self.label_encoder.fit(labels)
+        encoded_labels = self.label_encoder.transform(labels)
 
         labels = np.array(encoded_labels)
 
