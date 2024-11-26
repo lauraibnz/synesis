@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 from pathlib import Path
 from typing import Optional, Union, Tuple
 from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
 import numpy as np
 import torch
 from torch import Tensor
@@ -123,8 +124,6 @@ class TinySOL(Dataset):
                                      Defaults to (0.8, 0.1, 0.1), must add up to 1.
             seed (int, optional): Random seed. Defaults to 42.
         """
-        from sklearn.model_selection import train_test_split
-
         if sum(sizes) != 1:
             raise ValueError("Sizes must add up to 1.")
 
