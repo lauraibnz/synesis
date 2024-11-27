@@ -138,7 +138,7 @@ class MagnaTagATune(Dataset):
                 out=os.path.join(self.root, "metadata/"),
             )
 
-    def _load_metadata(self) -> Tuple[list, np.ndarray]:
+    def _load_metadata(self) -> Tuple[list, torch.Tensor]:
         # load track ids
         with open(
             os.path.join(self.root, "metadata", "annotations_final.csv"), "r"
@@ -185,10 +185,8 @@ class MagnaTagATune(Dataset):
                 if line[0] not in ["35644", "55753", "57881"]
             ]
         # encode labels
-        encoded_labels = self.label_encoder.fit(labels)
-        encoded_labels = self.label_encoder.transform(labels)
-
-        labels = np.array(encoded_labels)
+        encoded_labels = self.label_encoder.fit_transform(labels)
+        encoded_labels = torch.tensor(encoded_labels, dtype=torch.long)
 
         # load splits
         if self.split:
@@ -215,17 +213,17 @@ class MagnaTagATune(Dataset):
 
             # keep these indices in path and labels
             audio_paths = [audio_paths[i] for i in indices]
-            labels = labels[indices]
+            encoded_labels = encoded_labels[indices]
 
         if self.item_format == "audio":
-            return audio_paths, labels
+            return audio_paths, encoded_labels
 
         feature_paths = [
             path.replace(f".{self.audio_format}", ".pt").replace("mp3", self.feature)
             for path in audio_paths
         ]
 
-        return feature_paths, labels
+        return feature_paths, encoded_labels
 
     def load_track(self, path) -> Tensor:
         if self.item_format == "feature":

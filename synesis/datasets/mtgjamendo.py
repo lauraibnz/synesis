@@ -45,6 +45,7 @@ class MTGJamendo(Dataset):
         """
         self.tasks = ["tagging"]
         self.fvs = ["key", "tempo", "eq"]
+        self.name = "MTGJamendo"
 
         root = Path(root)
         self.root = root
@@ -120,7 +121,7 @@ class MTGJamendo(Dataset):
                 save_dir=str(self.root / "metadata"),
             )
 
-    def _load_metadata(self) -> Tuple[list, np.ndarray]:
+    def _load_metadata(self) -> Tuple[list, torch.Tensor]:
         with open(self.metadata_path, "r") as f:
             metadata = f.readlines()
         # paths in the metadata file look like 65/765.mp3
@@ -159,6 +160,7 @@ class MTGJamendo(Dataset):
         # encode labels
         encoded_labels = self.label_encoder.fit(labels)
         encoded_labels = self.label_encoder.transform(labels)
+        encoded_labels = torch.tensor(encoded_labels, dtype=torch.long)
 
         return paths, encoded_labels
 

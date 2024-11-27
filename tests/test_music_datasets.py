@@ -4,6 +4,8 @@ import torch
 
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
+from synesis.datasets.tinysol import TinySOL
+
 
 DATASETS = [
     (
@@ -23,6 +25,14 @@ DATASETS = [
             "item_format": "audio",
         },
     ),
+    (
+        TinySOL,
+        {
+            "root": "data/TinySOL",
+            "splits": [None, "train", "test", "validation"],
+            "item_format": "audio",
+        }
+    )
 ]
 
 
@@ -41,22 +51,26 @@ def test_dataset_loading(dataset_config):
             split=split,
         )
 
+        # Test dataset has a name
+        assert dataset.name is not None
+
         # Test paths and labels are loaded
         assert len(dataset.paths) > 0
         assert len(dataset.labels) > 0
         assert len(dataset.paths) == len(dataset.labels)
+        assert dataset.labels.dtype == torch.long
 
-        # Test labels are encoded
-        assert isinstance(dataset.labels, np.ndarray)
-        assert dataset.labels.dtype == np.int64
-
-        # Test random items are 2D tensors
+        # Test random items
         for _ in range(5):
             idx = np.random.randint(0, len(dataset))
             item, label = dataset[idx]
             assert len(item.shape) == 2
             assert torch.is_tensor(item)
-            assert isinstance(label, np.ndarray)
+            if dataset.name in ["MagnaTagATune", "MTGJamendo"]:
+                assert isinstance(label, torch.Tensor)
+                assert label.dtype == torch.long
+            # else:
+            #     assert isinstance
 
 
 def test_mtgjamendo_subsets():

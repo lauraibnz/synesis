@@ -4,11 +4,10 @@ from torch import nn
 from pathlib import Path
 
 from config.tasks import task_configs
-from synesis.datasets.magnatagatune import MagnaTagATune
-from synesis.datasets.mtgjamendo import MTGJamendo
+from synesis.datasets.tinysol import TinySOL
 from synesis.downstream import train, evaluate
 
-@pytest.fixture(params=[MagnaTagATune, MTGJamendo])
+@pytest.fixture(params=[TinySOL])
 def dataset_class(request):
     return request.param
 
@@ -18,7 +17,7 @@ def task_name(request):
 
 @pytest.fixture
 def mock_feature_name():
-    return "openl3"  # Use a simple feature extractor for testing
+    return "vggish_mtat"  # Use a simple feature extractor for testing
 
 @pytest.fixture
 def device():

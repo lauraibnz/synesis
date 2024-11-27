@@ -1,5 +1,4 @@
 Now
-[X] Implement tinysol
 [ ] Test Downstream - full
 [ ] Test Downstream - aggregated
 [ ] Implement NSynth
