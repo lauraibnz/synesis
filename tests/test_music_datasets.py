@@ -6,7 +6,6 @@ from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.datasets.tinysol import TinySOL
 
-
 DATASETS = [
     (
         MagnaTagATune,
@@ -31,8 +30,8 @@ DATASETS = [
             "root": "data/TinySOL",
             "splits": [None, "train", "test", "validation"],
             "item_format": "audio",
-        }
-    )
+        },
+    ),
 ]
 
 
@@ -69,8 +68,6 @@ def test_dataset_loading(dataset_config):
             if dataset.name in ["MagnaTagATune", "MTGJamendo"]:
                 assert isinstance(label, torch.Tensor)
                 assert label.dtype == torch.long
-            # else:
-            #     assert isinstance
 
 
 def test_mtgjamendo_subsets():

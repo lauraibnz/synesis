@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import mirdata
-import numpy as np
 import torch
 import torchaudio
 from sklearn.model_selection import train_test_split
@@ -61,7 +60,7 @@ class TinySOL(Dataset):
         feature_config: Optional[dict] = None,
         audio_format: str = "wav",
         item_format: str = "feature",
-        fv: str = "pitch",
+        fv: str = "instrument",
         seed: int = 42,
     ) -> None:
         """
@@ -117,7 +116,7 @@ class TinySOL(Dataset):
         self.dataset.download()
         self.dataset.validate(verbose=False)
 
-    def _get_stratified_split(self, track_ids, labels, sizes=(0.8, 0.1, 0.1), seed=42):
+    def _get_stratified_split(self, paths, labels, sizes=(0.8, 0.1, 0.1), seed=42):
         """Helper method to generate a stratified split of the dataset.
 
         Args:
@@ -129,7 +128,7 @@ class TinySOL(Dataset):
             raise ValueError("Sizes must add up to 1.")
 
         X_train, X_others, y_train, y_others = train_test_split(
-            track_ids,
+            paths,
             labels,
             test_size=1 - sizes[0],
             random_state=seed,
@@ -178,9 +177,7 @@ class TinySOL(Dataset):
         # load splits
         if self.split:
             splits = self._get_stratified_split(
-                seed=42,
-                track_ids=self.track_ids,
-                labels=labels
+                seed=42, paths=paths, labels=labels
             )
             paths, labels = splits[f"X_{self.split}"], splits[f"y_{self.split}"]
 
@@ -188,7 +185,16 @@ class TinySOL(Dataset):
         labels = self.label_encoder.fit_transform(labels)
         labels = torch.tensor(labels, dtype=torch.long)
 
-        return paths, labels
+        if self.item_format == "audio":
+            return paths, labels
+
+        feature_paths = [
+            path.replace(f".{self.audio_format}", ".pt")
+            .replace(f"/{self.audio_format}/", f"/{self.feature}/")
+            .replace("/audio/", f"/{self.feature}/")
+            for path in paths
+        ]
+        return feature_paths, labels
 
     def load_track(self, path) -> Tensor:
         if self.item_format == "feature":
@@ -215,3 +221,23 @@ class TinySOL(Dataset):
         track = self.load_track(path)
 
         return track, labels
+
+
+if __name__ == "__main__":
+    tinysol = TinySOL(
+        feature="vggish_mtat",
+        root="data/TinySOL",
+        item_format="audio",
+        feature_config={
+            "item_len_sec": 3.69,
+            "sample_rate": 16000,
+            "feature_dim": 512,
+        },
+    )
+    # iterate over all items
+    import numpy as np
+
+    for _ in range(5):
+        idx = np.random.randint(0, len(tinysol))
+        item, label = tinysol[idx]
+        print(item.shape, label)
