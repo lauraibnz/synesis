@@ -1,13 +1,14 @@
-import torchaudio
-import mirdata
-from torch.utils.data import Dataset
 from pathlib import Path
-from typing import Optional, Union, Tuple
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
+from typing import Optional, Tuple, Union
+
+import mirdata
 import numpy as np
 import torch
+import torchaudio
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
+from torch.utils.data import Dataset
 
 from config.features import feature_configs
 
@@ -58,7 +59,7 @@ class TinySOL(Dataset):
         split: Optional[str] = None,
         download: bool = False,
         feature_config: Optional[dict] = None,
-        audio_format: str = "mp3",
+        audio_format: str = "wav",
         item_format: str = "feature",
         fv: str = "pitch",
         seed: int = 42,
@@ -80,7 +81,7 @@ class TinySOL(Dataset):
             seed: Random seed for reproducibility.
         """
         self.name = "TinySOL"
-        self.tasks = ["classification"]
+        self.tasks = ["pitch_classification", "instrument_classification"]
         self.fvs = ["pitch", "instrument"]  # also dynamics, technique
         assert fv in self.fvs, f"Invalid factor of variation: {fv}"
         self.fv = fv
@@ -116,7 +117,7 @@ class TinySOL(Dataset):
         self.dataset.download()
         self.dataset.validate(verbose=False)
 
-    def get_stratified_split(self, sizes=(0.8, 0.1, 0.1), seed=42):
+    def _get_stratified_split(self, track_ids, labels, sizes=(0.8, 0.1, 0.1), seed=42):
         """Helper method to generate a stratified split of the dataset.
 
         Args:
@@ -127,14 +128,12 @@ class TinySOL(Dataset):
         if sum(sizes) != 1:
             raise ValueError("Sizes must add up to 1.")
 
-        X = self.track_ids
-        y = self.labels
         X_train, X_others, y_train, y_others = train_test_split(
-            X,
-            y,
+            track_ids,
+            labels,
             test_size=1 - sizes[0],
             random_state=seed,
-            stratify=y,
+            stratify=labels,
         )
         X_val, X_test, y_val, y_test = train_test_split(
             X_others,
@@ -152,7 +151,7 @@ class TinySOL(Dataset):
             "y_test": y_test,
         }
 
-    def _load_metadata(self) -> Tuple[list, np.ndarray]:
+    def _load_metadata(self) -> Tuple[list, torch.Tensor]:
         # load track ids
         self.track_ids = self.dataset.track_ids
         # only keep track_ids with single pitch annotations
@@ -167,7 +166,7 @@ class TinySOL(Dataset):
         labels = []
         if self.fv == "pitch":
             for t_id in self.track_ids:
-                pitch_str = self.dataset.track(self.track_ids[0]).pitch
+                pitch_str = self.dataset.track(t_id).pitch
                 # annotation fix
                 if "F#_" in pitch_str:
                     pitch_str = pitch_str.replace("F#_", "F#")
@@ -178,13 +177,18 @@ class TinySOL(Dataset):
 
         # load splits
         if self.split:
-            splits = self.get_stratified_split(seed=42)
+            splits = self._get_stratified_split(
+                seed=42,
+                track_ids=self.track_ids,
+                labels=labels
+            )
             paths, labels = splits[f"X_{self.split}"], splits[f"y_{self.split}"]
 
         # encode labels
         labels = self.label_encoder.fit_transform(labels)
+        labels = torch.tensor(labels, dtype=torch.long)
 
-        self.paths, self.labels = paths, labels
+        return paths, labels
 
     def load_track(self, path) -> Tensor:
         if self.item_format == "feature":
@@ -200,6 +204,9 @@ class TinySOL(Dataset):
                 )
                 waveform = resampler(waveform)
             return waveform
+
+    def __len__(self) -> int:
+        return len(self.paths)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         path = self.paths[idx]

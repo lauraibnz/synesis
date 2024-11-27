@@ -29,7 +29,7 @@ task_configs = {
             ],
         },
     },
-    "pitch_class_classification": {
+    "pitch_classification": {
         "model": {
             "type": "classifier",
             "params": {"hidden_units": [512, 256]},
