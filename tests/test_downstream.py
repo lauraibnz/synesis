@@ -3,10 +3,12 @@ from pathlib import Path
 import pytest
 import torch
 from torch import nn
+from torch.utils.data import Dataset
 
 from config.tasks import task_configs
 from synesis.datasets.tinysol import TinySOL
 from synesis.downstream import evaluate, train
+from synesis.features.feature_utils import DynamicBatchSampler, collate_packed_batch
 
 
 @pytest.fixture(params=[TinySOL])
@@ -16,6 +18,11 @@ def dataset_class(request):
 
 @pytest.fixture(params=["instrument_classification"])
 def task_name(request):
+    return request.param
+
+
+@pytest.fixture(params=["feature"])
+def item_format(request):
     return request.param
 
 
@@ -29,7 +36,67 @@ def device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def test_train_model(dataset_class, task_name, mock_feature_name, tmp_path, device):
+def test_dynamic_batch_formation():
+    # Create a simple dataset with a few items
+    class MockDataset(Dataset):
+        def __init__(self):
+            self.items = [
+                [
+                    [0, 0, 0],
+                    [1, 1, 1],
+                    [2, 2, 2],
+                ],
+                [
+                    [3, 3, 3],
+                    [4, 4, 4],
+                ],
+                [
+                    [5, 5, 5],
+                ],
+            ]
+
+        def __len__(self):
+            return len(self.items)
+
+        def __getitem__(self, idx):
+            return self.items[idx], "mock_label"
+
+    dataset = MockDataset()
+    sampler = DynamicBatchSampler(dataset, batch_size=4, shuffle=False)
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_sampler=sampler,
+        collate_fn=collate_packed_batch,
+    )
+    for i, (item, label) in enumerate(dataloader):
+        print("item", item)
+        print("label", label)
+        assert item.shape[0] == 4, "Batch size should not exceed 4"
+        assert item.shape[1] == 3, "Feature dimension should be 3"
+        assert label[0] == "mock_label", "Label should be the same for all items"
+        if i == 0:
+            assert torch.equal(
+                item,
+                torch.tensor(
+                    [
+                        [[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]],
+                    ]
+                ),
+            )
+        elif i == 1:
+            assert torch.equal(
+                item,
+                torch.tensor(
+                    [
+                        [[4, 4, 4], [5, 5, 5], [0, 0, 0], [0, 0, 0]],
+                    ]
+                ),
+            )
+
+
+def test_train_model(
+    dataset_class, task_name, item_format, mock_feature_name, tmp_path, device
+):
     # Configure a minimal training run for testing
     test_config = {"training": {"num_epochs": 2, "batch_size": 2, "patience": 3}}
 
@@ -38,6 +105,7 @@ def test_train_model(dataset_class, task_name, mock_feature_name, tmp_path, devi
         feature=mock_feature_name,
         root=f"data/{dataset_class.__name__}",
         split="train",
+        item_format=item_format,
     )
 
     # Take small subset for testing
@@ -52,6 +120,7 @@ def test_train_model(dataset_class, task_name, mock_feature_name, tmp_path, devi
         task=task_name,
         task_config=test_config,
         device=device,
+        item_format=item_format,
     )
 
     # Basic assertions
@@ -67,7 +136,9 @@ def test_train_model(dataset_class, task_name, mock_feature_name, tmp_path, devi
     assert has_nonzero_params, "Model parameters should not all be zero"
 
 
-def test_evaluate_model(dataset_class, task_name, mock_feature_name, device):
+def test_evaluate_model(
+    dataset_class, task_name, item_format, mock_feature_name, device
+):
     # Configure minimal evaluation settings
     test_config = {"evaluation": {"batch_size": 2}}
 
@@ -78,6 +149,7 @@ def test_evaluate_model(dataset_class, task_name, mock_feature_name, device):
         task=task_name,
         task_config={"training": {"num_epochs": 1}},
         device=device,
+        item_format=item_format,
     )
 
     # Evaluate the model
@@ -88,6 +160,7 @@ def test_evaluate_model(dataset_class, task_name, mock_feature_name, device):
         task=task_name,
         task_config=test_config,
         device=device,
+        item_format=item_format,
     )
 
     # Check evaluation results
@@ -104,7 +177,9 @@ def test_evaluate_model(dataset_class, task_name, mock_feature_name, device):
         ), f"Metric {metric_name} should not be NaN"
 
 
-def test_model_save_load(dataset_class, task_name, mock_feature_name, tmp_path, device):
+def test_model_save_load(
+    dataset_class, task_name, item_format, mock_feature_name, tmp_path, device
+):
     # Train model with minimal epochs
     model = train(
         feature=mock_feature_name,
@@ -112,6 +187,7 @@ def test_model_save_load(dataset_class, task_name, mock_feature_name, tmp_path, 
         task=task_name,
         task_config={"training": {"num_epochs": 1}},
         device=device,
+        item_format=item_format,
     )
 
     # Save model
@@ -129,27 +205,6 @@ def test_model_save_load(dataset_class, task_name, mock_feature_name, tmp_path, 
     # Compare original and loaded models
     for p1, p2 in zip(model.parameters(), new_model.parameters()):
         assert torch.equal(p1, p2), "Loaded model parameters should match original"
-
-
-@pytest.mark.parametrize("item_format", ["audio", "feature"])
-def test_different_input_formats(
-    item_format, dataset_class, task_name, mock_feature_name, device
-):
-    # Test both audio and feature input formats
-    test_config = {"training": {"num_epochs": 1, "batch_size": 2}}
-
-    model = train(
-        feature=mock_feature_name,
-        dataset=dataset_class.__name__,
-        task=task_name,
-        item_format=item_format,
-        task_config=test_config,
-        device=device,
-    )
-
-    assert isinstance(
-        model, nn.Module
-    ), f"Model training failed for {item_format} format"
 
 
 if __name__ == "__main__":

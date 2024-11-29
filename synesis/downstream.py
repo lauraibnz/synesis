@@ -55,12 +55,14 @@ def train(
         feature=feature,
         split="train",
         download=False,
+        item_format=item_format,
     )
     val_dataset = get_dataset(
         name=dataset,
         feature=feature,
         split="validation",
         download=False,
+        item_format=item_format,
     )
 
     assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
@@ -243,6 +245,7 @@ def evaluate(
         feature=feature,
         split="test",
         download=False,
+        item_format=item_format,
     )
 
     assert task in test_dataset.tasks

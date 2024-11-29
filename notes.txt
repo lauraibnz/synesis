@@ -1,12 +1,14 @@
 Now
-[ ] Test Downstream - full, incl from audio
+[ ] Reimplmenet DynamicBatchSampler
+[ ] Test DynamicBatchSampler
+    [ ] Test shuffling?
+[ ] Test Downstream - full
+    [ ] incl from audio
 [ ] Implement feature extractor selector like with datasets
 [ ] Test Downstream - aggregated
 [ ] Implement NSynth
 
 Test
-    [ ] Test DynamicBatchSampler
-        [ ] Can it be shuffled?
     [ ] Predict transform
     [ ] Predict transformed
     [ ] Covariate shift

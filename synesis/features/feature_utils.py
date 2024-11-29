@@ -124,7 +124,7 @@ def dynamic_batch_extractor(
     pbar.close()
 
 
-class DynamicBatchSampler(Sampler):
+class OldDynamicBatchSampler(Sampler):
     """
     Dynamic batch sampler for variable length items.
 
@@ -132,7 +132,7 @@ class DynamicBatchSampler(Sampler):
     saving and identifying saved features for deciding
     how to batch items, so it can be used for training.
     However, it also needs to load the whole dataset once
-    at the start to determine the total length.
+    at the start to determine the total real length (items).
 
     Args:
         dataset: PyTorch dataset that returns [audio, label].
@@ -142,6 +142,9 @@ class DynamicBatchSampler(Sampler):
     def __init__(self, dataset, batch_size):
         self.dataset = dataset
         self.batch_size = batch_size
+        # !NOTE this will currently only work only if the dataset
+        # returns items containing lists of arbitrarily many features
+        # (arrays) of the same length (e.g. audio embeddings).
         self.item_lengths = [len(item[0]) for item in dataset]
 
     def __iter__(self):
@@ -166,21 +169,77 @@ class DynamicBatchSampler(Sampler):
         return (sum(self.item_lengths) + self.batch_size - 1) // self.batch_size
 
 
-def collate_packed_batch(batch):
+class DynamicBatchSampler(Sampler):
+    """
+    Dynamic batch sampler for variable length items.
+
+    Unlike the dynamic_batch_extractor, it doesn't rely on
+    saving and identifying saved features for deciding
+    how to batch items, so it can be used for training.
+    However, it also needs to load the whole dataset once
+    at the start to determine the total real length (items).
+
+    Args:
+        dataset: PyTorch dataset that returns [audio, label].
+        batch_size: Batch size.
+    """
+
+    def __init__(self, dataset, batch_size, shuffle=False):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        # !NOTE this will currently only work only if the dataset
+        # returns items containing lists of arbitrarily many features
+        # (arrays) of the same length (e.g. audio embeddings).
+        self.item_lengths = [len(item[0]) for item in dataset]
+
+        # subaray indexing, rather than dataset indexing
+        self.real_len = sum(self.item_lengths)
+        self.real_indices = list(range(self.real_len))
+
+        if self.shuffle:
+            np.random.shuffle(self.real_indices)
+
+        # subarray indexing to (array, relative offset) tuple
+        self.idx_map = {}
+        for i, item_len in enumerate(self.item_lengths):
+            for j in range(item_len):
+                self.idx_map[i + j] = (i, j)
+
+    def __iter__(self):
+        if self.shuffle:
+            np.random.shuffle(self.real_indices)
+
+        current_batch = []
+        for real_idx in self.real_indices:
+            array_idx, offset = self.idx_map[real_idx]
+            current_batch.append((array_idx, offset))
+
+            if len(current_batch) == self.batch_size:
+                yield current_batch
+                current_batch = []
+
+        if current_batch:
+            yield current_batch
+
+    def __len__(self):
+        return (self.real_len + self.batch_size - 1) // self.batch_size
+
+
+def collate_packed_batch(batch, dataset):
     """
     Collate a batch of variable length items into a packed sequence.
     """
     sequences = []
     labels = []
-    # offsets = [0]
 
-    for seq, label in batch:
-        sequences.append(seq)
+    for array_idx, subarray_idx in batch:
+        array, label = dataset[array_idx]
+        subarray = array[subarray_idx]
+        sequences.append(subarray)
         labels.append(label)
-        # offsets.append(offsets[-1] + len(seq))
 
     packed_sequences = torch.cat(sequences)
     packed_labels = torch.tensor(labels)
-    # offsets = torch.tensor(offsets[:-1])
 
     return packed_sequences, packed_labels
