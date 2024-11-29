@@ -1,5 +1,6 @@
 Now
-[ ] Test Downstream - full
+[ ] Test Downstream - full, incl from audio
+[ ] Implement feature extractor selector like with datasets
 [ ] Test Downstream - aggregated
 [ ] Implement NSynth
 

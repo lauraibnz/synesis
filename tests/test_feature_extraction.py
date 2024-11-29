@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import numpy as np
 import pytest
 import torch
 
@@ -70,7 +69,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
         assert feature_path.exists(), f"Feature file {feature_path} not created"
 
         # Load the extracted feature
-        feature = np.load(feature_path)
+        feature = torch.load(feature_path, weights_only=True)
 
         # Check feature shape
         assert feature.ndim == 2, f"Feature {feature_path} should be 2-dimensional"
@@ -83,7 +82,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
             )
 
         # Check that not all entries are zero
-        assert np.any(feature), f"All entries in feature {feature_path} are zero"
+        assert torch.any(feature), f"All entries in feature {feature_path} are zero"
 
 
 if __name__ == "__main__":

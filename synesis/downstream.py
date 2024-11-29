@@ -65,7 +65,7 @@ def train(
 
     assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
 
-    if task_configs[task]["data"]["train"]["feature_aggregation"]:
+    if task_configs[task]["training"]["feature_aggregation"]:
         dataloader = DataLoader(
             train_dataset,
             batch_size=task_configs[task]["training"]["batch_size"],
@@ -80,7 +80,7 @@ def train(
             train_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
         )
 
-    if task_configs[task]["data"]["evaluation"]["feature_aggregation"]:
+    if task_configs[task]["evaluation"]["feature_aggregation"]:
         val_dataloader = DataLoader(
             val_dataset,
             batch_size=task_configs[task]["training"]["batch_size"],
@@ -199,7 +199,7 @@ def train(
 
     # Load the best model state
     if best_model_state is not None:
-        model.load_state_dict(best_model_state)
+        model.load_state_dict(best_model_state, weights_only=False)
 
     # Save the best model
     save_path = Path("ckpt") / "downstream" / f"{feature}_{dataset}_{task}.pt"

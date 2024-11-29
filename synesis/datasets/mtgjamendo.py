@@ -175,7 +175,7 @@ class MTGJamendo(Dataset):
 
     def load_track(self, path) -> Tensor:
         if self.item_format == "feature":
-            return torch.load(path, weights_only=True)
+            return torch.load(path, weights_only=False)
         else:
             waveform, original_sample_rate = torchaudio.load(path, normalize=True)
             if waveform.size(0) != 1:  # make mono if stereo (or more)

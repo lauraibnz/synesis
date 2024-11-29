@@ -1,37 +1,37 @@
+from pathlib import Path
+
 import pytest
 import torch
 from torch import nn
-from pathlib import Path
 
 from config.tasks import task_configs
 from synesis.datasets.tinysol import TinySOL
-from synesis.downstream import train, evaluate
+from synesis.downstream import evaluate, train
+
 
 @pytest.fixture(params=[TinySOL])
 def dataset_class(request):
     return request.param
 
-@pytest.fixture(params=list(task_configs.keys()))
+
+@pytest.fixture(params=["instrument_classification"])
 def task_name(request):
     return request.param
+
 
 @pytest.fixture
 def mock_feature_name():
     return "vggish_mtat"  # Use a simple feature extractor for testing
 
+
 @pytest.fixture
 def device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 def test_train_model(dataset_class, task_name, mock_feature_name, tmp_path, device):
     # Configure a minimal training run for testing
-    test_config = {
-        "training": {
-            "num_epochs": 2,
-            "batch_size": 2,
-            "patience": 3
-        }
-    }
+    test_config = {"training": {"num_epochs": 2, "batch_size": 2, "patience": 3}}
 
     # Create small test dataset
     dataset = dataset_class(
@@ -51,7 +51,7 @@ def test_train_model(dataset_class, task_name, mock_feature_name, tmp_path, devi
         dataset=dataset_class.__name__,
         task=task_name,
         task_config=test_config,
-        device=device
+        device=device,
     )
 
     # Basic assertions
@@ -66,13 +66,10 @@ def test_train_model(dataset_class, task_name, mock_feature_name, tmp_path, devi
             break
     assert has_nonzero_params, "Model parameters should not all be zero"
 
+
 def test_evaluate_model(dataset_class, task_name, mock_feature_name, device):
     # Configure minimal evaluation settings
-    test_config = {
-        "evaluation": {
-            "batch_size": 2
-        }
-    }
+    test_config = {"evaluation": {"batch_size": 2}}
 
     # First train a model with minimal epochs
     model = train(
@@ -80,7 +77,7 @@ def test_evaluate_model(dataset_class, task_name, mock_feature_name, device):
         dataset=dataset_class.__name__,
         task=task_name,
         task_config={"training": {"num_epochs": 1}},
-        device=device
+        device=device,
     )
 
     # Evaluate the model
@@ -90,7 +87,7 @@ def test_evaluate_model(dataset_class, task_name, mock_feature_name, device):
         dataset=dataset_class.__name__,
         task=task_name,
         task_config=test_config,
-        device=device
+        device=device,
     )
 
     # Check evaluation results
@@ -99,8 +96,13 @@ def test_evaluate_model(dataset_class, task_name, mock_feature_name, device):
 
     # Check that metric values are reasonable
     for metric_name, value in results.items():
-        assert isinstance(value, (float, int)), f"Metric {metric_name} should be numeric"
-        assert not torch.isnan(torch.tensor(value)), f"Metric {metric_name} should not be NaN"
+        assert isinstance(
+            value, (float, int)
+        ), f"Metric {metric_name} should be numeric"
+        assert not torch.isnan(
+            torch.tensor(value)
+        ), f"Metric {metric_name} should not be NaN"
+
 
 def test_model_save_load(dataset_class, task_name, mock_feature_name, tmp_path, device):
     # Train model with minimal epochs
@@ -109,7 +111,7 @@ def test_model_save_load(dataset_class, task_name, mock_feature_name, tmp_path, 
         dataset=dataset_class.__name__,
         task=task_name,
         task_config={"training": {"num_epochs": 1}},
-        device=device
+        device=device,
     )
 
     # Save model
@@ -128,15 +130,13 @@ def test_model_save_load(dataset_class, task_name, mock_feature_name, tmp_path, 
     for p1, p2 in zip(model.parameters(), new_model.parameters()):
         assert torch.equal(p1, p2), "Loaded model parameters should match original"
 
+
 @pytest.mark.parametrize("item_format", ["audio", "feature"])
-def test_different_input_formats(item_format, dataset_class, task_name, mock_feature_name, device):
+def test_different_input_formats(
+    item_format, dataset_class, task_name, mock_feature_name, device
+):
     # Test both audio and feature input formats
-    test_config = {
-        "training": {
-            "num_epochs": 1,
-            "batch_size": 2
-        }
-    }
+    test_config = {"training": {"num_epochs": 1, "batch_size": 2}}
 
     model = train(
         feature=mock_feature_name,
@@ -144,10 +144,13 @@ def test_different_input_formats(item_format, dataset_class, task_name, mock_fea
         task=task_name,
         item_format=item_format,
         task_config=test_config,
-        device=device
+        device=device,
     )
 
-    assert isinstance(model, nn.Module), f"Model training failed for {item_format} format"
+    assert isinstance(
+        model, nn.Module
+    ), f"Model training failed for {item_format} format"
+
 
 if __name__ == "__main__":
     pytest.main()

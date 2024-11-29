@@ -48,18 +48,16 @@ def dynamic_batch_extractor(
         for idx, output_path in enumerate(batch_paths):
             emb = batch[idx]
             if emb.shape[0] != 1:
-                emb = np.expand_dims(emb, axis=0)
+                emb = emb.unsqueeze(0)
 
             path = Path(output_path)
             path.parent.mkdir(parents=True, exist_ok=True)
 
             if path.exists():
-                with path.open("rb") as f:
-                    emb_old = np.load(f)
-                emb = np.concatenate((emb_old, emb), axis=0)
+                emb_old = torch.load(path, weights_only=True)
+                emb = torch.cat((emb_old, emb), dim=0)
 
-            with path.open("wb") as f:
-                np.save(f, emb)
+            torch.save(emb, path)
 
     pbar = tqdm(total=len(dataset))
     batch = []
