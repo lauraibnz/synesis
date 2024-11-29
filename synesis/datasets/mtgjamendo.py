@@ -45,7 +45,6 @@ class MTGJamendo(Dataset):
         """
         self.tasks = ["tagging"]
         self.fvs = ["key", "tempo", "eq"]
-        self.name = "MTGJamendo"
 
         root = Path(root)
         self.root = root

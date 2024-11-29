@@ -50,11 +50,10 @@ def test_dataset_loading(dataset_config):
             split=split,
         )
 
-        # Test dataset has a name
-        assert dataset.name is not None
-
         # Test paths and labels are loaded
         assert len(dataset.paths) > 0
+        assert len(dataset.audio_paths) > 0
+        assert len(dataset.feature_paths) > 0
         assert len(dataset.labels) > 0
         assert len(dataset.paths) == len(dataset.labels)
         assert dataset.labels.dtype == torch.long
@@ -65,7 +64,7 @@ def test_dataset_loading(dataset_config):
             item, label = dataset[idx]
             assert len(item.shape) == 2
             assert torch.is_tensor(item)
-            if dataset.name in ["MagnaTagATune", "MTGJamendo"]:
+            if dataset.__class__.__name__ in ["MagnaTagATune", "MTGJamendo"]:
                 assert isinstance(label, torch.Tensor)
                 assert label.dtype == torch.long
 

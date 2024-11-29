@@ -79,7 +79,6 @@ class TinySOL(Dataset):
             fv: factor of variations (i.e. label) to return
             seed: Random seed for reproducibility.
         """
-        self.name = "TinySOL"
         self.tasks = ["pitch_classification", "instrument_classification"]
         self.fvs = ["pitch", "instrument"]  # also dynamics, technique
         assert fv in self.fvs, f"Invalid factor of variation: {fv}"
