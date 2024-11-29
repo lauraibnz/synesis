@@ -1,19 +1,10 @@
-from typing import Dict, Type
+import importlib
+from typing import Type
 
 from torch.utils.data import Dataset
 
-from synesis.datasets.magnatagatune import MagnaTagATune
-from synesis.datasets.mtgjamendo import MTGJamendo
-from synesis.datasets.tinysol import TinySOL
-
 
 class DatasetFactory:
-    _datasets: Dict[str, Type[Dataset]] = {
-        "magnatagatune": MagnaTagATune,
-        "mtgjamendo": MTGJamendo,
-        "tinysol": TinySOL,
-    }
-
     @classmethod
     def get_dataset(cls, name: str, **kwargs) -> Dataset:
         """
@@ -29,9 +20,13 @@ class DatasetFactory:
         Raises:
             ValueError: If the dataset name is not recognized.
         """
-        dataset_class = cls._datasets.get(name.lower())
-        if dataset_class is None:
-            raise ValueError(f"Unknown dataset: {name}")
+        try:
+            # Dynamically import the dataset module
+            module = importlib.import_module(f"synesis.datasets.{name.lower()}")
+            # Get the dataset class from the module
+            dataset_class: Type[Dataset] = getattr(module, name)
+        except (ModuleNotFoundError, AttributeError) as e:
+            raise ValueError(f"Unknown dataset: {name}") from e
 
         # Get the default parameter values from the dataset class
         default_params = {
