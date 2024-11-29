@@ -59,6 +59,11 @@ def dynamic_batch_extractor(
 
             torch.save(emb, path)
 
+    # Identify if .pt files are already present, and if so, skip them.
+    # We do this now as the dynamic extractor writes and loads .pt files,
+    # concatenating new embeddings, so we don't want to interefere with that.
+    existing_files = [p for p in dataset.feature_paths if Path(p).exists()]
+
     pbar = tqdm(total=len(dataset))
     batch = []
     batch_paths = []
@@ -67,6 +72,10 @@ def dynamic_batch_extractor(
     for i in range(len(dataset)):
         x, _ = dataset[i]  # Ignore the label
         output_path = dataset.feature_paths[i]
+        # skip if output file exists
+        if output_path in existing_files:
+            pbar.update(1)
+            continue
 
         for buffer in range(0, x.shape[1], item_len):
             x_item = x[:, buffer : buffer + item_len]
