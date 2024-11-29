@@ -110,7 +110,7 @@ class TinySOL(Dataset):
 
         self.label_encoder = LabelEncoder()
 
-        self.paths, self.labels = self._load_metadata()
+        self._load_metadata()
 
     def _download(self) -> None:
         self.dataset.download()
@@ -176,25 +176,23 @@ class TinySOL(Dataset):
 
         # load splits
         if self.split:
-            splits = self._get_stratified_split(
-                seed=42, paths=paths, labels=labels
-            )
+            splits = self._get_stratified_split(seed=42, paths=paths, labels=labels)
             paths, labels = splits[f"X_{self.split}"], splits[f"y_{self.split}"]
 
         # encode labels
         labels = self.label_encoder.fit_transform(labels)
         labels = torch.tensor(labels, dtype=torch.long)
 
-        if self.item_format == "audio":
-            return paths, labels
-
-        feature_paths = [
+        self.feature_paths = [
             path.replace(f".{self.audio_format}", ".pt")
             .replace(f"/{self.audio_format}/", f"/{self.feature}/")
             .replace("/audio/", f"/{self.feature}/")
             for path in paths
         ]
-        return feature_paths, labels
+        self.audio_paths, self.labels = paths, labels
+        self.paths = (
+            self.audio_paths if self.item_format == "audio" else self.feature_paths
+        )
 
     def load_track(self, path) -> Tensor:
         if self.item_format == "feature":
@@ -215,7 +213,11 @@ class TinySOL(Dataset):
         return len(self.paths)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
-        path = self.paths[idx]
+        path = (
+            self.audio_paths[idx]
+            if self.item_format == "audio"
+            else self.feature_paths[idx]
+        )
         labels = self.labels[idx]
 
         track = self.load_track(path)

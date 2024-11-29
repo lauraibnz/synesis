@@ -93,7 +93,7 @@ class MTGJamendo(Dataset):
 
         self.label_encoder = MultiLabelBinarizer()
 
-        self.paths, self.labels = self._load_metadata()
+        self._load_metadata()
 
     def _download(self) -> None:
         warnings.warn(
@@ -162,7 +162,17 @@ class MTGJamendo(Dataset):
         encoded_labels = self.label_encoder.transform(labels)
         encoded_labels = torch.tensor(encoded_labels, dtype=torch.long)
 
-        return paths, encoded_labels
+        self.audio_paths, self.labels = paths, encoded_labels
+
+        self.feature_paths = [
+            str(path)
+            .replace(f".{self.audio_format}", ".pt")
+            .replace("mp3", self.feature)
+            for path in paths
+        ]
+        self.paths = (
+            self.audio_paths if self.item_format == "audio" else self.feature_paths
+        )
 
     def load_track(self, path) -> Tensor:
         if self.item_format == "feature":
@@ -183,7 +193,11 @@ class MTGJamendo(Dataset):
         return len(self.paths)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
-        path = self.paths[idx]
+        path = (
+            self.audio_paths[idx]
+            if self.item_format == "audio"
+            else self.feature_paths[idx]
+        )
         label = self.labels[idx]
 
         track = self.load_track(path)
