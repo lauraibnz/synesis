@@ -1,4 +1,5 @@
 Now
+[ ] Extract emb tinysol
 [ ] Test Downstream - full
 [ ] Test Downstream - aggregated
 [ ] Implement NSynth

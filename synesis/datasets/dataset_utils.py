@@ -4,12 +4,14 @@ from torch.utils.data import Dataset
 
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
+from synesis.datasets.tinysol import TinySOL
 
 
 class DatasetFactory:
     _datasets: Dict[str, Type[Dataset]] = {
         "magnatagatune": MagnaTagATune,
         "mtgjamendo": MTGJamendo,
+        "tinysol": TinySOL,
     }
 
     @classmethod

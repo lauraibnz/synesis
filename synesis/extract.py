@@ -40,10 +40,18 @@ def extract_features(
         download=download_dataset,
     )
 
+    # attempt to get item length directly in samples, if
+    # it doesn't exist, calculate it from item_len_sec and sr
+    item_len = feature_configs[feature].get(
+        "item_len",
+        feature_configs[feature]["item_len_sec"]
+        * feature_configs[feature]["sample_rate"],
+    )
+
     dynamic_batch_extractor(
         dataset=dataset,
         extractor=extractor,
-        item_len=feature_configs[feature]["item_len"],
+        item_len=item_len,
         batch_size=batch_size,
         device=device,
     )
