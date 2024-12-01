@@ -1,6 +1,7 @@
 import importlib
 from typing import Type
 
+from torch import tensor
 from torch.utils.data import Dataset
 
 
@@ -39,6 +40,45 @@ class DatasetFactory:
         params = {**default_params, **kwargs}
 
         return dataset_class(**params)
+
+
+class SubitemDataset(Dataset):
+    """
+    Wrapper for datasets that normally return items with variable
+    number of subitems, such as with audio datasets. Provides
+    __getitem__ and __len__ methods that use subitem indices.
+
+    Args:
+        dataset: The dataset to wrap.
+
+    Returns:
+        A dataset that returns subitems instead of items.
+    """
+
+    def __init__(self, dataset: Dataset):
+        self.dataset = dataset
+
+        self.item_lengths = [len(item[0]) for item in dataset]
+        self.real_len = sum(self.item_lengths)
+        self.real_indices = list(range(self.real_len))
+
+        # subarray indexing to (array, relative offset) tuple
+        self.idx_map = {}
+        real_idx = 0
+        for i, item_len in enumerate(self.item_lengths):
+            for j in range(item_len):
+                self.idx_map[real_idx] = (i, j)
+                real_idx += 1
+
+    def __len__(self):
+        return self.real_len
+
+    def __getitem__(self, idx):
+        array_idx, offset = self.idx_map[idx]
+        array, label = self.dataset[array_idx]
+        array = tensor(array[offset])
+
+        return array.squeeze(0), label
 
 
 def get_dataset(name: str, **kwargs) -> Dataset:

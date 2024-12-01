@@ -1,7 +1,8 @@
 Now
-[ ] Reimplmenet DynamicBatchSampler
-[ ] Test DynamicBatchSampler
-    [ ] Test shuffling?
+[ ] Ensure consistent handling of channel dimension
+    [ ] in datasets
+    [ ] SubitemDataset
+    [ ] test_downstream
 [ ] Test Downstream - full
     [ ] incl from audio
 [ ] Implement feature extractor selector like with datasets

@@ -197,14 +197,13 @@ class DynamicBatchSampler(Sampler):
         self.real_len = sum(self.item_lengths)
         self.real_indices = list(range(self.real_len))
 
-        if self.shuffle:
-            np.random.shuffle(self.real_indices)
-
         # subarray indexing to (array, relative offset) tuple
         self.idx_map = {}
+        real_idx = 0
         for i, item_len in enumerate(self.item_lengths):
             for j in range(item_len):
-                self.idx_map[i + j] = (i, j)
+                self.idx_map[real_idx] = (i, j)
+                real_idx += 1
 
     def __iter__(self):
         if self.shuffle:
