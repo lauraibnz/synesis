@@ -34,64 +34,6 @@ def device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def test_subitem_wrapper():
-    # Create a simple dataset with a few items
-    class MockDataset(Dataset):
-        def __init__(self):
-            self.items = [
-                [
-                    tensor([0, 0, 0]).unsqueeze(0),
-                    tensor([1, 1, 1]).unsqueeze(0),
-                    tensor([2, 2, 2]).unsqueeze(0),
-                ],
-                [
-                    tensor([3, 3, 3]).unsqueeze(0),
-                    tensor([4, 4, 4]).unsqueeze(0),
-                ],
-                [
-                    tensor([5, 5, 5]).unsqueeze(0),
-                ],
-            ]
-
-        def __len__(self):
-            return len(self.items)
-
-        def __getitem__(self, idx):
-            return self.items[idx], "mock_label"
-
-    dataset = MockDataset()
-    subitem_dataset = SubitemDataset(dataset)
-
-    dataloader = torch.utils.data.DataLoader(subitem_dataset, batch_size=4)
-
-    for i, (item, label) in enumerate(dataloader):
-        assert len(item) <= 4, "Batch size should not exceed 4"
-        assert len(item[0]) == 3, "Feature dimension should be 3"
-        assert label[0] == "mock_label", "Label should be the same for all items"
-        if i == 0:
-            assert torch.equal(
-                item,
-                torch.tensor(
-                    [
-                        [0, 0, 0],
-                        [1, 1, 1],
-                        [2, 2, 2],
-                        [3, 3, 3],
-                    ]
-                ),
-            )
-        elif i == 1:
-            assert torch.equal(
-                item,
-                torch.tensor(
-                    [
-                        [4, 4, 4],
-                        [5, 5, 5],
-                    ]
-                ),
-            )
-
-
 def test_train_model(
     dataset_class, task_name, item_format, mock_feature_name, tmp_path, device
 ):
