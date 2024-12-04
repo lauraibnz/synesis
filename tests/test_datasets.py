@@ -4,7 +4,7 @@ import torch
 from torch import tensor
 from torch.utils.data import Dataset
 
-from synesis.dataset.dataset_utils import SubitemDataset
+from synesis.datasets.dataset_utils import SubitemDataset
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.datasets.tinysol import TinySOL

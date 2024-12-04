@@ -1,7 +1,9 @@
 import importlib
 from typing import Type
 
-from torch import tensor
+import torch
+import torchaudio
+from torch import Tensor, tensor
 from torch.utils.data import Dataset
 
 
@@ -96,3 +98,24 @@ def get_dataset(name: str, **kwargs) -> Dataset:
         An instance of the requested dataset.
     """
     return DatasetFactory.get_dataset(name, **kwargs)
+
+
+def load_track(path, item_format, sample_rate) -> Tensor:
+    if item_format == "feature":
+        feature = torch.load(path, weights_only=False)
+        if feature.dim() == 1:
+            feature = feature.unsqueeze(0)
+        return feature
+    else:
+        waveform, original_sample_rate = torchaudio.load(path, normalize=True)
+        if waveform.size(0) != 1:  # make mono if stereo (or more)
+            waveform = waveform.mean(dim=0, keepdim=True)
+        if original_sample_rate != sample_rate:
+            resampler = torchaudio.transforms.Resample(
+                orig_freq=original_sample_rate,
+                new_freq=sample_rate,
+            )
+            waveform = resampler(waveform)
+        if waveform.dim() == 1:
+            waveform = waveform.unsqueeze(0)
+        return waveform

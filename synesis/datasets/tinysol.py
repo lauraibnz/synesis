@@ -3,13 +3,13 @@ from typing import Optional, Tuple, Union
 
 import mirdata
 import torch
-import torchaudio
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
 from torch.utils.data import Dataset
 
 from config.features import feature_configs
+from synesis.datasets.dataset_utils import load_track
 
 
 def pitch_to_midi(pitch_str: str) -> int:
@@ -193,21 +193,6 @@ class TinySOL(Dataset):
             self.audio_paths if self.item_format == "audio" else self.feature_paths
         )
 
-    def load_track(self, path) -> Tensor:
-        if self.item_format == "feature":
-            return torch.load(path, weights_only=False)
-        else:
-            waveform, original_sample_rate = torchaudio.load(path, normalize=True)
-            if waveform.size(0) != 1:  # make mono if stereo (or more)
-                waveform = waveform.mean(dim=0, keepdim=True)
-            if original_sample_rate != self.feature_config["sample_rate"]:
-                resampler = torchaudio.transforms.Resample(
-                    orig_freq=original_sample_rate,
-                    new_freq=self.feature_config["sample_rate"],
-                )
-                waveform = resampler(waveform)
-            return waveform
-
     def __len__(self) -> int:
         return len(self.paths)
 
@@ -219,7 +204,11 @@ class TinySOL(Dataset):
         )
         labels = self.labels[idx]
 
-        track = self.load_track(path)
+        track = load_track(
+            path=path,
+            item_format=self.item_format,
+            sample_rate=self.feature_config["sample_rate"],
+        )
 
         return track, labels
 
