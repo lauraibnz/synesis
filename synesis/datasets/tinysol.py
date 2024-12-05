@@ -190,9 +190,9 @@ class TinySOL(Dataset):
             .replace("/audio/", f"/{self.feature}/")
             for path in paths
         ]
-        self.data_paths, self.labels = paths, labels
+        self.raw_data_paths, self.labels = paths, labels
         self.paths = (
-            self.data_paths if self.item_format == "raw" else self.feature_paths
+            self.raw_data_paths if self.item_format == "raw" else self.feature_paths
         )
 
     def __len__(self) -> int:
@@ -200,7 +200,7 @@ class TinySOL(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         path = (
-            self.data_paths[idx]
+            self.raw_data_paths[idx]
             if self.item_format == "raw"
             else self.feature_paths[idx]
         )

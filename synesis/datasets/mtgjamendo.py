@@ -162,7 +162,7 @@ class MTGJamendo(Dataset):
         encoded_labels = self.label_encoder.transform(labels)
         encoded_labels = torch.tensor(encoded_labels, dtype=torch.long)
 
-        self.data_paths, self.labels = paths, encoded_labels
+        self.raw_data_paths, self.labels = paths, encoded_labels
 
         self.feature_paths = [
             str(path)
@@ -171,7 +171,7 @@ class MTGJamendo(Dataset):
             for path in paths
         ]
         self.paths = (
-            self.data_paths if self.item_format == "raw" else self.feature_paths
+            self.raw_data_paths if self.item_format == "raw" else self.feature_paths
         )
 
     def __len__(self) -> int:
@@ -179,7 +179,7 @@ class MTGJamendo(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         path = (
-            self.data_paths[idx]
+            self.raw_data_paths[idx]
             if self.item_format == "raw"
             else self.feature_paths[idx]
         )

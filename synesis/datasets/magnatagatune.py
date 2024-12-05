@@ -160,7 +160,7 @@ class MagnaTagATune(Dataset):
         ) as f:
             annotations = csv.reader(f, delimiter="\t")
             next(annotations)  # skip header
-            data_paths = [
+            raw_data_paths = [
                 os.path.join(self.root, "mp3", line[-1])
                 for line in annotations
                 # remove some corrupted files
@@ -208,26 +208,26 @@ class MagnaTagATune(Dataset):
             # get the indices of the tracks in the split
             indices = [
                 i
-                for i, path in enumerate(data_paths)
+                for i, path in enumerate(raw_data_paths)
                 # I just want the name and its parent :')
                 if str(Path(Path(path).parent.name) / Path(path).name)
                 in relative_paths_in_split
             ]
 
             # keep these indices in path and labels
-            data_paths = [data_paths[i] for i in indices]
+            raw_data_paths = [raw_data_paths[i] for i in indices]
             encoded_labels = encoded_labels[indices]
 
-        self.data_paths, self.labels = data_paths, encoded_labels
+        self.raw_data_paths, self.labels = raw_data_paths, encoded_labels
 
         self.feature_paths = [
             str(path)
             .replace(f".{self.audio_format}", ".pt")
             .replace("mp3", self.feature)
-            for path in data_paths
+            for path in raw_data_paths
         ]
         self.paths = (
-            self.data_paths if self.item_format == "raw" else self.feature_paths
+            self.raw_data_paths if self.item_format == "raw" else self.feature_paths
         )
 
     def __len__(self) -> int:
@@ -235,7 +235,7 @@ class MagnaTagATune(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         path = (
-            self.data_paths[idx]
+            self.raw_data_paths[idx]
             if self.item_format == "raw"
             else self.feature_paths[idx]
         )
