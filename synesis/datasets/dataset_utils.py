@@ -1,5 +1,6 @@
 import importlib
-from typing import Type
+from pathlib import Path
+from typing import Type, Union
 
 import torch
 import torchaudio
@@ -103,12 +104,31 @@ def get_dataset(name: str, **kwargs) -> Dataset:
     return DatasetFactory.get_dataset(name, **kwargs)
 
 
-def load_track(path, item_format, sample_rate) -> Tensor:
+def load_track(
+    path: Union[str, Path],
+    item_format: str,
+    itemized: bool,
+    item_len_sec: float,
+    sample_rate: int,
+) -> Tensor:
+    """Load an audio track (or features for it) from a file.
+
+    Args:
+        path: The path to the audio file.
+        item_format: Format of the items to return: ["audio", "feature"].
+        itemized: For datasets with variable-length items, whether to return them
+                  as a list of equal-length items (True) or as a single item.
+        item_len_sec: The length of the items in seconds.
+        sample_rate: The sample rate to resample the audio to.
+    """
     if item_format == "feature":
         feature = torch.load(path, weights_only=False)
         # assumes there wasn't already a channel dim, but it's hard
         # to check otherwise...
         feature = feature.unsqueeze(1)
+        if not itemized:
+            # concatenate
+            feature = feature.view(-1, 1, feature.size(2))
         return feature
     else:
         waveform, original_sample_rate = torchaudio.load(path, normalize=True)
@@ -122,4 +142,21 @@ def load_track(path, item_format, sample_rate) -> Tensor:
             waveform = resampler(waveform)
         if waveform.dim() == 1:
             waveform = waveform.unsqueeze(0)
+        if itemized:
+            # we need to split the track into fixed-length segments of
+            # item_len_sec and return them as a list
+            item_len_samples = int(item_len_sec * sample_rate)
+            waveform_len = waveform.size(1)
+            num_items = waveform_len // item_len_samples
+            remainder_item = waveform_len % item_len_samples
+
+            # pad with zeros so that we can split without remainder
+            waveform = torch.cat(
+                [waveform, torch.zeros(1, item_len_samples - remainder_item)],
+                dim=1,
+            )
+
+            # split into subitems of size item_len_samples
+            waveform = waveform.view(num_items + 1, 1, item_len_samples)
+
         return waveform
