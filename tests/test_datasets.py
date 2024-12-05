@@ -63,6 +63,9 @@ class MockDataset(Dataset):
         ]
         self.item_format = "feature"
         self.label_encoder = None
+        self.raw_data_paths = None
+        self.feature_paths = None
+        self.paths = None
 
     def __len__(self):
         return len(self.items)
@@ -148,7 +151,7 @@ def test_dataset_loading(dataset_config, itemization, item_format):
 
         # Test paths and labels are loaded
         assert len(dataset.paths) > 0
-        assert len(dataset.data_paths) > 0
+        assert len(dataset.raw_data_paths) > 0
         assert len(dataset.feature_paths) > 0
         assert len(dataset.labels) > 0
         assert len(dataset.paths) == len(dataset.labels)
