@@ -115,7 +115,7 @@ def load_track(
 
     Args:
         path: The path to the audio file.
-        item_format: Format of the items to return: ["audio", "feature"].
+        item_format: Format of the items to return: ["raw", "feature"].
         itemization: For datasets with variable-length items, whether to return them
                   as a list of equal-length items (True) or as a single item.
         item_len_sec: The length of the items in seconds.

@@ -58,14 +58,14 @@ def train(
         feature=feature,
         split="train",
         download=False,
-        item_format="audio",
+        item_format="raw",
     )
     val_dataset = get_dataset(
         name=dataset,
         feature=feature,
         split="validation",
         download=False,
-        item_format="audio",
+        item_format="raw",
     )
 
     assert (
@@ -105,22 +105,22 @@ def train(
         # Training
         model.train()
         total_train_loss = 0
-        for batch_audio, _ in tqdm(
+        for batch_raw_data, _ in tqdm(
             train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"
         ):
-            batch_audio = batch_audio.to(device)
+            batch_raw_data = batch_raw_data.to(device)
 
             with torch.no_grad():
-                original_features = feature_extractor(batch_audio)
+                original_features = feature_extractor(batch_raw_data)
 
-            transformed_audio, transform_params = zip(
-                *[transform_obj(audio) for audio in batch_audio]
+            transformed_raw_data, transform_params = zip(
+                *[transform_obj(raw_data) for raw_data in batch_raw_data]
             )
-            transformed_audio = torch.stack(transformed_audio).to(device)
+            transformed_raw_data = torch.stack(transformed_raw_data).to(device)
             transform_params = torch.tensor(transform_params).float().to(device)
 
             with torch.no_grad():
-                transformed_features = feature_extractor(transformed_audio)
+                transformed_features = feature_extractor(transformed_raw_data)
 
             combined_features = torch.cat(
                 [original_features, transformed_features], dim=1
@@ -141,20 +141,20 @@ def train(
         model.eval()
         total_val_loss = 0
         with torch.no_grad():
-            for batch_audio, _ in tqdm(
+            for batch_raw_data, _ in tqdm(
                 val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
             ):
-                batch_audio = batch_audio.to(device)
+                batch_raw_data = batch_raw_data.to(device)
 
-                original_features = feature_extractor(batch_audio)
+                original_features = feature_extractor(batch_raw_data)
 
-                transformed_audio, transform_params = zip(
-                    *[transform_obj(audio) for audio in batch_audio]
+                transformed_raw_data, transform_params = zip(
+                    *[transform_obj(raw_data) for raw_data in batch_raw_data]
                 )
-                transformed_audio = torch.stack(transformed_audio).to(device)
+                transformed_raw_data = torch.stack(transformed_raw_data).to(device)
                 transform_params = torch.tensor(transform_params).float().to(device)
 
-                transformed_features = feature_extractor(transformed_audio)
+                transformed_features = feature_extractor(transformed_raw_data)
 
                 combined_features = torch.cat(
                     [original_features, transformed_features], dim=1
@@ -227,7 +227,7 @@ def evaluate(
         feature=feature,
         split="test",
         download=False,
-        item_format="audio",
+        item_format="raw",
     )
 
     assert (
@@ -251,14 +251,14 @@ def evaluate(
     criterion = nn.MSELoss()
 
     with torch.no_grad():
-        for batch_audio, _ in tqdm(test_loader, desc="Evaluating"):
-            batch_audio = batch_audio.to(device)
+        for batch_raw_data, _ in tqdm(test_loader, desc="Evaluating"):
+            batch_raw_data = batch_raw_data.to(device)
 
-            original_features = feature_extractor(batch_audio)
+            original_features = feature_extractor(batch_raw_data)
 
-            transformed_audio, transform_params = transform_obj(batch_audio)
+            transformed_raw_data, transform_params = transform_obj(batch_raw_data)
 
-            transformed_features = feature_extractor(transformed_audio)
+            transformed_features = feature_extractor(transformed_raw_data)
 
             combined_features = torch.cat(
                 [original_features, transformed_features], dim=1

@@ -40,7 +40,7 @@ class MTGJamendo(Dataset):
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
             audio_format: Format of the audio files: ["mp3", "wav", "ogg"].
-            item_format: Format of the items to return: ["audio", "feature"].
+            item_format: Format of the items to return: ["raw", "feature"].
             seed: Random seed for reproducibility.
         """
         self.tasks = ["tagging"]
@@ -128,7 +128,7 @@ class MTGJamendo(Dataset):
         relative_paths = [
             line.split("\t")[3][:-4].strip() for line in metadata[1:] if line
         ]
-        if self.item_format == "audio":
+        if self.item_format == "raw":
             paths = [
                 self.root / self.audio_format / f"{rel_path}.{self.audio_format}"
                 for rel_path in relative_paths
@@ -162,7 +162,7 @@ class MTGJamendo(Dataset):
         encoded_labels = self.label_encoder.transform(labels)
         encoded_labels = torch.tensor(encoded_labels, dtype=torch.long)
 
-        self.audio_paths, self.labels = paths, encoded_labels
+        self.data_paths, self.labels = paths, encoded_labels
 
         self.feature_paths = [
             str(path)
@@ -171,7 +171,7 @@ class MTGJamendo(Dataset):
             for path in paths
         ]
         self.paths = (
-            self.audio_paths if self.item_format == "audio" else self.feature_paths
+            self.data_paths if self.item_format == "raw" else self.feature_paths
         )
 
     def __len__(self) -> int:
@@ -179,8 +179,8 @@ class MTGJamendo(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         path = (
-            self.audio_paths[idx]
-            if self.item_format == "audio"
+            self.data_paths[idx]
+            if self.item_format == "raw"
             else self.feature_paths[idx]
         )
         label = self.labels[idx]

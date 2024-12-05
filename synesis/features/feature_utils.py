@@ -39,7 +39,7 @@ def dynamic_batch_extractor(
     Args:
         dataset: PyTorch dataset that returns [audio, label].
         item_len: Length of each eventual item (not item returned by dataset)
-                  (in samples if audio).
+                  (e.g. in samples if audio).
         extractor: Function (or class with forward method) to process batches.
         padding: Padding method for items, either "repeat" or "zero".
         batch_size: Batch size.

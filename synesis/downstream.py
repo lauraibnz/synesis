@@ -36,8 +36,8 @@ def train(
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         task: Name of the downstream task (needs to be supported by dataset).
-        item_format: Format of the input data: ["audio", "feature"].
-                     Defaults to "feature". If audio, feature is
+        item_format: Format of the input data: ["raw", "feature"].
+                     Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
         task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
@@ -90,8 +90,9 @@ def train(
         shuffle=False,
     )
 
-    # if audio is being returned from dataset, extract features on-the-fly
-    if item_format == "audio":
+    # if raw_data  (e.g. audio) is being returned from dataset,
+    # extract features on-the-fly
+    if item_format == "raw":
         extractor = get_feature_extractor(feature)
         extractor.to(device)
 
@@ -129,8 +130,8 @@ def train(
             item = item.to(device)
             target = target.to(device)
 
-            # compute features on-the-fly if audio
-            if item_format == "audio":
+            # compute features on-the-fly if raw_data
+            if item_format == "raw":
                 with torch.no_grad():
                     item = extractor(item)
 
@@ -159,7 +160,7 @@ def train(
                 val_item = val_item.to(device)
                 val_target = val_target.to(device)
 
-                if item_format == "audio":
+                if item_format == "raw":
                     with torch.no_grad():
                         val_item = extractor(val_item)
 
@@ -235,8 +236,8 @@ def evaluate(
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         task: Name of the downstream task.
-        item_format: Format of the input data: ["audio", "feature"].
-                     Defaults to "feature". If audio, feature is
+        item_format: Format of the input data: ["raw", "feature"].
+                     Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
         task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
@@ -278,8 +279,9 @@ def evaluate(
             test_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
         )
 
-    # if audio is being returned from dataset, extract features on-the-fly
-    if item_format == "audio":
+    # if raw_data  (e.g. audio) is being returned from dataset,
+    # extract features on-the-fly
+    if item_format == "raw":
         extractor = get_feature_extractor(feature)
         extractor.to(device)
 
@@ -294,7 +296,7 @@ def evaluate(
             item = item.to(device)
             target = target.to(device)
 
-            if item_format == "audio":
+            if item_format == "raw":
                 with torch.no_grad():
                     item = extractor(item)
 

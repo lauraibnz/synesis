@@ -76,7 +76,7 @@ class TinySOL(Dataset):
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
             audio_format: Format of the audio files: ["mp3", "wav", "ogg"].
-            item_format: Format of the items to return: ["audio", "feature"].
+            item_format: Format of the items to return: ["raw", "feature"].
             fv: factor of variations (i.e. label) to return
             seed: Random seed for reproducibility.
         """
@@ -190,9 +190,9 @@ class TinySOL(Dataset):
             .replace("/audio/", f"/{self.feature}/")
             for path in paths
         ]
-        self.audio_paths, self.labels = paths, labels
+        self.data_paths, self.labels = paths, labels
         self.paths = (
-            self.audio_paths if self.item_format == "audio" else self.feature_paths
+            self.data_paths if self.item_format == "raw" else self.feature_paths
         )
 
     def __len__(self) -> int:
@@ -200,8 +200,8 @@ class TinySOL(Dataset):
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         path = (
-            self.audio_paths[idx]
-            if self.item_format == "audio"
+            self.data_paths[idx]
+            if self.item_format == "raw"
             else self.feature_paths[idx]
         )
         labels = self.labels[idx]
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     tinysol = TinySOL(
         feature="vggish_mtat",
         root="data/TinySOL",
-        item_format="audio",
+        item_format="raw",
         feature_config={
             "item_len_sec": 3.69,
             "sample_rate": 16000,

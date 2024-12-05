@@ -15,7 +15,7 @@ DATASETS = [
         {
             "root": "data/MagnaTagATune",
             "splits": [None, "train", "test", "validation"],
-            "item_format": "audio",
+            "item_format": "raw",
         },
     ),
     (
@@ -24,7 +24,7 @@ DATASETS = [
             "root": "data/MTGJamendo",
             "splits": [None, "train", "test", "validation"],
             "subsets": [None, "top50tags", "genre", "instrument", "moodtheme"],
-            "item_format": "audio",
+            "item_format": "raw",
         },
     ),
     (
@@ -32,7 +32,7 @@ DATASETS = [
         {
             "root": "data/TinySOL",
             "splits": [None, "train", "test", "validation"],
-            "item_format": "audio",
+            "item_format": "raw",
         },
     ),
 ]
@@ -48,7 +48,7 @@ def itemization(request):
     return request.param
 
 
-@pytest.fixture(params=["audio"])
+@pytest.fixture(params=["raw"])
 def item_format(request):
     return request.param
 
@@ -125,7 +125,7 @@ def test_dataset_loading(dataset_config, itemization, item_format):
 
         # Test paths and labels are loaded
         assert len(dataset.paths) > 0
-        assert len(dataset.audio_paths) > 0
+        assert len(dataset.data_paths) > 0
         assert len(dataset.feature_paths) > 0
         assert len(dataset.labels) > 0
         assert len(dataset.paths) == len(dataset.labels)

@@ -18,7 +18,7 @@ def extract_features(
     device: Optional[str] = None,
     download_dataset: bool = False,
 ):
-    """Extract features from audio files.
+    """Extract features from raw_data .
 
     Args:
         feature: Feature extraction model name.
@@ -38,7 +38,7 @@ def extract_features(
     dataset = get_dataset(
         name=dataset,
         feature=feature,
-        item_format="audio",
+        item_format="raw",
         split=None,  # Use full dataset for feature extraction
         download=download_dataset,
         itemization=False,  # dynamic extractor will handle itemization
@@ -64,7 +64,7 @@ def extract_features(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Extract features from audio files.")
+    parser = argparse.ArgumentParser(description="Extract features from raw_data .")
     parser.add_argument(
         "--feature",
         "-f",

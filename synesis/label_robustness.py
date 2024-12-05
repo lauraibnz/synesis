@@ -6,11 +6,12 @@ whole item as a single sample to calculate class distribution,
 rather than individual, constant-length items.
 """
 
+from typing import Optional
+
 import numpy as np
+import torch
 from scipy.stats import entropy
 from sklearn.utils import shuffle
-from typing import Optional
-import torch
 
 from config.tasks import task_configs
 from synesis.utils import deep_update
@@ -215,8 +216,8 @@ def train(
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         task: Name of the downstream task (needs to be supported by dataset).
-        item_format: Format of the input data: ["audio", "feature"].
-                     Defaults to "feature". If audio, feature is
+        item_format: Format of the input data: ["raw", "feature"].
+                     Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
         task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).

@@ -38,8 +38,8 @@ def train(
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         task: Name of the downstream task (needs to be supported by dataset).
-        item_format: Format of the input data: ["audio", "feature"].
-                     Defaults to "feature". If audio, feature is
+        item_format: Format of the input data: ["raw", "feature"].
+                     Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
         task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
@@ -94,8 +94,8 @@ def evaluate_representation_distance(
     Args:
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        item_format: Format of the input data: ["audio", "feature"].
-                Defaults to "feature". If audio, feature is
+        item_format: Format of the input data: ["raw", "feature"].
+                Defaults to "feature". If raw, feature is
                 extracted on-the-fly.
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
@@ -126,7 +126,7 @@ def evaluate_representation_distance(
         feature=feature,
         split="test",
         download=False,
-        item_format="audio",
+        item_format="raw",
     )
 
     assert (
@@ -182,16 +182,14 @@ def evaluate_representation_distance(
         controlled_transform_config["params"][max_key] = pv
         transform_obj = get_transform(controlled_transform_config)
 
-        # Iterate through clean embeddings and audio, transforming the audio
-        # and computing features from it.
-        for (clean_rep_batch, _), (audio_batch, _) in zip(
-            clean_loader, transform_loader
-        ):
-            audio_batch = audio_batch.to(device)
+        # Iterate through clean embeddings and raw data, transforming the raw data
+        # and computing features from them.
+        for (clean_rep_batch, _), (raw_batch, _) in zip(clean_loader, transform_loader):
+            raw_batch = raw_batch.to(device)
             clean_rep_batch = clean_rep_batch.to(device)
 
-            transformed_audio, _ = transform_obj(audio_batch)
-            transformed_rep_batch = feature_extractor(transformed_audio)
+            transformed_raw_data, _ = transform_obj(raw_batch)
+            transformed_rep_batch = feature_extractor(transformed_raw_data)
 
             # Compute distance between clean and transformed representations
             if metric == "cosine":
@@ -222,7 +220,7 @@ def evaluate_model_predictions(
     dataset: str,
     transform: str,
     task: str,
-    item_format: str = "audio",
+    item_format: str = "raw",
     transform_config: Optional[dict] = None,
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
@@ -236,8 +234,8 @@ def evaluate_model_predictions(
         model: Downstream model.
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        item_format: Format of the input data: ["audio", "feature"].
-                Defaults to "audio".
+        item_format: Format of the input data: ["raw", "feature"].
+                Defaults to "raw".
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         transform: Name of the transform (factor of variation).
@@ -259,7 +257,7 @@ def evaluate_model_predictions(
         feature=feature,
         split="test",
         download=False,
-        item_format="audio",
+        item_format="raw",
     )
 
     assert (
@@ -311,20 +309,20 @@ def evaluate_model_predictions(
         controlled_transform_config["params"][min_key] = pv
         controlled_transform_config["params"][max_key] = pv
 
-        # Iterate through clean embeddings and audio, transforming the audio
+        # Iterate through clean embeddings and raw_data , transforming the raw_data
         # and computing features from it.
         total_loss = 0
         test_outputs = []
         test_targets = []
         with torch.no_grad():
-            for audio_batch, targets in test_loader:
-                audio_batch = audio_batch.to(device)
+            for raw_batch, targets in test_loader:
+                raw_batch = raw_batch.to(device)
 
                 transform_obj = get_transform(controlled_transform_config)
-                transformed_audio, _ = transform_obj(audio_batch)
+                transformed_raw_data, _ = transform_obj(raw_batch)
 
                 with torch.no_grad():
-                    output = model(transformed_audio)
+                    output = model(transformed_raw_data)
                     total_loss += model.loss(output, targets).item()
 
                 # Store outputs and targets for metric calculation
@@ -358,7 +356,7 @@ def evaluate_prediction_uncertainty(
     transform: str,
     task: str,
     uncertainty_metric: str = "entropy",
-    item_format: str = "audio",
+    item_format: str = "raw",
     transform_config: Optional[dict] = None,
     device: Optional[str] = None,
     batch_size: int = 32,
@@ -371,8 +369,8 @@ def evaluate_prediction_uncertainty(
         uncertainty_metric: Method to compute uncertainty ["entropy", "max_prob"]
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        item_format: Format of the input data: ["audio", "feature"].
-                Defaults to "audio".
+        item_format: Format of the input data: ["raw", "feature"].
+                Defaults to "raw".
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         transform: Name of the transform (factor of variation).
@@ -389,7 +387,7 @@ def evaluate_prediction_uncertainty(
         feature=feature,
         split="test",
         download=False,
-        item_format="audio",
+        item_format="raw",
     )
 
     test_loader = DataLoader(
@@ -433,14 +431,14 @@ def evaluate_prediction_uncertainty(
         uncertainties = []
 
         with torch.no_grad():
-            for audio_batch, _ in test_loader:
-                audio_batch = audio_batch.to(device)
+            for raw_batch, _ in test_loader:
+                raw_batch = raw_batch.to(device)
 
                 # Apply transform
-                transformed_audio, _ = transform_obj(audio_batch)
+                transformed_raw_data, _ = transform_obj(raw_batch)
 
                 # Get model predictions
-                logits = model(transformed_audio)
+                logits = model(transformed_raw_data)
                 probs = torch.softmax(logits, dim=1)
 
                 # Compute uncertainty
