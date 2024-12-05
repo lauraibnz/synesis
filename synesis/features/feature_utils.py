@@ -124,51 +124,6 @@ def dynamic_batch_extractor(
     pbar.close()
 
 
-class OldDynamicBatchSampler(Sampler):
-    """
-    Dynamic batch sampler for variable length items.
-
-    Unlike the dynamic_batch_extractor, it doesn't rely on
-    saving and identifying saved features for deciding
-    how to batch items, so it can be used for training.
-    However, it also needs to load the whole dataset once
-    at the start to determine the total real length (items).
-
-    Args:
-        dataset: PyTorch dataset that returns [audio, label].
-        batch_size: Batch size.
-    """
-
-    def __init__(self, dataset, batch_size):
-        self.dataset = dataset
-        self.batch_size = batch_size
-        # !NOTE this will currently only work only if the dataset
-        # returns items containing lists of arbitrarily many features
-        # (arrays) of the same length (e.g. audio embeddings).
-        self.item_lengths = [len(item[0]) for item in dataset]
-
-    def __iter__(self):
-        current_batch = []
-        current_length = 0
-        indices = np.random.permutation(len(self.dataset))
-
-        for idx in indices:
-            item_length = self.item_lengths[idx]
-            if current_length + item_length > self.batch_size:
-                yield current_batch
-                current_batch = [idx]
-                current_length = item_length
-            else:
-                current_batch.append(idx)
-                current_length += item_length
-
-        if current_batch:
-            yield current_batch
-
-    def __len__(self):
-        return (sum(self.item_lengths) + self.batch_size - 1) // self.batch_size
-
-
 class DynamicBatchSampler(Sampler):
     """
     Dynamic batch sampler for variable length items.
