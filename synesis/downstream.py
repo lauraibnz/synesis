@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config.tasks import task_configs
-from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
+from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get_dataset
 from synesis.features.feature_utils import (
     DynamicBatchSampler,
     collate_packed_batch,
@@ -68,10 +68,22 @@ def train(
 
     if train_dataset[0][0].dim() == 3:
         # If item is 3D, this is a dataset that returns items with subitems
-        # (e.g. for audio). If feature aggregation is disabled, wrap the dataset
-        # to operate with subitems directly. If enabled, need to deal with
-        # aggregating them later.
-        if not task_configs[task]["training"]["feature_aggregation"]:
+        # (e.g. for audio).
+        if task_configs[task]["training"]["feature_aggregation"]:
+            # If not feature_aggregation, we'll wrap the dataset so that it behaves
+            # as a subitem dataset
+            aggregated_train = AggregateDataset(
+                train_dataset, feature_extractor_name=feature
+            )
+            aggregated_val = AggregateDataset(
+                val_dataset, feature_extractor_name=feature
+            )
+            del train_dataset, val_dataset
+            train_dataset = aggregated_train
+            val_dataset = aggregated_val
+        else:
+            # If feature_aggreation, we'll wrap the dataset so that it returns
+            # aggregated features
             wrapped_train = SubitemDataset(train_dataset)
             wrapped_val = SubitemDataset(val_dataset)
             del train_dataset, val_dataset
@@ -130,15 +142,14 @@ def train(
             item = item.to(device)
             target = target.to(device)
 
-            # compute features on-the-fly if raw_data
-            if item_format == "raw":
+            # compute features on-the-fly if raw data
+            # (the AggregateDatset wrapper also computes features)
+            if (
+                item_format == "raw"
+                and not task_configs[task]["training"]["feature_aggregation"]
+            ):
                 with torch.no_grad():
                     item = extractor(item)
-
-            # aggregate features if specified
-            if task_configs[task]["training"]["feature_aggregation"]:
-                # (batch, n_subitems, channel, feat) -> (batch, channel, feat)
-                item = item.mean(dim=1)
 
             optimizer.zero_grad()
             output = model(item)
@@ -160,12 +171,14 @@ def train(
                 val_item = val_item.to(device)
                 val_target = val_target.to(device)
 
-                if item_format == "raw":
+                # compute features on-the-fly if raw data
+                # (the AggregateDatset wrapper also computes features)
+                if (
+                    item_format == "raw"
+                    and not task_configs[task]["training"]["feature_aggregation"]
+                ):
                     with torch.no_grad():
-                        val_item = extractor(val_item)
-
-                if task_configs[task]["training"]["feature_aggregation"]:
-                    val_item = val_item.mean(dim=1)
+                        item = extractor(item)
 
                 val_output = model(val_item)
                 val_loss += criterion(val_output, val_target).item()

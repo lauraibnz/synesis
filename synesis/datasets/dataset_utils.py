@@ -65,6 +65,10 @@ class SubitemDataset(Dataset):
 
         # for accessing dataset info easier/consistently
         self.label_encoder = dataset.label_encoder
+        self.item_format = dataset.item_format
+        self.raw_data_paths = dataset.raw_data_paths
+        self.feature_paths = dataset.feature_paths
+        self.paths = dataset.paths
 
         self.item_lengths = [len(item[0]) for item in dataset]
         self.real_len = sum(self.item_lengths)
@@ -110,6 +114,10 @@ class AggregateDataset(Dataset):
 
         # for accessing dataset info easier/consistently
         self.label_encoder = dataset.label_encoder
+        self.item_format = dataset.item_format
+        self.raw_data_paths = dataset.raw_data_paths
+        self.feature_paths = dataset.feature_paths
+        self.paths = dataset.paths
 
         self.feature_extractor = (
             get_feature_extractor(feature_extractor_name)
@@ -124,7 +132,7 @@ class AggregateDataset(Dataset):
         item, label = self.dataset[idx]
 
         # if item is raw data, compute features
-        if self.dataset.item_format == "raw":
+        if self.item_format == "raw":
             item = self.feature_extractor(item)
 
         # (n_subitems, channel, feat) -> (channel, feat)
