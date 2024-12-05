@@ -85,18 +85,18 @@ def test_subitem_wrapper():
     dataloader = torch.utils.data.DataLoader(subitem_dataset, batch_size=4)
 
     for i, (item, label) in enumerate(dataloader):
-        assert len(item) <= 4, "Batch size should not exceed 4"
-        assert len(item[0]) == 3, "Feature dimension should be 3"
+        assert item.shape[0] <= 4, "Batch size should not exceed 4"
+        assert len(item.shape) == 3, "Feature dimension should be 3"
         assert label[0] == "mock_label", "Label should be the same for all items"
         if i == 0:
             assert torch.equal(
                 item,
                 torch.tensor(
                     [
-                        [0, 0, 0],
-                        [1, 1, 1],
-                        [2, 2, 2],
-                        [3, 3, 3],
+                        [[0, 0, 0]],
+                        [[1, 1, 1]],
+                        [[2, 2, 2]],
+                        [[3, 3, 3]],
                     ]
                 ),
             )
@@ -105,8 +105,8 @@ def test_subitem_wrapper():
                 item,
                 torch.tensor(
                     [
-                        [4, 4, 4],
-                        [5, 5, 5],
+                        [[4, 4, 4]],
+                        [[5, 5, 5]],
                     ]
                 ),
             )
