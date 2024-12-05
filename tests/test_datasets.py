@@ -43,6 +43,16 @@ def dataset_config(request):
     return request.param
 
 
+@pytest.fixture(params=[True, False])
+def itemized(request):
+    return request.param
+
+
+@pytest.fixture(params=["audio"])
+def item_format(request):
+    return request.param
+
+
 def test_subitem_wrapper():
     # Create a simple dataset with a few items
     class MockDataset(Dataset):
@@ -61,6 +71,7 @@ def test_subitem_wrapper():
                     tensor([5, 5, 5]).unsqueeze(0),
                 ],
             ]
+            self.label_encoder = None
 
         def __len__(self):
             return len(self.items)
@@ -101,13 +112,14 @@ def test_subitem_wrapper():
             )
 
 
-def test_dataset_loading(dataset_config):
+def test_dataset_loading(dataset_config, itemized, item_format):
     DatasetClass, config = dataset_config
     for split in config["splits"]:
         dataset = DatasetClass(
             feature="vggish_mtat",
             root=config["root"],
-            item_format=config["item_format"],
+            item_format=item_format,
+            itemized=itemized,
             split=split,
         )
 
@@ -123,11 +135,20 @@ def test_dataset_loading(dataset_config):
         for _ in range(5):
             idx = np.random.randint(0, len(dataset))
             item, label = dataset[idx]
-            assert len(item.shape) == 2
             assert torch.is_tensor(item)
-            if dataset.__class__.__name__ in ["MagnaTagATune", "MTGJamendo"]:
-                assert isinstance(label, torch.Tensor)
-                assert label.dtype == torch.long
+            assert torch.is_tensor(label)
+            assert label.dtype == torch.long
+
+            if itemized:
+                # each item in batch will have a channel dim
+                assert len(item.shape) == 3
+                # each item will be the same length
+                assert all(subitem.shape[1] == item[0].shape[1] for subitem in item)
+                # all items have a channel dim of 1
+                assert all(subitem.shape[0] == 1 for subitem in item)
+            else:
+                assert len(item.shape) == 2
+                assert item.shape[0] == 1
 
 
 def test_mtgjamendo_subsets():
