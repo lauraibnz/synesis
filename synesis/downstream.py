@@ -14,7 +14,7 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import (
     DynamicBatchSampler,
     collate_packed_batch,
-    get_pretrained_model,
+    get_feature_extractor,
 )
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
@@ -33,8 +33,7 @@ def train(
     Train a downstream model.
 
     Args:
-        feature: Name of the feature/embedding model (currently assumes embeddings
-                 are already generated)
+        feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         task: Name of the downstream task (needs to be supported by dataset).
         item_format: Format of the input data: ["audio", "feature"].
@@ -68,9 +67,10 @@ def train(
     assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
 
     if train_dataset[0][0].dim() == 3:
-        # This is a dataset that returns items with subitems (e.g. for audio).
-        # If feature aggregation is disabled, wrap the dataset to operate with
-        # subitems directly. If enabled, need to deal with aggregating them later.
+        # If item is 3D, this is a dataset that returns items with subitems
+        # (e.g. for audio). If feature aggregation is disabled, wrap the dataset
+        # to operate with subitems directly. If enabled, need to deal with
+        # aggregating them later.
         if not task_configs[task]["training"]["feature_aggregation"]:
             wrapped_train = SubitemDataset(train_dataset)
             wrapped_val = SubitemDataset(val_dataset)
@@ -92,7 +92,7 @@ def train(
 
     # if audio is being returned from dataset, extract features on-the-fly
     if item_format == "audio":
-        extractor = get_pretrained_model(feature)
+        extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     # train setup
@@ -129,9 +129,15 @@ def train(
             item = item.to(device)
             target = target.to(device)
 
+            # compute features on-the-fly if audio
             if item_format == "audio":
                 with torch.no_grad():
                     item = extractor(item)
+
+            # aggregate features if specified
+            if task_configs[task]["training"]["feature_aggregation"]:
+                # (batch, n_subitems, channel, feat) -> (batch, channel, feat)
+                item = item.mean(dim=1)
 
             optimizer.zero_grad()
             output = model(item)
@@ -152,6 +158,14 @@ def train(
             for val_item, val_target in val_dataloader:
                 val_item = val_item.to(device)
                 val_target = val_target.to(device)
+
+                if item_format == "audio":
+                    with torch.no_grad():
+                        val_item = extractor(val_item)
+
+                if task_configs[task]["training"]["feature_aggregation"]:
+                    val_item = val_item.mean(dim=1)
+
                 val_output = model(val_item)
                 val_loss += criterion(val_output, val_target).item()
 
@@ -266,7 +280,7 @@ def evaluate(
 
     # if audio is being returned from dataset, extract features on-the-fly
     if item_format == "audio":
-        extractor = get_pretrained_model(feature)
+        extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     model.eval()

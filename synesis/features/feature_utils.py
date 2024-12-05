@@ -6,20 +6,21 @@ from torch.utils.data import Sampler
 from tqdm import tqdm
 
 
-def get_pretrained_model(model_name: str):
-    match model_name:
+def get_feature_extractor(extractor_name: str):
+    match extractor_name:
         case "vggish_mtat":
             from synesis.features.vggish import VGGish
 
             model = VGGish(feature_extractor=True)
             model.load_state_dict(
                 torch.load(
-                    Path("models") / "pretrained" / "vggish_mtat.pt", weights_only=True
+                    Path("models") / "pretrained" / "vggish_mtat.pt",
+                    weights_only=True,
                 )
             )
             model.eval()
         case _:
-            raise ValueError(f"Invalid model name: {model_name}")
+            raise ValueError(f"Invalid model name: {extractor_name}")
     return model
 
 

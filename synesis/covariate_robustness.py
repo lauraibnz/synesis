@@ -4,10 +4,10 @@ covariate shift."""
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-import numpy as np
 
 from config.tasks import task_configs
 from config.transforms import transform_configs
@@ -16,7 +16,7 @@ from synesis.downstream import train as downstream_train
 from synesis.features.feature_utils import (
     DynamicBatchSampler,
     collate_packed_batch,
-    get_pretrained_model,
+    get_feature_extractor,
 )
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
@@ -149,7 +149,7 @@ def evaluate_representation_distance(
         collate_fn=collate_packed_batch,
     )
 
-    feature_extractor = get_pretrained_model(feature).to(device)
+    feature_extractor = get_feature_extractor(feature).to(device)
 
     # We will iterate over all degrees of the transform, computing distances
     # for all representations in the dataset for each.

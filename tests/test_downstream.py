@@ -20,7 +20,7 @@ def task_name(request):
     return request.param
 
 
-@pytest.fixture(params=[False])
+@pytest.fixture(params=[True, False])
 def feature_aggregation(request):
     return request.param
 

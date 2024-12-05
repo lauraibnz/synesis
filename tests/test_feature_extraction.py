@@ -6,7 +6,10 @@ import torch
 from config.features import feature_configs
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
-from synesis.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
+from synesis.features.feature_utils import (
+    dynamic_batch_extractor,
+    get_feature_extractor,
+)
 
 
 @pytest.fixture(params=[MagnaTagATune, MTGJamendo])
@@ -46,7 +49,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Get the pretrained model
-    model = get_pretrained_model(feature_name)
+    model = get_feature_extractor(feature_name)
 
     # Test if model is in eval mode
     assert not model.training, f"Model {feature_name} should be in eval mode"

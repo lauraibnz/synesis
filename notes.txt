@@ -1,9 +1,11 @@
 Now
-[ ] Test extract works after modifications
-[ ] Test Downstream from features
-[ ] Test Downstream from audio
+[ ] Downstream
+    [ ] fix train with feature_aggregation
+    [ ] fix train from audio
+    [ ] fix evaluation
 [ ] Implement feature extractor selector like with datasets
-[ ] Test Downstream - aggregated
+[ ] Add instructions for dataset implementation
+[ ] Add instructions for feature implementation
 [ ] Implement NSynth
 
 Test

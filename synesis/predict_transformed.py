@@ -16,7 +16,7 @@ from synesis.datasets.dataset_utils import get_dataset
 from synesis.features.feature_utils import (
     DynamicBatchSampler,
     collate_packed_batch,
-    get_pretrained_model,
+    get_feature_extractor,
 )
 from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update
@@ -83,7 +83,7 @@ def train(
         transform in train_dataset.transforms
     ), f"Transform {transform} not found in dataset {dataset}"
 
-    feature_extractor = get_pretrained_model(feature).to(device)
+    feature_extractor = get_feature_extractor(feature).to(device)
 
     transform_obj = get_transform(transform_configs[transform])
 
@@ -214,7 +214,7 @@ def evaluate(
         transform in test_dataset.transforms
     ), f"Transform {transform} not available in {dataset}"
 
-    feature_extractor = get_pretrained_model(feature).to(device)
+    feature_extractor = get_feature_extractor(feature).to(device)
     feature_extractor.eval()
 
     transform_obj = get_transform(transform_configs[transform])

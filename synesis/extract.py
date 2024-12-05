@@ -5,7 +5,10 @@ import torch
 
 from config.features import feature_configs
 from synesis.datasets.dataset_utils import get_dataset
-from synesis.features.feature_utils import dynamic_batch_extractor, get_pretrained_model
+from synesis.features.feature_utils import (
+    dynamic_batch_extractor,
+    get_feature_extractor,
+)
 
 
 def extract_features(
@@ -30,7 +33,7 @@ def extract_features(
     if not device:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    extractor = get_pretrained_model(feature)
+    extractor = get_feature_extractor(feature)
 
     dataset = get_dataset(
         name=dataset,
