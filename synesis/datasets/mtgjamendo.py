@@ -23,6 +23,7 @@ class MTGJamendo(Dataset):
         feature_config: Optional[dict] = None,
         audio_format: str = "mp3",
         item_format: str = "feature",
+        itemized: bool = True,
         seed: int = 42,
     ) -> None:
         """
@@ -61,6 +62,7 @@ class MTGJamendo(Dataset):
         self.split = split
         self.feature = feature
         self.item_format = item_format
+        self.itemized = itemized
         self.audio_format = audio_format
 
         if download:
@@ -186,6 +188,8 @@ class MTGJamendo(Dataset):
         track = load_track(
             path=path,
             item_format=self.item_format,
+            itemized=self.itemized,
+            item_len_sec=self.feature_config["item_len_sec"],
             sample_rate=self.feature_config["sample_rate"],
         )
 
