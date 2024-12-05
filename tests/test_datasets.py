@@ -4,7 +4,7 @@ import torch
 from torch import tensor
 from torch.utils.data import Dataset
 
-from synesis.datasets.dataset_utils import SubitemDataset
+from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.datasets.tinysol import TinySOL
@@ -38,6 +38,39 @@ DATASETS = [
 ]
 
 
+class MockDataset(Dataset):
+    # Create a simple dataset with a few items
+    def __init__(self):
+        self.items = [
+            torch.stack(
+                [
+                    tensor([0, 0, 0]).unsqueeze(0).float(),
+                    tensor([1, 1, 1]).unsqueeze(0).float(),
+                    tensor([2, 2, 2]).unsqueeze(0).float(),
+                ]
+            ),
+            torch.stack(
+                [
+                    tensor([3, 3, 3]).unsqueeze(0).float(),
+                    tensor([4, 4, 4]).unsqueeze(0).float(),
+                ]
+            ),
+            torch.stack(
+                [
+                    tensor([5, 5, 5]).unsqueeze(0).float(),
+                ]
+            ),
+        ]
+        self.item_format = "feature"
+        self.label_encoder = None
+
+    def __len__(self):
+        return len(self.items)
+
+    def __getitem__(self, idx):
+        return self.items[idx], "mock_label"
+
+
 @pytest.fixture(params=DATASETS)
 def dataset_config(request):
     return request.param
@@ -54,31 +87,6 @@ def item_format(request):
 
 
 def test_subitem_wrapper():
-    # Create a simple dataset with a few items
-    class MockDataset(Dataset):
-        def __init__(self):
-            self.items = [
-                [
-                    tensor([0, 0, 0]).unsqueeze(0),
-                    tensor([1, 1, 1]).unsqueeze(0),
-                    tensor([2, 2, 2]).unsqueeze(0),
-                ],
-                [
-                    tensor([3, 3, 3]).unsqueeze(0),
-                    tensor([4, 4, 4]).unsqueeze(0),
-                ],
-                [
-                    tensor([5, 5, 5]).unsqueeze(0),
-                ],
-            ]
-            self.label_encoder = None
-
-        def __len__(self):
-            return len(self.items)
-
-        def __getitem__(self, idx):
-            return self.items[idx], "mock_label"
-
     dataset = MockDataset()
     subitem_dataset = SubitemDataset(dataset)
 
@@ -110,6 +118,21 @@ def test_subitem_wrapper():
                     ]
                 ),
             )
+
+
+def test_aggregate_wrapper():
+    dataset = MockDataset()
+    aggregate_dataset = AggregateDataset(dataset)
+
+    dataloader = torch.utils.data.DataLoader(
+        aggregate_dataset, batch_size=2, shuffle=False
+    )
+
+    item, label = next(iter(dataloader))
+    assert item.shape[0] <= 2, "Batch size should not exceed 2"
+    assert len(item.shape) == 3, "(b, c, len)"
+    assert item[0][0][0] == 1.0, "First item should be (0+1+2)/3"
+    assert item[1][0][1] == 3.5, "Second item should be (3+4)/2"
 
 
 def test_dataset_loading(dataset_config, itemization, item_format):

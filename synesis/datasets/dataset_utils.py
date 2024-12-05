@@ -7,6 +7,8 @@ import torchaudio
 from torch import Tensor, tensor
 from torch.utils.data import Dataset
 
+from synesis.features.feature_utils import get_feature_extractor
+
 
 class DatasetFactory:
     @classmethod
@@ -85,6 +87,50 @@ class SubitemDataset(Dataset):
         array = tensor(array[offset])
 
         return array, label
+
+
+class AggregateDataset(Dataset):
+    """
+    Wrapper for datasets that return items with variable number of
+    subitems, such as with audio datasets. Provides a __getitem__
+    method that aggregates features across subitems. It also computes
+    features if original items are raw data - though this is currently
+    slow as the batch is as large as the number of subitems.
+
+    Args:
+        dataset: The dataset to wrap.
+        feature_extractor_name: The name of the feature extractor to use.
+
+    Returns:
+        A dataset that returns items with aggregated features.
+    """
+
+    def __init__(self, dataset: Dataset, feature_extractor_name=None):
+        self.dataset = dataset
+
+        # for accessing dataset info easier/consistently
+        self.label_encoder = dataset.label_encoder
+
+        self.feature_extractor = (
+            get_feature_extractor(feature_extractor_name)
+            if feature_extractor_name
+            else None
+        )
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        item, label = self.dataset[idx]
+
+        # if item is raw data, compute features
+        if self.dataset.item_format == "raw":
+            item = self.feature_extractor(item)
+
+        # (n_subitems, channel, feat) -> (channel, feat)
+        item = item.mean(dim=0)
+
+        return item, label
 
 
 def get_dataset(name: str, **kwargs) -> Dataset:
