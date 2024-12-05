@@ -60,7 +60,7 @@ class TinySOL(Dataset):
         feature_config: Optional[dict] = None,
         audio_format: str = "wav",
         item_format: str = "feature",
-        itemized: bool = True,
+        itemization: bool = True,
         fv: str = "instrument",
         seed: int = 42,
     ) -> None:
@@ -94,7 +94,7 @@ class TinySOL(Dataset):
             )
         self.split = split
         self.item_format = item_format
-        self.itemized = itemized
+        self.itemization = itemization
         self.audio_format = audio_format
         self.feature = feature
 
@@ -209,7 +209,7 @@ class TinySOL(Dataset):
         track = load_track(
             path=path,
             item_format=self.item_format,
-            itemized=self.itemized,
+            itemization=self.itemization,
             item_len_sec=self.feature_config["item_len_sec"],
             sample_rate=self.feature_config["sample_rate"],
         )

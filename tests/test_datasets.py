@@ -44,7 +44,7 @@ def dataset_config(request):
 
 
 @pytest.fixture(params=[True, False])
-def itemized(request):
+def itemization(request):
     return request.param
 
 
@@ -112,14 +112,14 @@ def test_subitem_wrapper():
             )
 
 
-def test_dataset_loading(dataset_config, itemized, item_format):
+def test_dataset_loading(dataset_config, itemization, item_format):
     DatasetClass, config = dataset_config
     for split in config["splits"]:
         dataset = DatasetClass(
             feature="vggish_mtat",
             root=config["root"],
             item_format=item_format,
-            itemized=itemized,
+            itemization=itemization,
             split=split,
         )
 
@@ -139,7 +139,7 @@ def test_dataset_loading(dataset_config, itemized, item_format):
             assert torch.is_tensor(label)
             assert label.dtype == torch.long
 
-            if itemized:
+            if itemization:
                 # each item in batch will have a channel dim
                 assert len(item.shape) == 3
                 # each item will be the same length

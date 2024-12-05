@@ -25,7 +25,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
         feature=feature_name,
         root=f"data/{dataset_class.__name__}",
         item_format="audio",
-        itemized=False,
+        itemization=False,
         split=None,
     )
 

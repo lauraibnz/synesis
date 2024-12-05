@@ -26,7 +26,7 @@ class MagnaTagATune(Dataset):
         feature_config: Optional[dict] = None,
         audio_format: str = "mp3",
         item_format: str = "feature",
-        itemized: bool = True,
+        itemization: bool = True,
         seed: int = 42,
     ) -> None:
         """MagnaTagATune dataset implementation.
@@ -41,7 +41,7 @@ class MagnaTagATune(Dataset):
             feature_config: Configuration for the feature extractor.
             audio_format: Format of the audio files: ["mp3", "wav", "ogg"].
             item_format: Format of the items to return: ["audio", "feature"].
-            itemized: For datasets with variable-length items, whether to return them
+            itemization: For datasets with variable-length items, whether to return them
                       as a list of equal-length items (True) or as a single item.
             seed: Random seed for reproducibility.
         """
@@ -57,7 +57,7 @@ class MagnaTagATune(Dataset):
             )
         self.split = split
         self.item_format = item_format
-        self.itemized = itemized
+        self.itemization = itemization
         self.audio_format = audio_format
         self.feature = feature
         self.label_encoder = MultiLabelBinarizer()
@@ -244,7 +244,7 @@ class MagnaTagATune(Dataset):
         track = load_track(
             path=path,
             item_format=self.item_format,
-            itemized=self.itemized,
+            itemization=self.itemization,
             item_len_sec=self.feature_config["item_len_sec"],
             sample_rate=self.feature_config["sample_rate"],
         )

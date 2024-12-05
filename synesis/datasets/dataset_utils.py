@@ -107,7 +107,7 @@ def get_dataset(name: str, **kwargs) -> Dataset:
 def load_track(
     path: Union[str, Path],
     item_format: str,
-    itemized: bool,
+    itemization: bool,
     item_len_sec: float,
     sample_rate: int,
 ) -> Tensor:
@@ -116,7 +116,7 @@ def load_track(
     Args:
         path: The path to the audio file.
         item_format: Format of the items to return: ["audio", "feature"].
-        itemized: For datasets with variable-length items, whether to return them
+        itemization: For datasets with variable-length items, whether to return them
                   as a list of equal-length items (True) or as a single item.
         item_len_sec: The length of the items in seconds.
         sample_rate: The sample rate to resample the audio to.
@@ -126,7 +126,7 @@ def load_track(
         # assumes there wasn't already a channel dim, but it's hard
         # to check otherwise...
         feature = feature.unsqueeze(1)
-        if not itemized:
+        if not itemization:
             # concatenate
             feature = feature.view(-1, 1, feature.size(2))
         return feature
@@ -142,7 +142,7 @@ def load_track(
             waveform = resampler(waveform)
         if waveform.dim() == 1:
             waveform = waveform.unsqueeze(0)
-        if itemized:
+        if itemization:
             # we need to split the track into fixed-length segments of
             # item_len_sec and return them as a list
             item_len_samples = int(item_len_sec * sample_rate)
