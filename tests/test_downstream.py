@@ -1,21 +1,27 @@
 import pytest
 import torch
-from torch import nn, tensor
-from torch.utils.data import Dataset
+from torch import nn
 
-from config.tasks import task_configs
-from synesis.datasets.dataset_utils import SubitemDataset
-from synesis.datasets.tinysol import TinySOL
 from synesis.downstream import evaluate, train
 
 
-@pytest.fixture(params=[TinySOL])
-def dataset_class(request):
+@pytest.fixture(params=["vggish_mtat"])
+def mock_feature_name(request):
     return request.param
 
 
-@pytest.fixture(params=["instrument_classification"])
+@pytest.fixture(params=["TinySOL"])
+def dataset_name(request):
+    return request.param
+
+
+@pytest.fixture(params=["pitch_classification"])
 def task_name(request):
+    return request.param
+
+
+@pytest.fixture(params=[False])
+def feature_aggregation(request):
     return request.param
 
 
@@ -24,42 +30,29 @@ def item_format(request):
     return request.param
 
 
-@pytest.fixture
-def mock_feature_name():
-    return "vggish_mtat"  # Use a simple feature extractor for testing
-
-
-@pytest.fixture
-def device():
-    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 def test_train_model(
-    dataset_class, task_name, item_format, mock_feature_name, tmp_path, device
+    dataset_name,
+    task_name,
+    item_format,
+    mock_feature_name,
+    feature_aggregation,
+    tmp_path,
 ):
-    # Configure a minimal training run for testing
-    test_config = {"training": {"num_epochs": 2, "batch_size": 2, "patience": 3}}
-
-    # Create small test dataset
-    dataset = dataset_class(
-        feature=mock_feature_name,
-        root=f"data/{dataset_class.__name__}",
-        split="train",
-        item_format=item_format,
-    )
-
-    # Take small subset for testing
-    subset_size = min(10, len(dataset))
-    dataset.paths = dataset.paths[:subset_size]
-    dataset.labels = dataset.labels[:subset_size]
+    # Override config with minimal settings
+    task_config = {
+        "training": {
+            "batch_size": 16,
+            "num_epochs": 2,
+            "feature_aggregation": feature_aggregation,
+        }
+    }
 
     # Train model
     model = train(
         feature=mock_feature_name,
-        dataset=dataset_class.__name__,
+        dataset=dataset_name,
         task=task_name,
-        task_config=test_config,
-        device=device,
+        task_config=task_config,
         item_format=item_format,
     )
 

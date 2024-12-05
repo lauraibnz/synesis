@@ -60,6 +60,9 @@ class SubitemDataset(Dataset):
     def __init__(self, dataset: Dataset):
         self.dataset = dataset
 
+        # for accessing dataset info easier/consistently
+        self.label_encoder = dataset.label_encoder
+
         self.item_lengths = [len(item[0]) for item in dataset]
         self.real_len = sum(self.item_lengths)
         self.real_indices = list(range(self.real_len))
@@ -80,7 +83,7 @@ class SubitemDataset(Dataset):
         array, label = self.dataset[array_idx]
         array = tensor(array[offset])
 
-        return array.squeeze(0), label
+        return array, label
 
 
 def get_dataset(name: str, **kwargs) -> Dataset:
@@ -103,8 +106,9 @@ def get_dataset(name: str, **kwargs) -> Dataset:
 def load_track(path, item_format, sample_rate) -> Tensor:
     if item_format == "feature":
         feature = torch.load(path, weights_only=False)
-        if feature.dim() == 1:
-            feature = feature.unsqueeze(0)
+        # assumes there wasn't already a channel dim, but it's hard
+        # to check otherwise...
+        feature = feature.unsqueeze(1)
         return feature
     else:
         waveform, original_sample_rate = torchaudio.load(path, normalize=True)

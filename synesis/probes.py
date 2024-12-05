@@ -1,5 +1,6 @@
-import torch.nn as nn
 from typing import Any
+
+import torch.nn as nn
 
 
 def get_probe(
@@ -62,6 +63,8 @@ class Classifier(nn.Module):
 
     def forward(self, x):
         """Define the forward pass of the network."""
+        # input for now is batch, channel (1), length
+        x = x.squeeze(1)
         for layer in self.layers:
             x = layer(x)
         return x
@@ -98,6 +101,8 @@ class Regressor(nn.Module):
 
     def forward(self, x):
         """Define the forward pass of the network."""
+        # input will be batch, channel (1), length
+        x = x.squeeze(1)
         for layer in self.layers:
             x = layer(x)
         return x

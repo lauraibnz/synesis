@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config.tasks import task_configs
-from synesis.datasets.dataset_utils import get_dataset
+from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import (
     DynamicBatchSampler,
     collate_packed_batch,
@@ -67,35 +67,28 @@ def train(
 
     assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
 
-    if task_configs[task]["training"]["feature_aggregation"]:
-        dataloader = DataLoader(
-            train_dataset,
-            batch_size=task_configs[task]["training"]["batch_size"],
-            shuffle=True,
-        )
-    else:
-        # use custom sampling for dynamic batching
-        sampler = DynamicBatchSampler(
-            dataset=dataset, batch_size=task_configs[task]["training"]["batch_size"]
-        )
-        dataloader = DataLoader(
-            train_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
-        )
+    if train_dataset[0][0].dim() == 3:
+        # This is a dataset that returns items with subitems (e.g. for audio).
+        # If feature aggregation is disabled, wrap the dataset to operate with
+        # subitems directly. If enabled, need to deal with aggregating them later.
+        if not task_configs[task]["training"]["feature_aggregation"]:
+            wrapped_train = SubitemDataset(train_dataset)
+            wrapped_val = SubitemDataset(val_dataset)
+            del train_dataset, val_dataset
+            train_dataset = wrapped_train
+            val_dataset = wrapped_val
 
-    if task_configs[task]["evaluation"]["feature_aggregation"]:
-        val_dataloader = DataLoader(
-            val_dataset,
-            batch_size=task_configs[task]["training"]["batch_size"],
-            shuffle=False,
-        )
-    else:
-        sampler = DynamicBatchSampler(
-            dataset=val_dataset,
-            batch_size=task_configs[task]["evaluation"]["batch_size"],
-        )
-        val_dataloader = DataLoader(
-            val_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
-        )
+    dataloader = DataLoader(
+        train_dataset,
+        batch_size=task_configs[task]["training"]["batch_size"],
+        shuffle=True,
+    )
+
+    val_dataloader = DataLoader(
+        val_dataset,
+        batch_size=task_configs[task]["training"]["batch_size"],
+        shuffle=False,
+    )
 
     # if audio is being returned from dataset, extract features on-the-fly
     if item_format == "audio":
@@ -105,19 +98,19 @@ def train(
     # train setup
     model = get_probe(
         model_type=task_configs[task]["model"]["type"],
-        in_feaures=len(train_dataset[0][0][0]),
-        n_outputs=len(train_dataset[0][1]),
+        in_features=train_dataset[0][0].shape[1],
+        n_outputs=len(train_dataset.label_encoder.classes_),
         **task_configs[task]["model"]["params"],
     ).to(device)
-    criterion = task_configs[task]["trainin"]["criterion"]
+    criterion = task_configs[task]["training"]["criterion"]()
     optimizer_class = task_configs[task]["training"]["optimizer"]["class"]
     optimizer = optimizer_class(
-        model.parameters(), **task_configs[task]["optimizer"]["params"]
+        model.parameters(), **task_configs[task]["training"]["optimizer"]["params"]
     )
 
     val_metrics = instantiate_metrics(
         metric_configs=task_configs[task]["evaluation"]["metrics"],
-        num_classes=(train_dataset[0][1]),
+        num_classes=len(train_dataset.label_encoder.classes_),
     )
 
     # train and validation loop
@@ -175,6 +168,7 @@ def train(
         for metric_cfg, metric in zip(
             task_configs[task]["evaluation"]["metrics"], val_metrics
         ):
+            metric = metric.to(device)
             val_metric_results[metric_cfg["name"]] = metric(val_outputs, val_targets)
 
         avg_val_loss = val_loss / len(val_dataloader)
@@ -201,7 +195,7 @@ def train(
 
     # Load the best model state
     if best_model_state is not None:
-        model.load_state_dict(best_model_state, weights_only=False)
+        model.load_state_dict(best_model_state)
 
     # Save the best model
     save_path = Path("ckpt") / "downstream" / f"{feature}_{dataset}_{task}.pt"
