@@ -38,6 +38,7 @@ def extract_features(
         item_format="audio",
         split=None,  # Use full dataset for feature extraction
         download=download_dataset,
+        itemized=False,  # dynamic extractor will handle itemization
     )
 
     # attempt to get item length directly in samples, if
