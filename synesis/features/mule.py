@@ -581,6 +581,7 @@ class MULE(nn.Module):
                  feat_extract_head = 0,
                  plusplus = False,
                  feature_extractor = False,
+                 extract_kws = {},
                  **kwargs):
         super(MULE,self).__init__()
         
@@ -621,6 +622,8 @@ class MULE(nn.Module):
                 self.embed_dim = self.head_dims[self.feat_extract_head]
         
         self.feature_extractor = feature_extractor
+        
+        self.extract_kws = extract_kws
     
     def forward_keys(self, x):
         if isinstance(x, dict):
@@ -641,7 +644,8 @@ class MULE(nn.Module):
             "wav":wav,
         }
         
-    def forward(self,x, key = 'encoded'):
+    def forward(self,x):
+        key = self.extract_kws.get('key','encoded')
         return self.forward_keys(x)['encoded'] if key == 'encoded' else self.forward_keys(x)['projected'][0]
         
         

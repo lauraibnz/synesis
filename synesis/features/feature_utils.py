@@ -29,6 +29,9 @@ class FeatureExtractorFactory:
         __cls__ = feature_configs[name]["__cls__"]
         extract_kws = feature_configs[name].get("extract_kws", {})
         
+        if kwargs:
+            kwargs.update(extract_kws)
+            
         try:
             # Dynamically import the feature extractor module
             module = importlib.import_module(f"synesis.features.{__cls__.lower()}")
@@ -45,7 +48,7 @@ class FeatureExtractorFactory:
         model.load_state_dict(torch.load(weights_path, weights_only=True))
         model.eval()
 
-        return model, extract_kws
+        return model
 
 
 def get_feature_extractor(name: str, **kwargs):
@@ -66,7 +69,6 @@ def dynamic_batch_extractor(
     dataset,
     extractor,
     item_len: int,
-    extract_kws = {},
     padding: str = "repeat",
     batch_size: int = 32,
     device: str = "cpu",
@@ -143,7 +145,7 @@ def dynamic_batch_extractor(
                 batch = torch.stack(batch)
                 batch = batch.to(device)
                 with torch.no_grad():
-                    embeddings = extractor(batch, **extract_kws)
+                    embeddings = extractor(batch)
                 save_or_append(embeddings.cpu(), batch_paths)
                 batch = []
                 batch_paths = []
@@ -158,7 +160,7 @@ def dynamic_batch_extractor(
         batch = torch.stack(batch)
         batch = batch.to(device)
         with torch.no_grad():
-            embeddings = extractor(batch, **extract_kws)
+            embeddings = extractor(batch)
         save_or_append(embeddings.cpu(), batch_paths)
 
     pbar.close()
