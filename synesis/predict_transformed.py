@@ -83,8 +83,8 @@ def train(
         transform in train_dataset.transforms
     ), f"Transform {transform} not found in dataset {dataset}"
 
-    feature_extractor = get_feature_extractor(feature).to(device)
-
+    feature_extractor, extract_kws = get_feature_extractor(feature)
+    feature_extractor = feature_extractor.to(device)
     transform_obj = get_transform(transform_configs[transform])
 
     train_sampler = DynamicBatchSampler(dataset=train_dataset, batch_size=batch_size)
@@ -117,7 +117,7 @@ def train(
             batch_raw_data = batch_raw_data.to(device)
 
             with torch.no_grad():
-                original_features = feature_extractor(batch_raw_data)
+                original_features = feature_extractor(batch_raw_data, **extract_kws)
 
             transformed_raw_data, transform_params = zip(
                 *[transform_obj(raw_data) for raw_data in batch_raw_data]
@@ -126,7 +126,7 @@ def train(
             transform_params = torch.tensor(transform_params).to(device)
 
             with torch.no_grad():
-                transformed_features = feature_extractor(transformed_raw_data)
+                transformed_features = feature_extractor(transformed_raw_data, **extract_kws)
 
             optimizer.zero_grad()
             preadicted_features = model(original_features, transform_params)
@@ -148,7 +148,7 @@ def train(
             ):
                 batch_raw_data = batch_raw_data.to(device)
 
-                original_features = feature_extractor(batch_raw_data)
+                original_features = feature_extractor(batch_raw_data, **extract_kws)
 
                 transformed_raw_data, transform_params = zip(
                     *[transform_obj(raw_data) for raw_data in batch_raw_data]
@@ -156,7 +156,7 @@ def train(
                 transformed_raw_data = torch.stack(transformed_raw_data).to(device)
                 transform_params = torch.tensor(transform_params).to(device)
 
-                transformed_features = feature_extractor(transformed_raw_data)
+                transformed_features = feature_extractor(transformed_raw_data, **extract_kws)
 
                 predicted_features = model(original_features, transform_params)
                 loss = criterion(predicted_features, transformed_features)
@@ -214,7 +214,8 @@ def evaluate(
         transform in test_dataset.transforms
     ), f"Transform {transform} not available in {dataset}"
 
-    feature_extractor = get_feature_extractor(feature).to(device)
+    feature_extractor, extract_kws = get_feature_extractor(feature)
+    feature_extractor = feature_extractor.to(device)
     feature_extractor.eval()
 
     transform_obj = get_transform(transform_configs[transform])
@@ -232,11 +233,11 @@ def evaluate(
         for batch_raw_data, _ in tqdm(test_loader, desc="Evaluating"):
             batch_raw_data = batch_raw_data.to(device)
 
-            original_features = feature_extractor(batch_raw_data)
+            original_features = feature_extractor(batch_raw_data, **extract_kws)
 
             transformed_raw_data, transform_params = transform_obj(batch_raw_data)
 
-            transformed_features = feature_extractor(transformed_raw_data)
+            transformed_features = feature_extractor(transformed_raw_data, **extract_kws)
 
             predicted_features = model(original_features, transform_params)
             loss = criterion(predicted_features, transformed_features)

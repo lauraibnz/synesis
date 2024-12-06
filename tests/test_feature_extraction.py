@@ -50,7 +50,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Get the pretrained model
-    model = get_feature_extractor(feature_name)
+    model, extract_kws = get_feature_extractor(feature_name)
 
     # Test if model is in eval mode
     assert not model.training, f"Model {feature_name} should be in eval mode"
@@ -63,6 +63,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
     dynamic_batch_extractor(
         dataset,
         model,
+        extract_kws = extract_kws,
         item_len=item_len_samples,
         padding="repeat",
         batch_size=2,

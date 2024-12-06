@@ -114,7 +114,7 @@ def train(
         item_format == "raw"
         and not task_configs[task]["training"]["feature_aggregation"]
     ):
-        extractor = get_feature_extractor(feature)
+        extractor, extract_kws = get_feature_extractor(feature)
         extractor.to(device)
 
     # train setup
@@ -156,7 +156,7 @@ def train(
                 and not task_configs[task]["training"]["feature_aggregation"]
             ):
                 with torch.no_grad():
-                    item = extractor(item)
+                    item = extractor(item, **extract_kws)
                     # if channels eaten up, unsqueeze
                     if item.dim() == 2:
                         item = item.unsqueeze(1)
@@ -186,7 +186,7 @@ def train(
                     and not task_configs[task]["training"]["feature_aggregation"]
                 ):
                     with torch.no_grad():
-                        item = extractor(item)
+                        item = extractor(item, **extract_kws)
 
                 val_output = model(val_item)
                 val_loss += criterion(val_output, val_target).item()
@@ -304,7 +304,7 @@ def evaluate(
         item_format == "raw"
         and not task_configs[task]["evaluation"]["feature_aggregation"]
     ):
-        extractor = get_feature_extractor(feature)
+        extractor, extract_kws = get_feature_extractor(feature)
         extractor.to(device)
 
     model.eval()
@@ -320,7 +320,7 @@ def evaluate(
 
             if item_format == "raw":
                 with torch.no_grad():
-                    item = extractor(item)
+                    item = extractor(item, **extract_kws)
 
             output = model(item)
             total_loss += criterion(output, target).item()

@@ -33,7 +33,7 @@ def extract_features(
     if not device:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    extractor = get_feature_extractor(feature)
+    extractor, extract_kws = get_feature_extractor(feature)
 
     dataset = get_dataset(
         name=dataset,
@@ -57,6 +57,7 @@ def extract_features(
     dynamic_batch_extractor(
         dataset=dataset,
         extractor=extractor,
+        extract_kws=extract_kws,
         item_len=item_len,
         batch_size=batch_size,
         device=device,

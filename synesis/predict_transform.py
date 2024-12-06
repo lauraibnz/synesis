@@ -72,7 +72,8 @@ def train(
         transform in train_dataset.transforms
     ), f"Transform {transform} not available in {dataset}"
 
-    feature_extractor = get_feature_extractor(feature).to(device)
+    feature_extractor, extract_kws = get_feature_extractor(feature)
+    feature_extractor = feature_extractor.to(device)
 
     transform_obj = get_transform(transform_configs[transform])
 
@@ -111,7 +112,7 @@ def train(
             batch_raw_data = batch_raw_data.to(device)
 
             with torch.no_grad():
-                original_features = feature_extractor(batch_raw_data)
+                original_features = feature_extractor(batch_raw_data, **extract_kws)
 
             transformed_raw_data, transform_params = zip(
                 *[transform_obj(raw_data) for raw_data in batch_raw_data]
@@ -120,7 +121,7 @@ def train(
             transform_params = torch.tensor(transform_params).float().to(device)
 
             with torch.no_grad():
-                transformed_features = feature_extractor(transformed_raw_data)
+                transformed_features = feature_extractor(transformed_raw_data, **extract_kws)
 
             combined_features = torch.cat(
                 [original_features, transformed_features], dim=1
@@ -146,7 +147,7 @@ def train(
             ):
                 batch_raw_data = batch_raw_data.to(device)
 
-                original_features = feature_extractor(batch_raw_data)
+                original_features = feature_extractor(batch_raw_data, **extract_kws)
 
                 transformed_raw_data, transform_params = zip(
                     *[transform_obj(raw_data) for raw_data in batch_raw_data]
@@ -154,7 +155,7 @@ def train(
                 transformed_raw_data = torch.stack(transformed_raw_data).to(device)
                 transform_params = torch.tensor(transform_params).float().to(device)
 
-                transformed_features = feature_extractor(transformed_raw_data)
+                transformed_features = feature_extractor(transformed_raw_data, **extract_kws)
 
                 combined_features = torch.cat(
                     [original_features, transformed_features], dim=1
@@ -234,7 +235,8 @@ def evaluate(
         transform in test_dataset.transforms
     ), f"Transform {transform} not available in {dataset}"
 
-    feature_extractor = get_feature_extractor(feature).to(device)
+    feature_extractor, extract_kws = get_feature_extractor(feature)
+    feature_extractor = feature_extractor.to(device)
 
     transform_obj = get_transform(transform_configs[transform])
 
@@ -254,11 +256,11 @@ def evaluate(
         for batch_raw_data, _ in tqdm(test_loader, desc="Evaluating"):
             batch_raw_data = batch_raw_data.to(device)
 
-            original_features = feature_extractor(batch_raw_data)
+            original_features = feature_extractor(batch_raw_data, **extract_kws)
 
             transformed_raw_data, transform_params = transform_obj(batch_raw_data)
 
-            transformed_features = feature_extractor(transformed_raw_data)
+            transformed_features = feature_extractor(transformed_raw_data, **extract_kws)
 
             combined_features = torch.cat(
                 [original_features, transformed_features], dim=1

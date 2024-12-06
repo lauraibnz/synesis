@@ -149,7 +149,8 @@ def evaluate_representation_distance(
         collate_fn=collate_packed_batch,
     )
 
-    feature_extractor = get_feature_extractor(feature).to(device)
+    feature_extractor, extract_kws = get_feature_extractor(feature)
+    feature_extractor.to(device)
 
     # We will iterate over all degrees of the transform, computing distances
     # for all representations in the dataset for each.
@@ -189,7 +190,7 @@ def evaluate_representation_distance(
             clean_rep_batch = clean_rep_batch.to(device)
 
             transformed_raw_data, _ = transform_obj(raw_batch)
-            transformed_rep_batch = feature_extractor(transformed_raw_data)
+            transformed_rep_batch = feature_extractor(transformed_raw_data, **extract_kws)
 
             # Compute distance between clean and transformed representations
             if metric == "cosine":

@@ -1,5 +1,6 @@
 import importlib
 from pathlib import Path
+from config.features import feature_configs
 
 import numpy as np
 import torch
@@ -23,13 +24,18 @@ class FeatureExtractorFactory:
         Raises:
             ValueError: If the feature extractor name is not recognized.
         """
+        
+        
+        __cls__ = feature_configs[name]["__cls__"]
+        extract_kws = feature_configs[name].get("extract_kws", {})
+        
         try:
             # Dynamically import the feature extractor module
-            module = importlib.import_module(f"synesis.features.{name.lower()}")
+            module = importlib.import_module(f"synesis.features.{__cls__.lower()}")
             # Get the feature extractor class
-            extractor_class = getattr(module, name)
+            extractor_class = getattr(module, __cls__)
         except (ModuleNotFoundError, AttributeError) as e:
-            raise ValueError(f"Unknown feature extractor: {name}") from e
+            raise ValueError(f"Unknown feature extractor: {__cls__}") from e
 
         # Create instance with feature_extractor=True
         model = extractor_class(feature_extractor=True, **kwargs)
@@ -39,7 +45,7 @@ class FeatureExtractorFactory:
         model.load_state_dict(torch.load(weights_path, weights_only=True))
         model.eval()
 
-        return model
+        return model, extract_kws
 
 
 def get_feature_extractor(name: str, **kwargs):
@@ -60,6 +66,7 @@ def dynamic_batch_extractor(
     dataset,
     extractor,
     item_len: int,
+    extract_kws = {},
     padding: str = "repeat",
     batch_size: int = 32,
     device: str = "cpu",
@@ -136,7 +143,7 @@ def dynamic_batch_extractor(
                 batch = torch.stack(batch)
                 batch = batch.to(device)
                 with torch.no_grad():
-                    embeddings = extractor(batch)
+                    embeddings = extractor(batch, **extract_kws)
                 save_or_append(embeddings.cpu(), batch_paths)
                 batch = []
                 batch_paths = []
@@ -151,7 +158,7 @@ def dynamic_batch_extractor(
         batch = torch.stack(batch)
         batch = batch.to(device)
         with torch.no_grad():
-            embeddings = extractor(batch)
+            embeddings = extractor(batch, **extract_kws)
         save_or_append(embeddings.cpu(), batch_paths)
 
     pbar.close()

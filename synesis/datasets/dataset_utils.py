@@ -119,10 +119,10 @@ class AggregateDataset(Dataset):
         self.feature_paths = dataset.feature_paths
         self.paths = dataset.paths
 
-        self.feature_extractor = (
+        self.feature_extractor, self.extract_kws = (
             get_feature_extractor(feature_extractor_name)
             if feature_extractor_name
-            else None
+            else (None, {})
         )
 
     def __len__(self):
@@ -133,7 +133,7 @@ class AggregateDataset(Dataset):
 
         # if item is raw data, compute features
         if self.item_format == "raw":
-            item = self.feature_extractor(item)
+            item = self.feature_extractor(item, **self.extract_kws)
 
         # (n_subitems, channel, feat) -> (channel, feat)
         item = item.mean(dim=0)
