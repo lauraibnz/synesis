@@ -160,7 +160,6 @@ def train(
                     # if channels eaten up, unsqueeze
                     if item.dim() == 2:
                         item = item.unsqueeze(1)
-
             optimizer.zero_grad()
             output = model(item)
             loss = criterion(output, target)
@@ -177,9 +176,9 @@ def train(
         val_outputs = []
         val_targets = []
         with torch.no_grad():
-            for val_item, val_target in val_dataloader:
-                val_item = val_item.to(device)
-                val_target = val_target.to(device)
+            for item, target in val_dataloader:
+                item = item.to(device)
+                target = target.to(device)
 
                 if (
                     item_format == "raw"
@@ -187,13 +186,16 @@ def train(
                 ):
                     with torch.no_grad():
                         item = extractor(item)
+                        # if channels eaten up, unsqueeze
+                        if item.dim() == 2:
+                            item = item.unsqueeze(1)
 
-                val_output = model(val_item)
-                val_loss += criterion(val_output, val_target).item()
+                val_output = model(item)
+                val_loss += criterion(val_output, target).item()
 
                 # Store outputs and targets for metric calculation
                 val_outputs.append(val_output)
-                val_targets.append(val_target)
+                val_targets.append(target)
 
         # Concatenate all outputs and targets
         val_outputs = torch.cat(val_outputs, dim=0)
