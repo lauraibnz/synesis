@@ -12,9 +12,9 @@ Before working with the repo, please install requirements (or ruff and pre-commi
 Before committing new pretrained models/feature extractors, run `pytest tests/test_feature_extraction`. Before committing new datasets run `pytest tests/test_datasets`. For now, you might need to manually add the feature/dataset name in the test file's pytest fixture.
 
 ### Adding datasets
-**Follow the structure of one of the existing datasets. Importantly:**
+**Follow the structure of one of the existing datasets.**
 1. place under `synesis/datasets/`
-2. filename should be lowercase version of class name
+2. filename should be lowercase version of class name *(helps make it automatically available to all other components)*
 
 **The necessary `__init__` parameters are:**
 1. `feature` (str) which is the name of the feature extractor that is going to be used
@@ -47,3 +47,11 @@ self.feature_config = feature_config
 
 4. If variable-length-item dataset, `synesis.datasets.dataset_utils.load_track` automatically does this for audio. If it's for other modality, you might need to implement on your own.
 
+### Adding feature extractors (/pretrained models)
+**Follow existing feature extractor implementations.**
+1. place under `synesis/features/`
+2. filename should be lowercase version of class name *(helps make it automatically available to all other components)*
+3. if pretrained model, place weights in `models/pretrained/*.pt` with same lowercase name
+4. the extractor should have a forward method that deals with batched and channeled data (b, c, feature_dims)
+5. ideally, it should return unchanneled data (b, feature_dim)
+6. add an entry to `config/features` with the feature name (same as class name) that contains at least `feature_dim`. For now, some adjustments might need to be made for other parameters...

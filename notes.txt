@@ -3,9 +3,6 @@ Now
     [ ] fix train with feature_aggregation
     [ ] fix train from audio
     [ ] fix evaluation
-[ ] Implement feature extractor selector like with datasets
-[ ] Add instructions for dataset implementation
-[ ] Add instructions for feature implementation
 [ ] Implement NSynth
 
 Test
