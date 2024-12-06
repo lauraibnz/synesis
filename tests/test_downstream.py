@@ -1,3 +1,5 @@
+import warnings
+
 import pytest
 import torch
 from torch import nn
@@ -20,7 +22,7 @@ def task_name(request):
     return request.param
 
 
-@pytest.fixture(params=[False])
+@pytest.fixture(params=[True, False])
 def feature_aggregation(request):
     return request.param
 
@@ -46,6 +48,13 @@ def test_train_model(
             "feature_aggregation": feature_aggregation,
         }
     }
+
+    if item_format == "raw" and feature_aggregation:
+        warnings.warn(
+            "Currently, using raw data and feature aggregation is too slow"
+            + " Skipping this test..."
+        )
+        return
 
     # Train model
     model = train(
