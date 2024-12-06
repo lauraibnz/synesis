@@ -26,7 +26,7 @@ class Conv_2d(nn.Module):
         return out
 
 
-class VGGish(nn.Module):
+class VGGishMTAT(nn.Module):
     """
     Short-chunk CNN architecture.
     So-called vgg-ish model with a small receptive field.
@@ -44,7 +44,7 @@ class VGGish(nn.Module):
         n_class=50,
         feature_extractor=False,
     ):
-        super(VGGish, self).__init__()
+        super(VGGishMTAT, self).__init__()
 
         self.feature_extractor = feature_extractor
 

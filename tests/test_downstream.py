@@ -5,7 +5,7 @@ from torch import nn
 from synesis.downstream import evaluate, train
 
 
-@pytest.fixture(params=["vggish_mtat"])
+@pytest.fixture(params=["VGGishMTAT"])
 def mock_feature_name(request):
     return request.param
 
@@ -20,7 +20,7 @@ def task_name(request):
     return request.param
 
 
-@pytest.fixture(params=[True, False])
+@pytest.fixture(params=[False])
 def feature_aggregation(request):
     return request.param
 

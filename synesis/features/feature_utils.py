@@ -1,3 +1,4 @@
+import importlib
 from pathlib import Path
 
 import numpy as np
@@ -6,22 +7,53 @@ from torch.utils.data import Sampler
 from tqdm import tqdm
 
 
-def get_feature_extractor(extractor_name: str):
-    match extractor_name:
-        case "vggish_mtat":
-            from synesis.features.vggish import VGGish
+class FeatureExtractorFactory:
+    @classmethod
+    def get_feature_extractor(cls, name: str, **kwargs):
+        """
+        Retrieve a feature extractor instance based on its name and parameters.
 
-            model = VGGish(feature_extractor=True)
-            model.load_state_dict(
-                torch.load(
-                    Path("models") / "pretrained" / "vggish_mtat.pt",
-                    weights_only=True,
-                )
-            )
-            model.eval()
-        case _:
-            raise ValueError(f"Invalid model name: {extractor_name}")
-    return model
+        Args:
+            name: The name of the feature extractor to retrieve.
+            **kwargs: Optional parameters to pass to the constructor.
+
+        Returns:
+            An instance of the requested feature extractor.
+
+        Raises:
+            ValueError: If the feature extractor name is not recognized.
+        """
+        try:
+            # Dynamically import the feature extractor module
+            module = importlib.import_module(f"synesis.features.{name.lower()}")
+            # Get the feature extractor class
+            extractor_class = getattr(module, name)
+        except (ModuleNotFoundError, AttributeError) as e:
+            raise ValueError(f"Unknown feature extractor: {name}") from e
+
+        # Create instance with feature_extractor=True
+        model = extractor_class(feature_extractor=True, **kwargs)
+
+        # Load weights
+        weights_path = Path("models") / "pretrained" / f"{name.lower()}.pt"
+        model.load_state_dict(torch.load(weights_path, weights_only=True))
+        model.eval()
+
+        return model
+
+
+def get_feature_extractor(name: str, **kwargs):
+    """
+    Convenience function to get a feature extractor instance.
+
+    Args:
+        name: The name of the feature extractor to retrieve.
+        **kwargs: Optional parameters to pass to the constructor.
+
+    Returns:
+        An instance of the requested feature extractor.
+    """
+    return FeatureExtractorFactory.get_feature_extractor(name, **kwargs)
 
 
 def dynamic_batch_extractor(

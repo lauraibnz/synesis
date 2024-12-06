@@ -142,7 +142,7 @@ def test_dataset_loading(dataset_config, itemization, item_format):
     DatasetClass, config = dataset_config
     for split in config["splits"]:
         dataset = DatasetClass(
-            feature="vggish_mtat",
+            feature="VGGishMTAT",
             root=config["root"],
             item_format=item_format,
             itemization=itemization,
@@ -182,7 +182,7 @@ def test_mtgjamendo_subsets():
     for subset in config["subsets"]:
         for split in config["splits"]:
             dataset = MTGJamendo(
-                feature="vggish_mtat",
+                feature="VGGishMTAT",
                 root=config["root"],
                 item_format=config["item_format"][0],
                 split=split,

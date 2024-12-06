@@ -9,6 +9,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from config.features import feature_configs
 from config.tasks import task_configs
 from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get_dataset
 from synesis.features.feature_utils import (
@@ -27,6 +28,7 @@ def train(
     task: str,
     item_format: str = "feature",
     task_config: Optional[dict] = None,
+    feature_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
     """
@@ -45,6 +47,9 @@ def train(
 
     if task_config:
         task_configs[task] = deep_update(task_configs[task], task_config)
+
+    if feature_config:
+        feature_configs[feature] = deep_update(feature_configs[feature], feature_config)
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -70,8 +75,8 @@ def train(
         # If item is 3D, this is a dataset that returns items with subitems
         # (e.g. for audio).
         if task_configs[task]["training"]["feature_aggregation"]:
-            # If not feature_aggregation, we'll wrap the dataset so that it behaves
-            # as a subitem dataset
+            # If feature_aggreation, we'll wrap the dataset so that it returns
+            # aggregated features
             aggregated_train = AggregateDataset(
                 train_dataset, feature_extractor_name=feature
             )
@@ -82,8 +87,8 @@ def train(
             train_dataset = aggregated_train
             val_dataset = aggregated_val
         else:
-            # If feature_aggreation, we'll wrap the dataset so that it returns
-            # aggregated features
+            # If not feature_aggregation, we'll wrap the dataset so that it behaves
+            # as a subitem dataset
             wrapped_train = SubitemDataset(train_dataset)
             wrapped_val = SubitemDataset(val_dataset)
             del train_dataset, val_dataset
@@ -104,14 +109,18 @@ def train(
 
     # if raw_data  (e.g. audio) is being returned from dataset,
     # extract features on-the-fly
-    if item_format == "raw":
+    # (the AggregateDatset wrapper also computes features)
+    if (
+        item_format == "raw"
+        and not task_configs[task]["training"]["feature_aggregation"]
+    ):
         extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     # train setup
     model = get_probe(
         model_type=task_configs[task]["model"]["type"],
-        in_features=train_dataset[0][0].shape[1],
+        in_features=feature_configs[feature]["feature_dim"],
         n_outputs=len(train_dataset.label_encoder.classes_),
         **task_configs[task]["model"]["params"],
     ).to(device)
@@ -142,14 +151,15 @@ def train(
             item = item.to(device)
             target = target.to(device)
 
-            # compute features on-the-fly if raw data
-            # (the AggregateDatset wrapper also computes features)
             if (
                 item_format == "raw"
                 and not task_configs[task]["training"]["feature_aggregation"]
             ):
                 with torch.no_grad():
                     item = extractor(item)
+                    # if channels eaten up, unsqueeze
+                    if item.dim() == 2:
+                        item = item.unsqueeze(1)
 
             optimizer.zero_grad()
             output = model(item)
@@ -171,8 +181,6 @@ def train(
                 val_item = val_item.to(device)
                 val_target = val_target.to(device)
 
-                # compute features on-the-fly if raw data
-                # (the AggregateDatset wrapper also computes features)
                 if (
                     item_format == "raw"
                     and not task_configs[task]["training"]["feature_aggregation"]
@@ -292,9 +300,10 @@ def evaluate(
             test_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
         )
 
-    # if raw_data  (e.g. audio) is being returned from dataset,
-    # extract features on-the-fly
-    if item_format == "raw":
+    if (
+        item_format == "raw"
+        and not task_configs[task]["evaluation"]["feature_aggregation"]
+    ):
         extractor = get_feature_extractor(feature)
         extractor.to(device)
 

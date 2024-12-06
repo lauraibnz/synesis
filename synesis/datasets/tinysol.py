@@ -219,7 +219,7 @@ class TinySOL(Dataset):
 
 if __name__ == "__main__":
     tinysol = TinySOL(
-        feature="vggish_mtat",
+        feature="VGGishMTAT",
         root="data/TinySOL",
         item_format="raw",
         feature_config={
