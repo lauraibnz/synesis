@@ -188,3 +188,4 @@ test.ipynb
 
 # ruff cache
 .ruff_cache/
+notes.txt
