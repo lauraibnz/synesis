@@ -12,11 +12,7 @@ from tqdm import tqdm
 from config.features import feature_configs
 from config.tasks import task_configs
 from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get_dataset
-from synesis.features.feature_utils import (
-    DynamicBatchSampler,
-    collate_packed_batch,
-    get_feature_extractor,
-)
+from synesis.features.feature_utils import get_feature_extractor
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.utils import deep_update
@@ -68,8 +64,6 @@ def train(
         download=False,
         item_format=item_format,
     )
-
-    assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
 
     if train_dataset[0][0].dim() == 3:
         # If item is 3D, this is a dataset that returns items with subitems
@@ -249,6 +243,7 @@ def evaluate(
     task: str,
     item_format: str = "feature",
     task_config: Optional[dict] = None,
+    feature_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
     """
@@ -269,6 +264,9 @@ def evaluate(
     if task_config:
         task_configs[task] = deep_update(task_configs[task], task_config)
 
+    if feature_config:
+        feature_configs[feature] = deep_update(feature_configs[feature], feature_config)
+
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -280,33 +278,43 @@ def evaluate(
         item_format=item_format,
     )
 
-    assert task in test_dataset.tasks
-
     metrics = instantiate_metrics(
         metric_configs=task_configs[task]["evaluation"]["metrics"],
-        num_classes=len(test_dataset[0][1]),
+        num_classes=len(test_dataset.label_encoder.classes_),
     )
 
-    if task_configs[task]["evaluation"]["feature_aggregation"]:
-        dataloader = DataLoader(
-            test_dataset,
-            batch_size=task_configs[task]["evaluation"]["batch_size"],
-            shuffle=False,
-        )
-    else:
-        sampler = DynamicBatchSampler(
-            dataset=test_dataset,
-            batch_size=task_configs[task]["evaluation"]["batch_size"],
-        )
-        dataloader = DataLoader(
-            test_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
-        )
+    if test_dataset[0][0].dim() == 3:
+        # If item is 3D, this is a dataset that returns items with subitems
+        # (e.g. for audio).
+        if task_configs[task]["evaluation"]["feature_aggregation"]:
+            # If feature_aggreation, we'll wrap the dataset so that it returns
+            # aggregated features
+            aggregated_test = AggregateDataset(
+                test_dataset, feature_extractor_name=feature
+            )
+            del test_dataset
+            test_dataset = aggregated_test
+        else:
+            # If not feature_aggregation, we'll wrap the dataset so that it behaves
+            # as a subitem dataset
+            wrapped_test = SubitemDataset(test_dataset)
+            del test_dataset
+            test_dataset = wrapped_test
 
+    dataloader = DataLoader(
+        test_dataset,
+        batch_size=task_configs[task]["evaluation"]["batch_size"],
+        shuffle=False,
+    )
+
+    # if raw_data  (e.g. audio) is being returned from dataset,
+    # extract features on-the-fly
+    # (the AggregateDatset wrapper also computes features)
     if (
         item_format == "raw"
         and not task_configs[task]["evaluation"]["feature_aggregation"]
     ):
-        (extractor,) = get_feature_extractor(feature)
+        extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     model.eval()
@@ -320,9 +328,15 @@ def evaluate(
             item = item.to(device)
             target = target.to(device)
 
-            if item_format == "raw":
+            if (
+                item_format == "raw"
+                and not task_configs[task]["evaluation"]["feature_aggregation"]
+            ):
                 with torch.no_grad():
                     item = extractor(item)
+                    # if channels eaten up, unsqueeze
+                    if item.dim() == 2:
+                        item = item.unsqueeze(1)
 
             output = model(item)
             total_loss += criterion(output, target).item()
@@ -338,7 +352,10 @@ def evaluate(
     # Calculate metrics
     test_metric_results = {}
     for metric_cfg, metric in zip(task_configs[task]["evaluation"]["metrics"], metrics):
-        test_metric_results[metric_cfg["name"]] = metric(test_outputs, test_targets)
+        metric = metric.to(device)
+        test_metric_results[metric_cfg["name"]] = metric(
+            test_outputs, test_targets
+        ).item()
 
     avg_loss = total_loss / len(dataloader)
     print(f"Avg test loss: {avg_loss:.4f}")

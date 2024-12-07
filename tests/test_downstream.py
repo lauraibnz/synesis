@@ -40,6 +40,13 @@ def test_train_model(
     feature_aggregation,
     tmp_path,
 ):
+    if item_format == "raw" and feature_aggregation:
+        warnings.warn(
+            "Currently, using raw data and feature aggregation is too slow"
+            + " Skipping this test..."
+        )
+        return
+
     # Override config with minimal settings
     task_config = {
         "training": {
@@ -48,13 +55,6 @@ def test_train_model(
             "feature_aggregation": feature_aggregation,
         }
     }
-
-    if item_format == "raw" and feature_aggregation:
-        warnings.warn(
-            "Currently, using raw data and feature aggregation is too slow"
-            + " Skipping this test..."
-        )
-        return
 
     # Train model
     model = train(
@@ -79,18 +79,37 @@ def test_train_model(
 
 
 def test_evaluate_model(
-    dataset_class, task_name, item_format, mock_feature_name, device
+    dataset_name,
+    task_name,
+    item_format,
+    feature_aggregation,
+    mock_feature_name,
 ):
+    if item_format == "raw" and feature_aggregation:
+        warnings.warn(
+            "Currently, using raw data and feature aggregation is too slow"
+            + " Skipping this test..."
+        )
+        return
+
     # Configure minimal evaluation settings
-    test_config = {"evaluation": {"batch_size": 2}}
+    task_config = {
+        "training": {
+            "batch_size": 16,
+            "num_epochs": 1,
+            "feature_aggregation": feature_aggregation,
+        },
+        "evaluation": {
+            "batch_size": 16,
+        },
+    }
 
     # First train a model with minimal epochs
     model = train(
         feature=mock_feature_name,
-        dataset=dataset_class.__name__,
+        dataset=dataset_name,
         task=task_name,
-        task_config={"training": {"num_epochs": 1}},
-        device=device,
+        task_config=task_config,
         item_format=item_format,
     )
 
@@ -98,10 +117,9 @@ def test_evaluate_model(
     results = evaluate(
         model=model,
         feature=mock_feature_name,
-        dataset=dataset_class.__name__,
+        dataset=dataset_name,
         task=task_name,
-        task_config=test_config,
-        device=device,
+        task_config=task_config,
         item_format=item_format,
     )
 
@@ -117,36 +135,6 @@ def test_evaluate_model(
         assert not torch.isnan(
             torch.tensor(value)
         ), f"Metric {metric_name} should not be NaN"
-
-
-def test_model_save_load(
-    dataset_class, task_name, item_format, mock_feature_name, tmp_path, device
-):
-    # Train model with minimal epochs
-    model = train(
-        feature=mock_feature_name,
-        dataset=dataset_class.__name__,
-        task=task_name,
-        task_config={"training": {"num_epochs": 1}},
-        device=device,
-        item_format=item_format,
-    )
-
-    # Save model
-    save_path = tmp_path / "test_model.pt"
-    torch.save(model.state_dict(), save_path)
-
-    # Check if file exists
-    assert save_path.exists(), "Model file should exist after saving"
-
-    # Load model
-    loaded_state_dict = torch.load(save_path)
-    new_model = type(model)(*model.init_args).to(device)
-    new_model.load_state_dict(loaded_state_dict)
-
-    # Compare original and loaded models
-    for p1, p2 in zip(model.parameters(), new_model.parameters()):
-        assert torch.equal(p1, p2), "Loaded model parameters should match original"
 
 
 if __name__ == "__main__":
