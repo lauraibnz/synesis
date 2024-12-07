@@ -66,7 +66,7 @@ class MagnaTagATune(Dataset):
             # load default feature config
             feature_config = feature_configs[feature]
         self.feature_config = feature_config
-
+        self.name = "MagnaTagATune"
         if download:
             self._download()
 

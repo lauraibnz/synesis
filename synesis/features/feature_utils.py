@@ -44,8 +44,11 @@ class FeatureExtractorFactory:
         model = extractor_class(feature_extractor=True, **kwargs)
 
         # Load weights
-        weights_path = Path("models") / "pretrained" / f"{name.lower()}.pt"
-        model.load_state_dict(torch.load(weights_path, weights_only=True))
+        try:
+            weights_path = Path("models") / "pretrained" / f"{name.lower()}.pt"
+            model.load_state_dict(torch.load(weights_path, weights_only=True))
+        except FileNotFoundError:
+            print(f"No pretrained weights found for {name}.")
         model.eval()
 
         return model

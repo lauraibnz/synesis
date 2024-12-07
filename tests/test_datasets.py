@@ -22,6 +22,7 @@ DATASETS = [
         MTGJamendo,
         {
             "root": "data/MTGJamendo",
+            "data_path": "/import/c4dm-datasets/mtg-jamendo-raw/mtg-jamendo-dataset/mp3",
             "splits": [None, "train", "test", "validation"],
             "subsets": [None, "top50tags", "genre", "instrument", "moodtheme"],
             "item_format": "raw",

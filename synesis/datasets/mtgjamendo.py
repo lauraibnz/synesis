@@ -17,6 +17,7 @@ class MTGJamendo(Dataset):
         self,
         feature: str,
         root: Union[str, Path] = "data/MTGJamendo",
+        data_path: Optional[str] = None,
         subset: Optional[str] = None,
         split: Optional[str] = None,
         download: bool = False,
@@ -47,7 +48,10 @@ class MTGJamendo(Dataset):
         self.fvs = ["key", "tempo", "eq"]
 
         root = Path(root)
+        data_path = Path(data_path) if data_path else root
         self.root = root
+        self.data_path = data_path
+        
         if subset not in [None, "top50tags", "genre", "instrument", "moodtheme"]:
             raise ValueError(
                 f"Invalid subset: {subset} "
@@ -130,7 +134,7 @@ class MTGJamendo(Dataset):
         ]
         if self.item_format == "raw":
             paths = [
-                self.root / self.audio_format / f"{rel_path}.{self.audio_format}"
+                self.data_path / self.audio_format / f"{rel_path}.{self.audio_format}"
                 for rel_path in relative_paths
             ]
         else:
@@ -144,23 +148,30 @@ class MTGJamendo(Dataset):
         ]
 
         # remove missing tracks
-        with open(self.metadata_path.parent / "missing_tracks.txt", "r") as f:
-            missing_tracks = f.readlines()
-        missing_tracks = [track.strip() for track in missing_tracks]
-        # get idx of tracks to remove
-        idx_to_remove = [
-            idx
-            for idx, path in enumerate(paths)
-            if str(Path(path.parent.stem) / path.stem) in missing_tracks
-        ]
-        # remove from paths and labels
-        paths = [path for idx, path in enumerate(paths) if idx not in idx_to_remove]
-        labels = [label for idx, label in enumerate(labels) if idx not in idx_to_remove]
+        try:
+            with open(self.metadata_path.parent / "missing_tracks.txt", "r") as f:
+                missing_tracks = f.readlines()
+            missing_tracks = [track.strip() for track in missing_tracks]
+            # get idx of tracks to remove
+            idx_to_remove = [
+                idx
+                for idx, path in enumerate(paths)
+                if str(Path(path.parent.stem) / path.stem) in missing_tracks
+            ]
+            # remove from paths and labels
+            paths = [path for idx, path in enumerate(paths) if idx not in idx_to_remove]
+            labels = [label for idx, label in enumerate(labels) if idx not in idx_to_remove]
+        except FileNotFoundError:
+            print("No missing tracks file found, skipping removal of missing tracks.")
+        
+
 
         # encode labels
         encoded_labels = self.label_encoder.fit(labels)
         encoded_labels = self.label_encoder.transform(labels)
         encoded_labels = torch.tensor(encoded_labels, dtype=torch.long)
+        
+        
 
         self.raw_data_paths, self.labels = paths, encoded_labels
 
