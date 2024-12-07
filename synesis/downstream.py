@@ -13,7 +13,6 @@ from config.features import feature_configs
 from config.tasks import task_configs
 from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
-)
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.utils import deep_update
@@ -331,7 +330,7 @@ def evaluate(
 
             if (
                 item_format == "raw"
-                and not task_configs[task]["training"]["feature_aggregation"]
+                and not task_configs[task]["evaluation"]["feature_aggregation"]
             ):
                 with torch.no_grad():
                     item = extractor(item)
@@ -354,7 +353,9 @@ def evaluate(
     test_metric_results = {}
     for metric_cfg, metric in zip(task_configs[task]["evaluation"]["metrics"], metrics):
         metric = metric.to(device)
-        test_metric_results[metric_cfg["name"]] = metric(test_outputs, test_targets)
+        test_metric_results[metric_cfg["name"]] = metric(
+            test_outputs, test_targets
+        ).item()
 
     avg_loss = total_loss / len(dataloader)
     print(f"Avg test loss: {avg_loss:.4f}")
