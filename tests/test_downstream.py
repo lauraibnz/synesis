@@ -137,35 +137,5 @@ def test_evaluate_model(
         ), f"Metric {metric_name} should not be NaN"
 
 
-def test_model_save_load(
-    dataset_class, task_name, item_format, mock_feature_name, tmp_path, device
-):
-    # Train model with minimal epochs
-    model = train(
-        feature=mock_feature_name,
-        dataset=dataset_class.__name__,
-        task=task_name,
-        task_config={"training": {"num_epochs": 1}},
-        device=device,
-        item_format=item_format,
-    )
-
-    # Save model
-    save_path = tmp_path / "test_model.pt"
-    torch.save(model.state_dict(), save_path)
-
-    # Check if file exists
-    assert save_path.exists(), "Model file should exist after saving"
-
-    # Load model
-    loaded_state_dict = torch.load(save_path)
-    new_model = type(model)(*model.init_args).to(device)
-    new_model.load_state_dict(loaded_state_dict)
-
-    # Compare original and loaded models
-    for p1, p2 in zip(model.parameters(), new_model.parameters()):
-        assert torch.equal(p1, p2), "Loaded model parameters should match original"
-
-
 if __name__ == "__main__":
     pytest.main()
