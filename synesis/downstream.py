@@ -69,8 +69,6 @@ def train(
         item_format=item_format,
     )
 
-    assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
-
     if train_dataset[0][0].dim() == 3:
         # If item is 3D, this is a dataset that returns items with subitems
         # (e.g. for audio).
@@ -114,7 +112,7 @@ def train(
         item_format == "raw"
         and not task_configs[task]["training"]["feature_aggregation"]
     ):
-        extractor= get_feature_extractor(feature)
+        extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     # train setup
@@ -249,6 +247,7 @@ def evaluate(
     task: str,
     item_format: str = "feature",
     task_config: Optional[dict] = None,
+    feature_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
     """
@@ -269,6 +268,9 @@ def evaluate(
     if task_config:
         task_configs[task] = deep_update(task_configs[task], task_config)
 
+    if feature_config:
+        feature_configs[feature] = deep_update(feature_configs[feature], feature_config)
+
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -279,8 +281,6 @@ def evaluate(
         download=False,
         item_format=item_format,
     )
-
-    assert task in test_dataset.tasks
 
     metrics = instantiate_metrics(
         metric_configs=task_configs[task]["evaluation"]["metrics"],
@@ -306,7 +306,7 @@ def evaluate(
         item_format == "raw"
         and not task_configs[task]["evaluation"]["feature_aggregation"]
     ):
-        extractor, = get_feature_extractor(feature)
+        (extractor,) = get_feature_extractor(feature)
         extractor.to(device)
 
     model.eval()
