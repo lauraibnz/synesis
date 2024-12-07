@@ -24,14 +24,13 @@ class FeatureExtractorFactory:
         Raises:
             ValueError: If the feature extractor name is not recognized.
         """
-        
-        
+
         __cls__ = feature_configs[name]["__cls__"]
         extract_kws = feature_configs[name].get("extract_kws", {})
-        
+
         if kwargs:
             kwargs.update(extract_kws)
-            
+
         try:
             # Dynamically import the feature extractor module
             module = importlib.import_module(f"synesis.features.{__cls__.lower()}")
@@ -44,8 +43,11 @@ class FeatureExtractorFactory:
         model = extractor_class(feature_extractor=True, **kwargs)
 
         # Load weights
-        weights_path = Path("models") / "pretrained" / f"{name.lower()}.pt"
-        model.load_state_dict(torch.load(weights_path, weights_only=True))
+        try:
+            weights_path = Path("models") / "pretrained" / f"{name.lower()}.pt"
+            model.load_state_dict(torch.load(weights_path, weights_only=True))
+        except FileNotFoundError:
+            print(f"No pretrained weights found for {name}.")
         model.eval()
 
         return model

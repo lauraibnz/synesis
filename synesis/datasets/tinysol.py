@@ -104,7 +104,9 @@ class TinySOL(Dataset):
         self.feature_config = feature_config
 
         # initialize mirdata dataset
-        self.dataset = mirdata.initialize(dataset_name="tinysol", data_home=self.root)
+        self.dataset = mirdata.initialize(
+            dataset_name="tinysol", data_home=str(self.root)
+        )
 
         if download:
             self._download()

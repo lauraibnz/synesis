@@ -4,6 +4,7 @@ import pytest
 import torch
 
 from config.features import feature_configs
+from config.datasets import dataset_configs
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.datasets.tinysol import TinySOL
@@ -31,6 +32,8 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
         item_format="raw",
         itemization=False,
         split=None,
+        download=True,
+        **dataset_configs[dataset_class.__name__],
     )
 
     # Take a small subset of paths for testing
