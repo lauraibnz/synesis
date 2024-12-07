@@ -12,10 +12,7 @@ from tqdm import tqdm
 from config.features import feature_configs
 from config.tasks import task_configs
 from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get_dataset
-from synesis.features.feature_utils import (
-    DynamicBatchSampler,
-    collate_packed_batch,
-    get_feature_extractor,
+from synesis.features.feature_utils import get_feature_extractor
 )
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
@@ -318,7 +315,7 @@ def evaluate(
         item_format == "raw"
         and not task_configs[task]["evaluation"]["feature_aggregation"]
     ):
-        (extractor,) = get_feature_extractor(feature)
+        extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     model.eval()
@@ -356,6 +353,7 @@ def evaluate(
     # Calculate metrics
     test_metric_results = {}
     for metric_cfg, metric in zip(task_configs[task]["evaluation"]["metrics"], metrics):
+        metric = metric.to(device)
         test_metric_results[metric_cfg["name"]] = metric(test_outputs, test_targets)
 
     avg_loss = total_loss / len(dataloader)

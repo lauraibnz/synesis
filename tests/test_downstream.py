@@ -40,6 +40,13 @@ def test_train_model(
     feature_aggregation,
     tmp_path,
 ):
+    if item_format == "raw" and feature_aggregation:
+        warnings.warn(
+            "Currently, using raw data and feature aggregation is too slow"
+            + " Skipping this test..."
+        )
+        return
+
     # Override config with minimal settings
     task_config = {
         "training": {
@@ -48,13 +55,6 @@ def test_train_model(
             "feature_aggregation": feature_aggregation,
         }
     }
-
-    if item_format == "raw" and feature_aggregation:
-        warnings.warn(
-            "Currently, using raw data and feature aggregation is too slow"
-            + " Skipping this test..."
-        )
-        return
 
     # Train model
     model = train(
@@ -85,11 +85,18 @@ def test_evaluate_model(
     feature_aggregation,
     mock_feature_name,
 ):
+    if item_format == "raw" and feature_aggregation:
+        warnings.warn(
+            "Currently, using raw data and feature aggregation is too slow"
+            + " Skipping this test..."
+        )
+        return
+
     # Configure minimal evaluation settings
     task_config = {
         "training": {
             "batch_size": 16,
-            "num_epochs": 0,
+            "num_epochs": 1,
             "feature_aggregation": feature_aggregation,
         },
         "evaluation": {

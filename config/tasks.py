@@ -43,7 +43,7 @@ task_configs = {
             "feature_aggregation": True,
         },
         "evaluation": {
-            "criterion": nn.BCEWithLogitsLoss,
+            "criterion": nn.CrossEntropyLoss,
             "feature_aggregation": True,
             "batch_size": 32,
             "metrics": [
@@ -78,7 +78,7 @@ task_configs = {
             "feature_aggregation": True,
         },
         "evaluation": {
-            "criterion": nn.BCEWithLogitsLoss,
+            "criterion": nn.CrossEntropyLoss,
             "feature_aggregation": True,
             "batch_size": 32,
             "metrics": [
