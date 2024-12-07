@@ -32,7 +32,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
         item_format="raw",
         itemization=False,
         split=None,
-        download = True,
+        download=True,
         **dataset_configs[dataset_class.__name__],
     )
 

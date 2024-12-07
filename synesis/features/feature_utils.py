@@ -24,14 +24,13 @@ class FeatureExtractorFactory:
         Raises:
             ValueError: If the feature extractor name is not recognized.
         """
-        
-        
+
         __cls__ = feature_configs[name]["__cls__"]
         extract_kws = feature_configs[name].get("extract_kws", {})
-        
+
         if kwargs:
             kwargs.update(extract_kws)
-            
+
         try:
             # Dynamically import the feature extractor module
             module = importlib.import_module(f"synesis.features.{__cls__.lower()}")
