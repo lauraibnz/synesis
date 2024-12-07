@@ -618,8 +618,6 @@ class NFNet(nn.Module):
             state_dict = torch.load(ckpt_path, map_location=device)["state_dict"]
             print(f"Model loaded from {ckpt_path}")
 
-        print(state_dict)
-
         try:
             model.load_state_dict(state_dict)
             print("Loaded full state dict")
