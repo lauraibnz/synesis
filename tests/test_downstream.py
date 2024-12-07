@@ -79,18 +79,30 @@ def test_train_model(
 
 
 def test_evaluate_model(
-    dataset_class, task_name, item_format, mock_feature_name, device
+    dataset_name,
+    task_name,
+    item_format,
+    feature_aggregation,
+    mock_feature_name,
 ):
     # Configure minimal evaluation settings
-    test_config = {"evaluation": {"batch_size": 2}}
+    task_config = {
+        "training": {
+            "batch_size": 16,
+            "num_epochs": 0,
+            "feature_aggregation": feature_aggregation,
+        },
+        "evaluation": {
+            "batch_size": 16,
+        },
+    }
 
     # First train a model with minimal epochs
     model = train(
         feature=mock_feature_name,
-        dataset=dataset_class.__name__,
+        dataset=dataset_name,
         task=task_name,
-        task_config={"training": {"num_epochs": 1}},
-        device=device,
+        task_config=task_config,
         item_format=item_format,
     )
 
@@ -98,10 +110,9 @@ def test_evaluate_model(
     results = evaluate(
         model=model,
         feature=mock_feature_name,
-        dataset=dataset_class.__name__,
+        dataset=dataset_name,
         task=task_name,
-        task_config=test_config,
-        device=device,
+        task_config=task_config,
         item_format=item_format,
     )
 
