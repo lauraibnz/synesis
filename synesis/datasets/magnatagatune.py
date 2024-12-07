@@ -66,7 +66,6 @@ class MagnaTagATune(Dataset):
             # load default feature config
             feature_config = feature_configs[feature]
         self.feature_config = feature_config
-
         if download:
             self._download()
 
@@ -80,7 +79,7 @@ class MagnaTagATune(Dataset):
             import warnings
 
             warnings.warn(
-                f"Dataset '{self.name}' already exists in '{self.root}'."
+                f"Dataset '{self.__class__.__name__}' already exists in '{self.root}'."
                 + "Skipping audio download.",
                 stacklevel=2,
             )
@@ -119,7 +118,7 @@ class MagnaTagATune(Dataset):
             import warnings
 
             warnings.warn(
-                f"Metadata for dataset '{self.name}' already exists in '{self.root}'."
+                f"Metadata for dataset '{self.__class__.__name__}' already exists in '{self.root}'."
                 + "Skipping metadata download.",
                 stacklevel=2,
             )

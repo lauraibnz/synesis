@@ -114,7 +114,7 @@ def train(
         item_format == "raw"
         and not task_configs[task]["training"]["feature_aggregation"]
     ):
-        extractor= get_feature_extractor(feature)
+        extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     # train setup
@@ -306,7 +306,7 @@ def evaluate(
         item_format == "raw"
         and not task_configs[task]["evaluation"]["feature_aggregation"]
     ):
-        extractor, = get_feature_extractor(feature)
+        (extractor,) = get_feature_extractor(feature)
         extractor.to(device)
 
     model.eval()
