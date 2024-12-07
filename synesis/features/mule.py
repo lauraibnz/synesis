@@ -580,6 +580,8 @@ class MULE(nn.Module):
                  temperature = 0.1,
                  feat_extract_head = 0,
                  plusplus = False,
+                 feature_extractor = False,
+                 extract_kws = {},
                  **kwargs):
         super(MULE,self).__init__()
         
@@ -619,10 +621,11 @@ class MULE(nn.Module):
             elif self.feat_extract_head >= 0:
                 self.embed_dim = self.head_dims[self.feat_extract_head]
         
+        self.feature_extractor = feature_extractor
         
-        
-    def forward(self,x):
-        
+        self.extract_kws = extract_kws
+    
+    def forward_keys(self, x):
         if isinstance(x, dict):
             wav = x['audio']
         else:
@@ -640,6 +643,11 @@ class MULE(nn.Module):
             'encoded':encoded,
             "wav":wav,
         }
+        
+    def forward(self,x):
+        key = self.extract_kws.get('key','encoded')
+        return self.forward_keys(x)['encoded'] if key == 'encoded' else self.forward_keys(x)['projected'][0]
+        
         
     @torch.no_grad()
     def extract_features(self, x):

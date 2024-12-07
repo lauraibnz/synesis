@@ -1,5 +1,6 @@
 import importlib
 from pathlib import Path
+from config.features import feature_configs
 
 import numpy as np
 import torch
@@ -23,13 +24,21 @@ class FeatureExtractorFactory:
         Raises:
             ValueError: If the feature extractor name is not recognized.
         """
+        
+        
+        __cls__ = feature_configs[name]["__cls__"]
+        extract_kws = feature_configs[name].get("extract_kws", {})
+        
+        if kwargs:
+            kwargs.update(extract_kws)
+            
         try:
             # Dynamically import the feature extractor module
-            module = importlib.import_module(f"synesis.features.{name.lower()}")
+            module = importlib.import_module(f"synesis.features.{__cls__.lower()}")
             # Get the feature extractor class
-            extractor_class = getattr(module, name)
+            extractor_class = getattr(module, __cls__)
         except (ModuleNotFoundError, AttributeError) as e:
-            raise ValueError(f"Unknown feature extractor: {name}") from e
+            raise ValueError(f"Unknown feature extractor: {__cls__}") from e
 
         # Create instance with feature_extractor=True
         model = extractor_class(feature_extractor=True, **kwargs)

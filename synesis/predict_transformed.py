@@ -83,8 +83,8 @@ def train(
         transform in train_dataset.transforms
     ), f"Transform {transform} not found in dataset {dataset}"
 
-    feature_extractor = get_feature_extractor(feature).to(device)
-
+    feature_extractor = get_feature_extractor(feature)
+    feature_extractor = feature_extractor.to(device)
     transform_obj = get_transform(transform_configs[transform])
 
     train_sampler = DynamicBatchSampler(dataset=train_dataset, batch_size=batch_size)
@@ -214,7 +214,8 @@ def evaluate(
         transform in test_dataset.transforms
     ), f"Transform {transform} not available in {dataset}"
 
-    feature_extractor = get_feature_extractor(feature).to(device)
+    feature_extractor = get_feature_extractor(feature)
+    feature_extractor = feature_extractor.to(device)
     feature_extractor.eval()
 
     transform_obj = get_transform(transform_configs[transform])

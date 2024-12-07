@@ -149,7 +149,8 @@ def evaluate_representation_distance(
         collate_fn=collate_packed_batch,
     )
 
-    feature_extractor = get_feature_extractor(feature).to(device)
+    feature_extractor= get_feature_extractor(feature)
+    feature_extractor.to(device)
 
     # We will iterate over all degrees of the transform, computing distances
     # for all representations in the dataset for each.
