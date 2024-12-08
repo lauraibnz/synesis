@@ -41,4 +41,9 @@ feature_configs = {
             "extract_features": False,
         },
     },
+    "PESTO": {
+        "__cls__": "PESTO",
+        "item_len_sec": 3,
+        "sample_rate": 22050,
+    },
 }
