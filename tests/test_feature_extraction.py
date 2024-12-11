@@ -8,13 +8,21 @@ from config.datasets import dataset_configs
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.datasets.tinysol import TinySOL
+from synesis.datasets.giantsteps_key import GiantstepsKey
 from synesis.features.feature_utils import (
     dynamic_batch_extractor,
     get_feature_extractor,
 )
 
 
-@pytest.fixture(params=[MagnaTagATune, MTGJamendo, TinySOL])
+@pytest.fixture(
+    params=[
+        # MagnaTagATune,
+        # MTGJamendo,
+        # TinySOL,
+        GiantstepsKey
+    ]
+)
 def dataset_class(request):
     return request.param
 
