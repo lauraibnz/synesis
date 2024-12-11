@@ -47,9 +47,6 @@ class MagnaTagATune(Dataset):
         """
         self.tasks = ["tagging"]
         self.fvs = ["pitch", "tempo", "eq"]
-        
-        
-        
 
         root = Path(root)
         self.root = root

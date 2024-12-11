@@ -27,7 +27,7 @@ class FeatureExtractorFactory:
 
         __cls__ = feature_configs[name]["__cls__"]
         extract_kws = feature_configs[name].get("extract_kws", None)
-        kwargs.update({'extract_kws': extract_kws}) if extract_kws else None
+        kwargs.update({"extract_kws": extract_kws}) if extract_kws else None
 
         try:
             # Dynamically import the feature extractor module
