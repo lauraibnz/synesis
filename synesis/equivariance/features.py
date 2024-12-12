@@ -1,5 +1,5 @@
 """Methods for training and evaluating a model to predict the
-transformed representation given an original representation and
+transformed feature given an original feature and
 a transformation parameter.
 """
 
@@ -49,8 +49,8 @@ def train(
     learning_rate=0.001,
     patience=10,
 ):
-    """Train a model to predict the transformed representation given
-    an original representation and a transformation parameter. Does
+    """Train a model to predict the transformed feature given
+    an original feature and a transformation parameter. Does
     feature extraction on-the-fly.
 
     Args:

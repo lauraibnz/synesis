@@ -1,6 +1,6 @@
 """Methods for training and evaluating a model to predict the
 transformation parameter of a given original and augmented
-representation pair.
+feature pair.
 """
 
 import argparse
@@ -31,7 +31,7 @@ def train(
     device: Optional[str] = None,
 ):
     """Train a model to predict the transformation parameter of
-    a given original and augmented representation pair. Does
+    a given original and augmented feature pair. Does
     feature extraction on-the-fly.
 
     Args:

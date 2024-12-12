@@ -1,4 +1,4 @@
-"""Methods for evaluating representation robustness to
+"""Methods for evaluating feature robustness to
 covariate shift."""
 
 from pathlib import Path
@@ -76,7 +76,7 @@ def train(
     return model
 
 
-def evaluate_representation_distance(
+def evaluate_feature_distance(
     feature: str,
     dataset: str,
     transform: str,
@@ -88,8 +88,8 @@ def evaluate_representation_distance(
     batch_size: int = 32,
 ):
     """
-    Evaluate how much representations change when
-    The input is tranformed by varying degrees.
+    Evaluate how much features change when
+    the input is tranformed by varying degrees.
 
     Args:
         feature: Name of the feature/embedding model.
@@ -153,7 +153,7 @@ def evaluate_representation_distance(
     feature_extractor.to(device)
 
     # We will iterate over all degrees of the transform, computing distances
-    # for all representations in the dataset for each.
+    # for all features in the dataset for each.
 
     # for each transform, there's a param starting from "min" and one from "max"
     # that we need to find in order to define the first and last transform
@@ -192,7 +192,7 @@ def evaluate_representation_distance(
             transformed_raw_data, _ = transform_obj(raw_batch)
             transformed_rep_batch = feature_extractor(transformed_raw_data)
 
-            # Compute distance between clean and transformed representations
+            # Compute distance between clean and transformed features.
             if metric == "cosine":
                 dist = 1 - torch.nn.functional.cosine_similarity(
                     clean_rep_batch, transformed_rep_batch
@@ -278,7 +278,7 @@ def evaluate_model_predictions(
     )
 
     # We will iterate over all degrees of the transform, computing distances
-    # for all representations in the dataset for each.
+    # for all features in the dataset for each.
 
     # for each transform, there's a param starting from "min" and one from "max"
     # that we need to find in order to define the first and last transform
@@ -398,7 +398,7 @@ def evaluate_prediction_uncertainty(
     )
 
     # We will iterate over all degrees of the transform, computing distances
-    # for all representations in the dataset for each.
+    # for all features in the dataset for each.
 
     # for each transform, there's a param starting from "min" and one from "max"
     # that we need to find in order to define the first and last transform
