@@ -1,11 +1,12 @@
 import importlib
 from pathlib import Path
-from config.features import feature_configs
 
 import numpy as np
 import torch
 from torch.utils.data import Sampler
 from tqdm import tqdm
+
+from config.features import configs as feature_configs
 
 
 class FeatureExtractorFactory:

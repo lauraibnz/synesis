@@ -1,4 +1,4 @@
-feature_configs = {
+configs = {
     "VGGishMTAT": {
         "__cls__": "VGGishMTAT",
         "item_len_sec": 3.69,

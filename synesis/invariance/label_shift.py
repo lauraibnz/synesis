@@ -13,7 +13,8 @@ import torch
 from scipy.stats import entropy
 from sklearn.utils import shuffle
 
-from config.tasks import task_configs
+from config.features import configs as feature_configs
+from config.invariance.label_shift import configs as task_configs
 from synesis.utils import deep_update
 
 
@@ -203,8 +204,8 @@ def train(
     feature: str,
     dataset: str,
     task: str,
-    item_format: str = "feature",
     task_config: Optional[dict] = None,
+    item_format: str = "feature",
     device: Optional[str] = None,
     seed: int = 42,
 ):
@@ -215,11 +216,11 @@ def train(
     Args:
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        task: Name of the downstream task (needs to be supported by dataset).
+        task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
         item_format: Format of the input data: ["raw", "feature"].
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
-        task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
         seed: Random seed to use for subset distribution and item selection.
 
@@ -227,10 +228,12 @@ def train(
         List of models trained on subsets with increasing KL divergence,
         List of KL divergences between balanced and shifted distributions.
     """
+    feature_config = feature_configs.get(feature)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
+
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    if task_config:
-        task_configs[task] = deep_update(task_configs[task], task_config)
 
     pass
