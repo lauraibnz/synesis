@@ -1,4 +1,4 @@
-"""Methods for evaluating representation robustness to
+"""Methods for evaluating feature robustness to
 covariate shift."""
 
 from pathlib import Path
@@ -9,7 +9,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from config.tasks import task_configs
+from config.feature import configs as feature_configs
+from config.invariance.covariate_shift import configs as task_configs
 from config.transforms import transform_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.downstream import train as downstream_train
@@ -28,8 +29,8 @@ def train(
     feature: str,
     dataset: str,
     task: str,
-    item_format: str = "feature",
     task_config: Optional[dict] = None,
+    item_format: str = "feature",
     device: Optional[str] = None,
 ):
     """Train a downstream model, or load if it already exists.
@@ -37,24 +38,26 @@ def train(
     Args:
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        task: Name of the downstream task (needs to be supported by dataset).
+        task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
         item_format: Format of the input data: ["raw", "feature"].
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
-        task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
     """
+    feature_config = feature_configs.get(feature)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
+
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    if task_config:
-        task_configs[task] = deep_update(task_configs[task], task_config)
 
     # check if model already exists
     model_path = Path("ckpt") / "downstream" / f"{feature}_{dataset}_{task}.pt"
     if model_path.exists():
         print(f"Loading existing downstream model from {model_path}")
-        probe_cfg = task_configs[task]["model"]
+        probe_cfg = task_config["model"]
         model = get_probe(
             model_type=probe_cfg["type"],
             in_features=probe_cfg["params"]["in_features"],
@@ -76,20 +79,20 @@ def train(
     return model
 
 
-def evaluate_representation_distance(
+def evaluate_feature_distance(
     feature: str,
     dataset: str,
     transform: str,
-    transform_config: Optional[dict] = None,
+    task: str,
+    task_config: Optional[dict] = None,
     metric: str = "cosine",
     item_format: str = "feature",
-    task_config: Optional[dict] = None,
     device: Optional[str] = None,
     batch_size: int = 32,
 ):
     """
-    Evaluate how much representations change when
-    The input is tranformed by varying degrees.
+    Evaluate how much features change when
+    the input is tranformed by varying degrees.
 
     Args:
         feature: Name of the feature/embedding model.
@@ -100,15 +103,14 @@ def evaluate_representation_distance(
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         transform: Name of the transform (factor of variation).
-        transform_config: Override certain values of the transform configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
         batch_size: Batch size for evaluation.
     """
-
-    if transform_config:
-        transform_configs[transform] = deep_update(
-            transform_configs[transform], transform_config
-        )
+    feature_config = feature_configs.get(feature)
+    transform_config = transform_configs.get(transform)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -153,13 +155,13 @@ def evaluate_representation_distance(
     feature_extractor.to(device)
 
     # We will iterate over all degrees of the transform, computing distances
-    # for all representations in the dataset for each.
+    # for all features in the dataset for each.
 
     # for each transform, there's a param starting from "min" and one from "max"
     # that we need to find in order to define the first and last transform
     min_key = ""
     max_key = ""
-    transform_params = transform_configs[transform]["params"]
+    transform_params = transform_config["params"]
     for key in transform_params:
         if key.startswith("min"):
             min_key = key
@@ -169,16 +171,16 @@ def evaluate_representation_distance(
         raise (ValueError("Could not find min and max keys in transform params"))
 
     param_values = range(
-        transform_configs[transform]["params"][min_key],
-        transform_configs[transform]["params"][max_key],
-        transform_configs[transform]["step"],
+        transform_config["params"][min_key],
+        transform_config["params"][max_key],
+        transform_config["step"],
     )
 
     results = {}
     # Evaluation loop
     for pv in param_values:
         # Replace parameter range with the specific value for both min and maxs
-        controlled_transform_config = transform_configs[transform].copy()
+        controlled_transform_config = transform_config.copy()
         controlled_transform_config["params"][min_key] = pv
         controlled_transform_config["params"][max_key] = pv
         transform_obj = get_transform(controlled_transform_config)
@@ -192,7 +194,7 @@ def evaluate_representation_distance(
             transformed_raw_data, _ = transform_obj(raw_batch)
             transformed_rep_batch = feature_extractor(transformed_raw_data)
 
-            # Compute distance between clean and transformed representations
+            # Compute distance between clean and transformed features.
             if metric == "cosine":
                 dist = 1 - torch.nn.functional.cosine_similarity(
                     clean_rep_batch, transformed_rep_batch
@@ -221,9 +223,8 @@ def evaluate_model_predictions(
     dataset: str,
     transform: str,
     task: str,
-    item_format: str = "raw",
-    transform_config: Optional[dict] = None,
     task_config: Optional[dict] = None,
+    item_format: str = "raw",
     device: Optional[str] = None,
     batch_size: int = 32,
 ):
@@ -240,15 +241,14 @@ def evaluate_model_predictions(
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         transform: Name of the transform (factor of variation).
-        transform_config: Override certain values of the transform configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
         batch_size: Batch size for evaluation.
     """
-
-    if transform_config:
-        transform_configs[transform] = deep_update(
-            transform_configs[transform], transform_config
-        )
+    feature_config = feature_configs.get(feature)
+    transform_config = transform_configs.get(transform)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -273,18 +273,18 @@ def evaluate_model_predictions(
     )
 
     metrics = instantiate_metrics(
-        metric_configs=task_configs[task]["evaluation"]["metrics"],
+        metric_configs=task_config["evaluation"]["metrics"],
         num_classes=len(test_dataset[0][1]),
     )
 
     # We will iterate over all degrees of the transform, computing distances
-    # for all representations in the dataset for each.
+    # for all features in the dataset for each.
 
     # for each transform, there's a param starting from "min" and one from "max"
     # that we need to find in order to define the first and last transform
     min_key = ""
     max_key = ""
-    transform_params = transform_configs[transform]["params"]
+    transform_params = transform_config["params"]
     for key in transform_params:
         if key.startswith("min"):
             min_key = key
@@ -294,9 +294,9 @@ def evaluate_model_predictions(
         raise (ValueError("Could not find min and max keys in transform params"))
 
     param_values = range(
-        transform_configs[transform]["params"][min_key],
-        transform_configs[transform]["params"][max_key],
-        transform_configs[transform]["step"],
+        transform_config["params"][min_key],
+        transform_config["params"][max_key],
+        transform_config["step"],
     )
 
     # Evaluation loop
@@ -306,7 +306,7 @@ def evaluate_model_predictions(
 
     for pv in param_values:
         # Replace parameter range with the specific value for both min and maxs
-        controlled_transform_config = transform_configs[transform].copy()
+        controlled_transform_config = transform_config.copy()
         controlled_transform_config["params"][min_key] = pv
         controlled_transform_config["params"][max_key] = pv
 
@@ -336,9 +336,7 @@ def evaluate_model_predictions(
 
         # Calculate metrics
         results[pv] = {}
-        for metric_cfg, metric in zip(
-            task_configs[task]["evaluation"]["metrics"], metrics
-        ):
+        for metric_cfg, metric in zip(task_config["evaluation"]["metrics"], metrics):
             results[pv][metric_cfg["name"]] = metric(test_outputs, test_targets).item()
 
         avg_loss = total_loss / len(test_loader)
@@ -356,9 +354,9 @@ def evaluate_prediction_uncertainty(
     dataset: str,
     transform: str,
     task: str,
+    task_config: Optional[dict] = None,
     uncertainty_metric: str = "entropy",
     item_format: str = "raw",
-    transform_config: Optional[dict] = None,
     device: Optional[str] = None,
     batch_size: int = 32,
 ):
@@ -375,10 +373,15 @@ def evaluate_prediction_uncertainty(
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         transform: Name of the transform (factor of variation).
-        transform_config: Override certain values of the transform configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
         batch_size: Batch size for evaluation.
     """
+    feature_config = feature_configs.get(feature)
+    transform_config = transform_configs.get(transform)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
+
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -398,13 +401,13 @@ def evaluate_prediction_uncertainty(
     )
 
     # We will iterate over all degrees of the transform, computing distances
-    # for all representations in the dataset for each.
+    # for all features in the dataset for each.
 
     # for each transform, there's a param starting from "min" and one from "max"
     # that we need to find in order to define the first and last transform
     min_key = ""
     max_key = ""
-    transform_params = transform_configs[transform]["params"]
+    transform_params = transform_config["params"]
     for key in transform_params:
         if key.startswith("min"):
             min_key = key
@@ -414,9 +417,9 @@ def evaluate_prediction_uncertainty(
         raise (ValueError("Could not find min and max keys in transform params"))
 
     param_values = range(
-        transform_configs[transform]["params"][min_key],
-        transform_configs[transform]["params"][max_key],
-        transform_configs[transform]["step"],
+        transform_config["params"][min_key],
+        transform_config["params"][max_key],
+        transform_config["step"],
     )
 
     results = {}
@@ -424,7 +427,7 @@ def evaluate_prediction_uncertainty(
 
     for pv in param_values:
         # Replace parameter range with the specific value for both min and maxs
-        controlled_transform_config = transform_configs[transform].copy()
+        controlled_transform_config = transform_config.copy()
         controlled_transform_config["params"][min_key] = pv
         controlled_transform_config["params"][max_key] = pv
         transform_obj = get_transform(controlled_transform_config)
