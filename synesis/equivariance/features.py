@@ -11,7 +11,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from config.transforms import transform_configs
+from config.transforms import configs as transform_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.features.feature_utils import (
     DynamicBatchSampler,

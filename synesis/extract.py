@@ -3,7 +3,7 @@ from typing import Optional
 
 import torch
 
-from config.features import feature_configs
+from config.features import configs as feature_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.features.feature_utils import (
     dynamic_batch_extractor,

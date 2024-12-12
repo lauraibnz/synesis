@@ -9,7 +9,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from config.tasks import task_configs
+from config.invariance.covariate_shift import configs as task_configs
 from config.transforms import transform_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.downstream import train as downstream_train

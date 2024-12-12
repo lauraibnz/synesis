@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config.features import feature_configs
-from config.tasks import task_configs
+from config.informativeness.downstream import configs as task_configs
 from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.metrics import instantiate_metrics

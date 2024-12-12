@@ -13,7 +13,7 @@ import torch
 from scipy.stats import entropy
 from sklearn.utils import shuffle
 
-from config.tasks import task_configs
+from config.invariance.label_shift import configs as task_configs
 from synesis.utils import deep_update
 
 

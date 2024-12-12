@@ -11,8 +11,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from config.features import feature_configs
-from config.predict_transform import predict_transform_configs
+from config.equivariance.parameters import configs as task_configs
+from config.features import configs as feature_configs
 from config.transforms import transform_configs
 from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
@@ -27,7 +27,7 @@ def train(
     transform: str,
     feature_config: Optional[dict] = None,
     transform_config: Optional[dict] = None,
-    predict_transform_config: Optional[dict] = None,
+    task_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
     """Train a model to predict the transformation parameter of
@@ -46,16 +46,14 @@ def train(
         transform_configs[transform] = deep_update(
             transform_configs[transform], transform_config
         )
-    if predict_transform_config:
-        predict_transform_configs[transform] = deep_update(
-            predict_transform_configs[transform], predict_transform_config
-        )
+    if task_config:
+        task_configs[transform] = deep_update(task_configs[transform], task_config)
     if feature_config:
         feature_configs[feature] = deep_update(feature_configs[feature], feature_config)
 
     if (
-        predict_transform_configs[transform]["training"]["feature_aggregation"]
-        or predict_transform_configs[transform]["evaluation"]["feature_aggregation"]
+        task_configs[transform]["training"]["feature_aggregation"]
+        or task_configs[transform]["evaluation"]["feature_aggregation"]
     ):
         raise NotImplementedError(
             "Feature aggregation is not currently implemented for transform prediction."
@@ -99,17 +97,17 @@ def train(
     val_loader = DataLoader(val_dataset, shuffle=False)
 
     model = get_probe(
-        model_type=predict_transform_configs[transform]["model"]["type"],
+        model_type=task_configs[transform]["model"]["type"],
         in_features=feature_configs[feature]["output_size"] * 2,
         n_outputs=1,  # currently only predicting one parameter
-        **predict_transform_configs[transform]["model"]["params"],
+        **task_configs[transform]["model"]["params"],
     ).to(device)
 
-    criterion = predict_transform_configs[task]["training"]["criterion"]()
-    optimizer_class = predict_transform_configs[task]["training"]["optimizer"]["class"]
+    criterion = task_configs[task]["training"]["criterion"]()
+    optimizer_class = task_configs[task]["training"]["optimizer"]["class"]
     optimizer = optimizer_class(
         model.parameters(),
-        **predict_transform_configs[task]["training"]["optimizer"]["params"],
+        **task_configs[task]["training"]["optimizer"]["params"],
     )
 
     val_metrics = instantiate_metrics(
