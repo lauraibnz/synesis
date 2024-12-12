@@ -4,7 +4,7 @@ import pytest
 import torch
 from torch import nn
 
-from synesis.downstream import evaluate, train
+from synesis.informativeness.downstream import evaluate, train
 
 
 @pytest.fixture(params=["VGGishMTAT"])
