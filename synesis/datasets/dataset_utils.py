@@ -133,7 +133,11 @@ class AggregateDataset(Dataset):
 
         # if item is raw data, compute features
         if self.item_format == "raw":
-            item = self.feature_extractor(item)
+            with torch.no_grad():
+                item = self.feature_extractor(item)
+                # if channels eaten up, unsqueeze
+                if item.dim() == 2:
+                    item = item.unsqueeze(1)
 
         # (n_subitems, channel, feat) -> (channel, feat)
         item = item.mean(dim=0)

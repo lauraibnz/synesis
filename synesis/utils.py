@@ -17,6 +17,8 @@ def deep_update(d, u):
     Returns:
         The updated dict.
     """
+    if u is None or u == {}:
+        return d
     for k, v in u.items():
         if isinstance(v, dict):
             d[k] = deep_update(d.get(k, {}), v)

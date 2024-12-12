@@ -1,6 +1,6 @@
 from torch_audiomentations import AddColoredNoise, Gain, PitchShift
 
-transform_configs = {
+configs = {
     "AddColoredNoise": {
         "class": AddColoredNoise,
         "params": {

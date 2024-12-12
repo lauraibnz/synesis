@@ -9,14 +9,10 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from config.features import feature_configs
-from config.tasks import task_configs
+from config.features import configs as feature_configs
+from config.informativeness.downstream import configs as task_configs
 from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get_dataset
-from synesis.features.feature_utils import (
-    DynamicBatchSampler,
-    collate_packed_batch,
-    get_feature_extractor,
-)
+from synesis.features.feature_utils import get_feature_extractor
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.utils import deep_update
@@ -26,9 +22,8 @@ def train(
     feature: str,
     dataset: str,
     task: str,
-    item_format: str = "feature",
     task_config: Optional[dict] = None,
-    feature_config: Optional[dict] = None,
+    item_format: str = "feature",
     device: Optional[str] = None,
 ):
     """
@@ -37,19 +32,17 @@ def train(
     Args:
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        task: Name of the downstream task (needs to be supported by dataset).
+        task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
         item_format: Format of the input data: ["raw", "feature"].
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
-        task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
     """
-
-    if task_config:
-        task_configs[task] = deep_update(task_configs[task], task_config)
-
-    if feature_config:
-        feature_configs[feature] = deep_update(feature_configs[feature], feature_config)
+    feature_config = feature_configs.get(feature)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -69,12 +62,10 @@ def train(
         item_format=item_format,
     )
 
-    assert task in train_dataset.tasks, f"Task {task} not available in {dataset}"
-
     if train_dataset[0][0].dim() == 3:
         # If item is 3D, this is a dataset that returns items with subitems
         # (e.g. for audio).
-        if task_configs[task]["training"]["feature_aggregation"]:
+        if task_config["training"]["feature_aggregation"]:
             # If feature_aggreation, we'll wrap the dataset so that it returns
             # aggregated features
             aggregated_train = AggregateDataset(
@@ -97,41 +88,38 @@ def train(
 
     dataloader = DataLoader(
         train_dataset,
-        batch_size=task_configs[task]["training"]["batch_size"],
+        batch_size=task_config["training"]["batch_size"],
         shuffle=True,
     )
 
     val_dataloader = DataLoader(
         val_dataset,
-        batch_size=task_configs[task]["training"]["batch_size"],
+        batch_size=task_config["training"]["batch_size"],
         shuffle=False,
     )
 
     # if raw_data  (e.g. audio) is being returned from dataset,
     # extract features on-the-fly
     # (the AggregateDatset wrapper also computes features)
-    if (
-        item_format == "raw"
-        and not task_configs[task]["training"]["feature_aggregation"]
-    ):
+    if item_format == "raw" and not task_config["training"]["feature_aggregation"]:
         extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     # train setup
     model = get_probe(
-        model_type=task_configs[task]["model"]["type"],
-        in_features=feature_configs[feature]["feature_dim"],
+        model_type=task_config["model"]["type"],
+        in_features=feature_config["feature_dim"],
         n_outputs=len(train_dataset.label_encoder.classes_),
-        **task_configs[task]["model"]["params"],
+        **task_config["model"]["params"],
     ).to(device)
-    criterion = task_configs[task]["training"]["criterion"]()
-    optimizer_class = task_configs[task]["training"]["optimizer"]["class"]
+    criterion = task_config["training"]["criterion"]()
+    optimizer_class = task_config["training"]["optimizer"]["class"]
     optimizer = optimizer_class(
-        model.parameters(), **task_configs[task]["training"]["optimizer"]["params"]
+        model.parameters(), **task_config["training"]["optimizer"]["params"]
     )
 
     val_metrics = instantiate_metrics(
-        metric_configs=task_configs[task]["evaluation"]["metrics"],
+        metric_configs=task_config["evaluation"]["metrics"],
         num_classes=len(train_dataset.label_encoder.classes_),
     )
 
@@ -139,8 +127,8 @@ def train(
     best_val_loss = float("inf")
     epochs_without_improvement = 0
     best_model_state = None
-    num_epochs = task_configs[task]["training"]["num_epochs"]
-    patience = task_configs[task]["training"]["patience"]
+    num_epochs = task_config["training"]["num_epochs"]
+    patience = task_config["training"]["patience"]
 
     for epoch in range(num_epochs):
         model.train()
@@ -153,7 +141,7 @@ def train(
 
             if (
                 item_format == "raw"
-                and not task_configs[task]["training"]["feature_aggregation"]
+                and not task_config["training"]["feature_aggregation"]
             ):
                 with torch.no_grad():
                     item = extractor(item)
@@ -182,7 +170,7 @@ def train(
 
                 if (
                     item_format == "raw"
-                    and not task_configs[task]["training"]["feature_aggregation"]
+                    and not task_config["training"]["feature_aggregation"]
                 ):
                     with torch.no_grad():
                         item = extractor(item)
@@ -204,7 +192,7 @@ def train(
         # Calculate metrics
         val_metric_results = {}
         for metric_cfg, metric in zip(
-            task_configs[task]["evaluation"]["metrics"], val_metrics
+            task_config["evaluation"]["metrics"], val_metrics
         ):
             metric = metric.to(device)
             val_metric_results[metric_cfg["name"]] = metric(val_outputs, val_targets)
@@ -247,8 +235,9 @@ def evaluate(
     feature: str,
     dataset: str,
     task: str,
-    item_format: str = "feature",
     task_config: Optional[dict] = None,
+    item_format: str = "feature",
+    feature_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
     """
@@ -265,9 +254,10 @@ def evaluate(
         task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
     """
-
-    if task_config:
-        task_configs[task] = deep_update(task_configs[task], task_config)
+    feature_config = feature_configs.get(feature)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -280,49 +270,62 @@ def evaluate(
         item_format=item_format,
     )
 
-    assert task in test_dataset.tasks
-
     metrics = instantiate_metrics(
-        metric_configs=task_configs[task]["evaluation"]["metrics"],
-        num_classes=len(test_dataset[0][1]),
+        metric_configs=task_config["evaluation"]["metrics"],
+        num_classes=len(test_dataset.label_encoder.classes_),
     )
 
-    if task_configs[task]["evaluation"]["feature_aggregation"]:
-        dataloader = DataLoader(
-            test_dataset,
-            batch_size=task_configs[task]["evaluation"]["batch_size"],
-            shuffle=False,
-        )
-    else:
-        sampler = DynamicBatchSampler(
-            dataset=test_dataset,
-            batch_size=task_configs[task]["evaluation"]["batch_size"],
-        )
-        dataloader = DataLoader(
-            test_dataset, batch_sampler=sampler, collate_fn=collate_packed_batch
-        )
+    if test_dataset[0][0].dim() == 3:
+        # If item is 3D, this is a dataset that returns items with subitems
+        # (e.g. for audio).
+        if task_config["evaluation"]["feature_aggregation"]:
+            # If feature_aggreation, we'll wrap the dataset so that it returns
+            # aggregated features
+            aggregated_test = AggregateDataset(
+                test_dataset, feature_extractor_name=feature
+            )
+            del test_dataset
+            test_dataset = aggregated_test
+        else:
+            # If not feature_aggregation, we'll wrap the dataset so that it behaves
+            # as a subitem dataset
+            wrapped_test = SubitemDataset(test_dataset)
+            del test_dataset
+            test_dataset = wrapped_test
 
-    if (
-        item_format == "raw"
-        and not task_configs[task]["evaluation"]["feature_aggregation"]
-    ):
-        (extractor,) = get_feature_extractor(feature)
+    dataloader = DataLoader(
+        test_dataset,
+        batch_size=task_config["evaluation"]["batch_size"],
+        shuffle=False,
+    )
+
+    # if raw_data  (e.g. audio) is being returned from dataset,
+    # extract features on-the-fly
+    # (the AggregateDatset wrapper also computes features)
+    if item_format == "raw" and not task_config["evaluation"]["feature_aggregation"]:
+        extractor = get_feature_extractor(feature)
         extractor.to(device)
 
     model.eval()
     total_loss = 0
     test_outputs = []
     test_targets = []
-    criterion = task_configs[task]["evaluation"]["criterion"]()
+    criterion = task_config["evaluation"]["criterion"]()
 
     with torch.no_grad():
         for item, target in dataloader:
             item = item.to(device)
             target = target.to(device)
 
-            if item_format == "raw":
+            if (
+                item_format == "raw"
+                and not task_config["evaluation"]["feature_aggregation"]
+            ):
                 with torch.no_grad():
                     item = extractor(item)
+                    # if channels eaten up, unsqueeze
+                    if item.dim() == 2:
+                        item = item.unsqueeze(1)
 
             output = model(item)
             total_loss += criterion(output, target).item()
@@ -337,8 +340,11 @@ def evaluate(
 
     # Calculate metrics
     test_metric_results = {}
-    for metric_cfg, metric in zip(task_configs[task]["evaluation"]["metrics"], metrics):
-        test_metric_results[metric_cfg["name"]] = metric(test_outputs, test_targets)
+    for metric_cfg, metric in zip(task_config["evaluation"]["metrics"], metrics):
+        metric = metric.to(device)
+        test_metric_results[metric_cfg["name"]] = metric(
+            test_outputs, test_targets
+        ).item()
 
     avg_loss = total_loss / len(dataloader)
     print(f"Avg test loss: {avg_loss:.4f}")

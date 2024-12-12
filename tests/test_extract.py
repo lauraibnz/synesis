@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 import torch
 
-from config.datasets import dataset_configs
-from config.features import feature_configs
+from config.datasets import configs as dataset_configs
+from config.features import configs as feature_configs
 from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.datasets.tinysol import TinySOL
