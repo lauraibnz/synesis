@@ -11,6 +11,8 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from config.equivariance.features import configs as task_configs
+from config.features import configs as feature_configs
 from config.transforms import configs as transform_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.features.feature_utils import (
@@ -42,12 +44,8 @@ def train(
     feature: str,
     dataset: str,
     transform: str,
-    transform_config: Optional[dict] = None,
+    task: str,
     device: Optional[str] = None,
-    num_epochs=50,
-    batch_size=32,
-    learning_rate=0.001,
-    patience=10,
 ):
     """Train a model to predict the transformed feature given
     an original feature and a transformation parameter. Does
@@ -60,10 +58,11 @@ def train(
         transform_config: Override certain values of the transform config.
         device: Device to use for training (defaults to "cuda" if available).
     """
-    if transform_config:
-        transform_configs[transform] = deep_update(
-            transform_configs[transform], transform_config
-        )
+    feature_config = feature_configs.get(feature)
+    transform_config = transform_configs.get(transform)
+    task_config = task_configs.get("default")
+    if task in task_configs:
+        task_config = deep_update(task_config, task_configs[task])
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -85,14 +84,18 @@ def train(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    transform_obj = get_transform(transform_configs[transform])
+    transform_obj = get_transform(transform_config)
 
-    train_sampler = DynamicBatchSampler(dataset=train_dataset, batch_size=batch_size)
+    train_sampler = DynamicBatchSampler(
+        dataset=train_dataset, batch_size=task_config["training"]["batch_size"]
+    )
     train_loader = DataLoader(
         train_dataset, batch_sampler=train_sampler, collate_fn=collate_packed_batch
     )
 
-    val_sampler = DynamicBatchSampler(dataset=val_dataset, batch_size=batch_size)
+    val_sampler = DynamicBatchSampler(
+        dataset=val_dataset, batch_size=task_config["training"]["batch_size"]
+    )
     val_loader = DataLoader(
         val_dataset, batch_sampler=val_sampler, collate_fn=collate_packed_batch
     )
@@ -102,12 +105,13 @@ def train(
     ).to(device)
 
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=task_config["training"]["lr"])
 
     best_val_loss = float("inf")
     epochs_without_improvement = 0
     best_model_state = None
 
+    num_epochs = task_config["training"]["num_epochs"]
     for epoch in range(num_epochs):
         model.train()
         total_train_loss = 0
@@ -178,7 +182,7 @@ def train(
             epochs_without_improvement += 1
 
         # Early stopping
-        if epochs_without_improvement >= patience:
+        if epochs_without_improvement >= task_config["training"]["patience"]:
             print(f"Early stopping at epoch {epoch+1}")
             break
 
@@ -194,14 +198,14 @@ def evaluate(
     feature: str,
     dataset: str,
     transform: str,
-    transform_config: Optional[dict] = None,
+    task: str,
     device: Optional[str] = None,
-    batch_size: int = 32,
 ):
-    if transform_config:
-        transform_configs[transform] = deep_update(
-            transform_configs[transform], transform_config
-        )
+    feature_config = feature_configs.get(feature)
+    transform_config = transform_configs.get(transform)
+    task_config = task_configs.get("default")
+    if task in task_configs:
+        task_config = deep_update(task_config, task_configs[task])
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -218,9 +222,11 @@ def evaluate(
     feature_extractor = feature_extractor.to(device)
     feature_extractor.eval()
 
-    transform_obj = get_transform(transform_configs[transform])
+    transform_obj = get_transform(transform_config)
 
-    test_sampler = DynamicBatchSampler(dataset=test_dataset, batch_size=batch_size)
+    test_sampler = DynamicBatchSampler(
+        dataset=test_dataset, batch_size=task_config["evaluation"]["batch_size"]
+    )
     test_loader = DataLoader(
         test_dataset, batch_sampler=test_sampler, collate_fn=collate_packed_batch
     )

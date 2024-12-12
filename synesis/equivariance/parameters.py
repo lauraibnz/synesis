@@ -16,6 +16,7 @@ from config.features import configs as feature_configs
 from config.transforms import transform_configs
 from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
+from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update
@@ -25,9 +26,7 @@ def train(
     feature: str,
     dataset: str,
     transform: str,
-    feature_config: Optional[dict] = None,
-    transform_config: Optional[dict] = None,
-    task_config: Optional[dict] = None,
+    task: str,
     device: Optional[str] = None,
 ):
     """Train a model to predict the transformation parameter of
@@ -38,22 +37,18 @@ def train(
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         transform: Name of the transform (factor of variation).
-        transform_config: Override certain values of the transform config.
+        task: Name of the task.
         device: Device to use for training (defaults to "cuda" if available).
     """
-
-    if transform_config:
-        transform_configs[transform] = deep_update(
-            transform_configs[transform], transform_config
-        )
-    if task_config:
-        task_configs[transform] = deep_update(task_configs[transform], task_config)
-    if feature_config:
-        feature_configs[feature] = deep_update(feature_configs[feature], feature_config)
+    feature_config = feature_configs.get(feature)
+    transform_config = transform_configs.get(transform)
+    task_config = task_configs.get("default")
+    if task in task_configs:
+        task_config = deep_update(task_config, task_configs[task])
 
     if (
-        task_configs[transform]["training"]["feature_aggregation"]
-        or task_configs[transform]["evaluation"]["feature_aggregation"]
+        task_config["training"]["feature_aggregation"]
+        or task_config["evaluation"]["feature_aggregation"]
     ):
         raise NotImplementedError(
             "Feature aggregation is not currently implemented for transform prediction."
@@ -91,16 +86,16 @@ def train(
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
 
-    transform_obj = get_transform(transform_configs[transform])
+    transform_obj = get_transform(transform_config)
 
     train_loader = DataLoader(train_dataset, shuffle=True)
     val_loader = DataLoader(val_dataset, shuffle=False)
 
     model = get_probe(
-        model_type=task_configs[transform]["model"]["type"],
-        in_features=feature_configs[feature]["output_size"] * 2,
+        model_type=task_config["model"]["type"],
+        in_features=feature_config["output_size"] * 2,
         n_outputs=1,  # currently only predicting one parameter
-        **task_configs[transform]["model"]["params"],
+        **task_config["model"]["params"],
     ).to(device)
 
     criterion = task_configs[task]["training"]["criterion"]()
@@ -119,6 +114,7 @@ def train(
     epochs_without_improvement = 0
     best_model_state = None
 
+    num_epochs = task_config["training"]["num_epochs"]
     for epoch in range(num_epochs):
         # Training
         model.train()
@@ -199,7 +195,7 @@ def train(
             epochs_without_improvement += 1
 
         # Early stopping
-        if epochs_without_improvement >= patience:
+        if epochs_without_improvement >= task_config["training"]["patience"]:
             print(f"Early stopping triggered after {epoch+1} epochs")
             break
 
@@ -215,7 +211,7 @@ def evaluate(
     feature: str,
     dataset: str,
     transform: str,
-    transform_config: Optional[dict] = None,
+    task: str,
     device: Optional[str] = None,
     batch_size: int = 32,
 ):
@@ -227,15 +223,15 @@ def evaluate(
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         transform: Name of the transform (factor of variation).
-        transform_config: Override certain values of the transform configuration.
+        task: Name of the task.
         device: Device to use for evaluation (defaults to "cuda" if available).
         batch_size: Batch size for evaluation.
     """
-
-    if transform_config:
-        transform_configs[transform] = deep_update(
-            transform_configs[transform], transform_config
-        )
+    feature_config = feature_configs.get(feature)
+    transform_config = transform_configs.get(transform)
+    task_config = task_configs.get("default")
+    if task in task_configs:
+        task_config = deep_update(task_config, task_configs[task])
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -255,7 +251,7 @@ def evaluate(
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
 
-    transform_obj = get_transform(transform_configs[transform])
+    transform_obj = get_transform(transform_config)
 
     test_sampler = DynamicBatchSampler(dataset=test_dataset, batch_size=batch_size)
     test_loader = DataLoader(

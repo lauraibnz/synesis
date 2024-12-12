@@ -29,6 +29,7 @@ def extract_features(
         device: Device to use for feature extraction.
                 If None, GPU is used if available.
     """
+    feature_config = feature_configs.get(feature)
 
     if not device:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -46,12 +47,9 @@ def extract_features(
 
     # attempt to get item length directly in samples, if
     # it doesn't exist, calculate it from item_len_sec and sr
-    item_len = feature_configs[feature].get(
+    item_len = feature_config.get(
         "item_len",
-        int(
-            feature_configs[feature]["item_len_sec"]
-            * feature_configs[feature]["sample_rate"]
-        ),
+        int(feature_config["item_len_sec"] * feature_config["sample_rate"]),
     )
 
     dynamic_batch_extractor(

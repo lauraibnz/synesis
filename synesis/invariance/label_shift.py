@@ -13,6 +13,7 @@ import torch
 from scipy.stats import entropy
 from sklearn.utils import shuffle
 
+from config.features import configs as feature_configs
 from config.invariance.label_shift import configs as task_configs
 from synesis.utils import deep_update
 
@@ -204,7 +205,6 @@ def train(
     dataset: str,
     task: str,
     item_format: str = "feature",
-    task_config: Optional[dict] = None,
     device: Optional[str] = None,
     seed: int = 42,
 ):
@@ -219,7 +219,6 @@ def train(
         item_format: Format of the input data: ["raw", "feature"].
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
-        task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
         seed: Random seed to use for subset distribution and item selection.
 
@@ -227,10 +226,12 @@ def train(
         List of models trained on subsets with increasing KL divergence,
         List of KL divergences between balanced and shifted distributions.
     """
+    feature_config = feature_configs.get(feature)
+    task_config = task_configs.get("default")
+    if task in task_configs:
+        task_config = deep_update(task_config, task_config)
+
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    if task_config:
-        task_configs[task] = deep_update(task_configs[task], task_config)
 
     pass
