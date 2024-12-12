@@ -11,13 +11,12 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from config.features import feature_configs
+from config.predict_transform import predict_transform_configs
 from config.transforms import transform_configs
-from synesis.datasets.dataset_utils import get_dataset
-from synesis.features.feature_utils import (
-    DynamicBatchSampler,
-    collate_packed_batch,
-    get_feature_extractor,
-)
+from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
+from synesis.features.feature_utils import get_feature_extractor
+from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update
 
@@ -26,12 +25,10 @@ def train(
     feature: str,
     dataset: str,
     transform: str,
+    feature_config: Optional[dict] = None,
     transform_config: Optional[dict] = None,
+    predict_transform_config: Optional[dict] = None,
     device: Optional[str] = None,
-    num_epochs=50,
-    batch_size=32,
-    learning_rate=0.001,
-    patience=10,
 ):
     """Train a model to predict the transformation parameter of
     a given original and augmented representation pair. Does
@@ -48,6 +45,20 @@ def train(
     if transform_config:
         transform_configs[transform] = deep_update(
             transform_configs[transform], transform_config
+        )
+    if predict_transform_config:
+        predict_transform_configs[transform] = deep_update(
+            predict_transform_configs[transform], predict_transform_config
+        )
+    if feature_config:
+        feature_configs[feature] = deep_update(feature_configs[feature], feature_config)
+
+    if (
+        predict_transform_configs[transform]["training"]["feature_aggregation"]
+        or predict_transform_configs[transform]["evaluation"]["feature_aggregation"]
+    ):
+        raise NotImplementedError(
+            "Feature aggregation is not currently implemented for transform prediction."
         )
 
     if not device:
@@ -68,6 +79,13 @@ def train(
         item_format="raw",
     )
 
+    if train_dataset[0][0].dim() == 3:
+        wrapped_train = SubitemDataset(train_dataset)
+        wrapped_val = SubitemDataset(val_dataset)
+        del train_dataset, val_dataset
+        train_dataset = wrapped_train
+        val_dataset = wrapped_val
+
     assert (
         transform in train_dataset.transforms
     ), f"Transform {transform} not available in {dataset}"
@@ -77,26 +95,27 @@ def train(
 
     transform_obj = get_transform(transform_configs[transform])
 
-    train_sampler = DynamicBatchSampler(dataset=train_dataset, batch_size=batch_size)
-    train_loader = DataLoader(
-        train_dataset, batch_sampler=train_sampler, collate_fn=collate_packed_batch
-    )
+    train_loader = DataLoader(train_dataset, shuffle=True)
+    val_loader = DataLoader(val_dataset, shuffle=False)
 
-    val_sampler = DynamicBatchSampler(dataset=val_dataset, batch_size=batch_size)
-    val_loader = DataLoader(
-        val_dataset, batch_sampler=val_sampler, collate_fn=collate_packed_batch
-    )
-
-    model = nn.Sequential(
-        nn.Linear(len(train_dataset[0][0][0]) * 2, 128),
-        nn.ReLU(),
-        nn.Linear(128, 64),
-        nn.ReLU(),
-        nn.Linear(64, 1),
+    model = get_probe(
+        model_type=predict_transform_configs[transform]["model"]["type"],
+        in_features=feature_configs[feature]["output_size"] * 2,
+        n_outputs=1,  # currently only predicting one parameter
+        **predict_transform_configs[transform]["model"]["params"],
     ).to(device)
 
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    criterion = predict_transform_configs[task]["training"]["criterion"]()
+    optimizer_class = predict_transform_configs[task]["training"]["optimizer"]["class"]
+    optimizer = optimizer_class(
+        model.parameters(),
+        **predict_transform_configs[task]["training"]["optimizer"]["params"],
+    )
+
+    val_metrics = instantiate_metrics(
+        metric_configs=task_configs[task]["evaluation"]["metrics"],
+        num_classes=len(train_dataset.label_encoder.classes_),
+    )
 
     best_val_loss = float("inf")
     epochs_without_improvement = 0
