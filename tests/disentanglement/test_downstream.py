@@ -60,7 +60,7 @@ def test_train_model(
     model = train(
         feature=mock_feature_name,
         dataset=dataset_name,
-        task=task_name,
+        task="test",
         task_config=task_config,
         item_format=item_format,
     )
