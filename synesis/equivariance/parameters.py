@@ -27,6 +27,7 @@ def train(
     dataset: str,
     transform: str,
     task: str,
+    task_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
     """Train a model to predict the transformation parameter of
@@ -38,13 +39,14 @@ def train(
         dataset: Name of the dataset.
         transform: Name of the transform (factor of variation).
         task: Name of the task.
+        task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
     """
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
-    task_config = task_configs.get("default")
-    if task in task_configs:
-        task_config = deep_update(task_config, task_configs[task])
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if (
         task_config["training"]["feature_aggregation"]
@@ -212,6 +214,7 @@ def evaluate(
     dataset: str,
     transform: str,
     task: str,
+    task_config: Optional[dict] = None,
     device: Optional[str] = None,
     batch_size: int = 32,
 ):
@@ -224,14 +227,15 @@ def evaluate(
         dataset: Name of the dataset.
         transform: Name of the transform (factor of variation).
         task: Name of the task.
+        task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
         batch_size: Batch size for evaluation.
     """
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
-    task_config = task_configs.get("default")
-    if task in task_configs:
-        task_config = deep_update(task_config, task_configs[task])
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"

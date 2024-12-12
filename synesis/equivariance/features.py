@@ -45,6 +45,7 @@ def train(
     dataset: str,
     transform: str,
     task: str,
+    task_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
     """Train a model to predict the transformed feature given
@@ -55,7 +56,8 @@ def train(
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         transform: Name of the transform (factor of variation).
-        transform_config: Override certain values of the transform config.
+        task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
     """
     feature_config = feature_configs.get(feature)
@@ -199,13 +201,14 @@ def evaluate(
     dataset: str,
     transform: str,
     task: str,
+    task_config: Optional[dict] = None,
     device: Optional[str] = None,
 ):
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
-    task_config = task_configs.get("default")
-    if task in task_configs:
-        task_config = deep_update(task_config, task_configs[task])
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"

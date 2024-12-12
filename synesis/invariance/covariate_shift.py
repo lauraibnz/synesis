@@ -29,6 +29,7 @@ def train(
     feature: str,
     dataset: str,
     task: str,
+    task_config: Optional[dict] = None,
     item_format: str = "feature",
     device: Optional[str] = None,
 ):
@@ -37,16 +38,17 @@ def train(
     Args:
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        task: Name of the downstream task (needs to be supported by dataset).
+        task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
         item_format: Format of the input data: ["raw", "feature"].
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
         device: Device to use for training (defaults to "cuda" if available).
     """
     feature_config = feature_configs.get(feature)
-    task_config = task_configs.get("default")
-    if task in task_configs:
-        task_config = deep_update(task_config, task_config)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -82,6 +84,7 @@ def evaluate_feature_distance(
     dataset: str,
     transform: str,
     task: str,
+    task_config: Optional[dict] = None,
     metric: str = "cosine",
     item_format: str = "feature",
     device: Optional[str] = None,
@@ -98,15 +101,16 @@ def evaluate_feature_distance(
                 Defaults to "feature". If raw, feature is
                 extracted on-the-fly.
         task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
         transform: Name of the transform (factor of variation).
         device: Device to use for evaluation (defaults to "cuda" if available).
         batch_size: Batch size for evaluation.
     """
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
-    task_config = task_configs.get("default")
-    if task in task_configs:
-        task_config = deep_update(task_config, task_config)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -219,6 +223,7 @@ def evaluate_model_predictions(
     dataset: str,
     transform: str,
     task: str,
+    task_config: Optional[dict] = None,
     item_format: str = "raw",
     device: Optional[str] = None,
     batch_size: int = 32,
@@ -234,15 +239,16 @@ def evaluate_model_predictions(
         item_format: Format of the input data: ["raw", "feature"].
                 Defaults to "raw".
         task: Name of the downstream task.
+        task_config: Override certain values of the task configuration.
         transform: Name of the transform (factor of variation).
         device: Device to use for evaluation (defaults to "cuda" if available).
         batch_size: Batch size for evaluation.
     """
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
-    task_config = task_configs.get("default")
-    if task in task_configs:
-        task_config = deep_update(task_config, task_config)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -348,6 +354,7 @@ def evaluate_prediction_uncertainty(
     dataset: str,
     transform: str,
     task: str,
+    task_config: Optional[dict] = None,
     uncertainty_metric: str = "entropy",
     item_format: str = "raw",
     device: Optional[str] = None,
@@ -371,9 +378,9 @@ def evaluate_prediction_uncertainty(
     """
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
-    task_config = task_configs.get("default")
-    if task in task_configs:
-        task_config = deep_update(task_config, task_config)
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
