@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from config.equivariance.parameters import configs as task_configs
 from config.features import configs as feature_configs
-from config.transforms import transform_configs
+from config.transforms import configs as transform_configs
 from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.metrics import instantiate_metrics
@@ -81,10 +81,6 @@ def train(
         train_dataset = wrapped_train
         val_dataset = wrapped_val
 
-    assert (
-        transform in train_dataset.transforms
-    ), f"Transform {transform} not available in {dataset}"
-
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
 
@@ -95,7 +91,7 @@ def train(
 
     model = get_probe(
         model_type=task_config["model"]["type"],
-        in_features=feature_config["output_size"] * 2,
+        in_features=feature_config["feature_dim"] * 2,
         n_outputs=1,  # currently only predicting one parameter
         **task_config["model"]["params"],
     ).to(device)
@@ -109,7 +105,7 @@ def train(
 
     val_metrics = instantiate_metrics(
         metric_configs=task_configs[task]["evaluation"]["metrics"],
-        num_classes=len(train_dataset.label_encoder.classes_),
+        num_classes=1,  # currently only predicting one parameter
     )
 
     best_val_loss = float("inf")
@@ -118,7 +114,6 @@ def train(
 
     num_epochs = task_config["training"]["num_epochs"]
     for epoch in range(num_epochs):
-        # Training
         model.train()
         total_train_loss = 0
         for batch_raw_data, _ in tqdm(
@@ -126,24 +121,37 @@ def train(
         ):
             batch_raw_data = batch_raw_data.to(device)
 
-            with torch.no_grad():
-                original_features = feature_extractor(batch_raw_data)
+            transformed_raw_data = transform_obj(batch_raw_data)
+            # assert shape is the same after transformation
+            assert batch_raw_data.shape == transformed_raw_data.shape
+            # get transformation parameters that were actually applied to batch
+            # they will be of shape [batch, channel, 1], and on device
+            transform_params = transform_obj.transform_parameters[
+                f"{transform.lower()}_factors"
+            ]
+            if transform_params.dim() == 3:
+                transform_params = transform_params.squeeze(1)  # remove channel dim
 
-            transformed_raw_data, transform_params = zip(
-                *[transform_obj(raw_data) for raw_data in batch_raw_data]
+            # combine original and transformed data
+            combined_raw_data = torch.cat([batch_raw_data, transformed_raw_data], dim=0)
+
+            with torch.no_grad():
+                combined_features = feature_extractor(combined_raw_data)
+                if combined_features.dim() == 2:
+                    combined_features = combined_features.unsqueeze(1)
+
+            # currently, features are of shape (2b, c, t), where the first half of the
+            # batch is originals, and the second is transformed. We need to split thme
+            # such that original feature 0 is concatenated with transformed 0, etc.
+            original_features, transformed_features = torch.split(
+                combined_features, batch_raw_data.size(0), dim=0
             )
-            transformed_raw_data = torch.stack(transformed_raw_data).to(device)
-            transform_params = torch.tensor(transform_params).float().to(device)
-
-            with torch.no_grad():
-                transformed_features = feature_extractor(transformed_raw_data)
-
-            combined_features = torch.cat(
-                [original_features, transformed_features], dim=1
+            concat_features = torch.cat(
+                [original_features, transformed_features], dim=2
             )
 
             optimizer.zero_grad()
-            predicted_params = model(combined_features)
+            predicted_params = model(concat_features)
             loss = criterion(predicted_params, transform_params)
 
             loss.backward()
@@ -208,155 +216,155 @@ def train(
     return model
 
 
-def evaluate(
-    model: nn.Module,
-    feature: str,
-    dataset: str,
-    transform: str,
-    task: str,
-    task_config: Optional[dict] = None,
-    device: Optional[str] = None,
-    batch_size: int = 32,
-):
-    """
-    Evaluate a given trained model for predicting transformation parameters.
+# def evaluate(
+#     model: nn.Module,
+#     feature: str,
+#     dataset: str,
+#     transform: str,
+#     task: str,
+#     task_config: Optional[dict] = None,
+#     device: Optional[str] = None,
+#     batch_size: int = 32,
+# ):
+#     """
+#     Evaluate a given trained model for predicting transformation parameters.
 
-    Args:
-        model: Trained model for predicting transformation parameters.
-        feature: Name of the feature/embedding model.
-        dataset: Name of the dataset.
-        transform: Name of the transform (factor of variation).
-        task: Name of the task.
-        task_config: Override certain values of the task configuration.
-        device: Device to use for evaluation (defaults to "cuda" if available).
-        batch_size: Batch size for evaluation.
-    """
-    feature_config = feature_configs.get(feature)
-    transform_config = transform_configs.get(transform)
-    task_config = deep_update(
-        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
-    )
+#     Args:
+#         model: Trained model for predicting transformation parameters.
+#         feature: Name of the feature/embedding model.
+#         dataset: Name of the dataset.
+#         transform: Name of the transform (factor of variation).
+#         task: Name of the task.
+#         task_config: Override certain values of the task configuration.
+#         device: Device to use for evaluation (defaults to "cuda" if available).
+#         batch_size: Batch size for evaluation.
+#     """
+#     feature_config = feature_configs.get(feature)
+#     transform_config = transform_configs.get(transform)
+#     task_config = deep_update(
+#         deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+#     )
 
-    if not device:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+#     if not device:
+#         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    test_dataset = get_dataset(
-        name=dataset,
-        feature=feature,
-        split="test",
-        download=False,
-        item_format="raw",
-    )
+#     test_dataset = get_dataset(
+#         name=dataset,
+#         feature=feature,
+#         split="test",
+#         download=False,
+#         item_format="raw",
+#     )
 
-    assert (
-        transform in test_dataset.transforms
-    ), f"Transform {transform} not available in {dataset}"
+#     assert (
+#         transform in test_dataset.transforms
+#     ), f"Transform {transform} not available in {dataset}"
 
-    feature_extractor = get_feature_extractor(feature)
-    feature_extractor = feature_extractor.to(device)
+#     feature_extractor = get_feature_extractor(feature)
+#     feature_extractor = feature_extractor.to(device)
 
-    transform_obj = get_transform(transform_config)
+#     transform_obj = get_transform(transform_config)
 
-    test_sampler = DynamicBatchSampler(dataset=test_dataset, batch_size=batch_size)
-    test_loader = DataLoader(
-        test_dataset, batch_sampler=test_sampler, collate_fn=collate_packed_batch
-    )
+#     test_sampler = DynamicBatchSampler(dataset=test_dataset, batch_size=batch_size)
+#     test_loader = DataLoader(
+#         test_dataset, batch_sampler=test_sampler, collate_fn=collate_packed_batch
+#     )
 
-    model.eval()
-    total_loss = 0
-    all_predicted_params = []
-    all_true_params = []
+#     model.eval()
+#     total_loss = 0
+#     all_predicted_params = []
+#     all_true_params = []
 
-    criterion = nn.MSELoss()
+#     criterion = nn.MSELoss()
 
-    with torch.no_grad():
-        for batch_raw_data, _ in tqdm(test_loader, desc="Evaluating"):
-            batch_raw_data = batch_raw_data.to(device)
+#     with torch.no_grad():
+#         for batch_raw_data, _ in tqdm(test_loader, desc="Evaluating"):
+#             batch_raw_data = batch_raw_data.to(device)
 
-            original_features = feature_extractor(batch_raw_data)
+#             original_features = feature_extractor(batch_raw_data)
 
-            transformed_raw_data, transform_params = transform_obj(batch_raw_data)
+#             transformed_raw_data, transform_params = transform_obj(batch_raw_data)
 
-            transformed_features = feature_extractor(transformed_raw_data)
+#             transformed_features = feature_extractor(transformed_raw_data)
 
-            combined_features = torch.cat(
-                [original_features, transformed_features], dim=1
-            )
+#             combined_features = torch.cat(
+#                 [original_features, transformed_features], dim=1
+#             )
 
-            predicted_params = model(combined_features)
-            loss = criterion(predicted_params, transform_params)
+#             predicted_params = model(combined_features)
+#             loss = criterion(predicted_params, transform_params)
 
-            total_loss += loss.item()
+#             total_loss += loss.item()
 
-            all_predicted_params.append(predicted_params.cpu())
-            all_true_params.append(transform_params.cpu())
+#             all_predicted_params.append(predicted_params.cpu())
+#             all_true_params.append(transform_params.cpu())
 
-    avg_loss = total_loss / len(test_loader)
-    print(f"Average test loss: {avg_loss:.4f}")
+#     avg_loss = total_loss / len(test_loader)
+#     print(f"Average test loss: {avg_loss:.4f}")
 
-    # Concatenate all predictions and true parameters
-    all_predicted_params = torch.cat(all_predicted_params, dim=0)
-    all_true_params = torch.cat(all_true_params, dim=0)
+#     # Concatenate all predictions and true parameters
+#     all_predicted_params = torch.cat(all_predicted_params, dim=0)
+#     all_true_params = torch.cat(all_true_params, dim=0)
 
-    # Calculate additional metrics
-    mse = nn.MSELoss()(all_predicted_params, all_true_params).item()
-    mae = nn.L1Loss()(all_predicted_params, all_true_params).item()
+#     # Calculate additional metrics
+#     mse = nn.MSELoss()(all_predicted_params, all_true_params).item()
+#     mae = nn.L1Loss()(all_predicted_params, all_true_params).item()
 
-    # Calculate R-squared
-    ss_tot = torch.sum((all_true_params - all_true_params.mean()) ** 2)
-    ss_res = torch.sum((all_true_params - all_predicted_params) ** 2)
-    r_squared = 1 - (ss_res / ss_tot)
+#     # Calculate R-squared
+#     ss_tot = torch.sum((all_true_params - all_true_params.mean()) ** 2)
+#     ss_res = torch.sum((all_true_params - all_predicted_params) ** 2)
+#     r_squared = 1 - (ss_res / ss_tot)
 
-    print(f"Mean Squared Error: {mse:.4f}")
-    print(f"Mean Absolute Error: {mae:.4f}")
-    print(f"R-squared: {r_squared:.4f}")
+#     print(f"Mean Squared Error: {mse:.4f}")
+#     print(f"Mean Absolute Error: {mae:.4f}")
+#     print(f"R-squared: {r_squared:.4f}")
 
-    return {"avg_loss": avg_loss, "mse": mse, "mae": mae, "r_squared": r_squared.item()}
+#     return {"avg_loss": avg_loss, "mse": mse, "mae": mae, "r_squared": r_squared.item()}
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train a transform prediction model.")
-    parser.add_argument(
-        "--feature",
-        "-f",
-        type=str,
-        required=True,
-        help="Feature name.",
-    )
-    parser.add_argument(
-        "--dataset",
-        "-d",
-        type=str,
-        required=True,
-        help="Dataset name.",
-    )
-    parser.add_argument(
-        "--transform",
-        "-t",
-        type=str,
-        required=True,
-        help="Data transform name.",
-    )
-    parser.add_argument(
-        "--device",
-        type=str,
-        required=False,
-        help="Device to use for training.",
-    )
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser(description="Train a transform prediction model.")
+#     parser.add_argument(
+#         "--feature",
+#         "-f",
+#         type=str,
+#         required=True,
+#         help="Feature name.",
+#     )
+#     parser.add_argument(
+#         "--dataset",
+#         "-d",
+#         type=str,
+#         required=True,
+#         help="Dataset name.",
+#     )
+#     parser.add_argument(
+#         "--transform",
+#         "-t",
+#         type=str,
+#         required=True,
+#         help="Data transform name.",
+#     )
+#     parser.add_argument(
+#         "--device",
+#         type=str,
+#         required=False,
+#         help="Device to use for training.",
+#     )
 
-    args = parser.parse_args()
+#     args = parser.parse_args()
 
-    model = train(
-        feature=args.feature,
-        dataset=args.dataset,
-        transform=args.transform,
-        device=args.device,
-    )
+#     model = train(
+#         feature=args.feature,
+#         dataset=args.dataset,
+#         transform=args.transform,
+#         device=args.device,
+#     )
 
-    results = evaluate(
-        model=model,
-        feature=args.feature,
-        dataset=args.dataset,
-        transform=args.transform,
-        device=args.device,
-    )
+#     results = evaluate(
+#         model=model,
+#         feature=args.feature,
+#         dataset=args.dataset,
+#         transform=args.transform,
+#         device=args.device,
+#     )
