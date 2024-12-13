@@ -62,9 +62,16 @@ def train(
     """
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
-    task_config = task_configs.get("default")
-    if task in task_configs:
-        task_config = deep_update(task_config, task_configs[task])
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
+    )
+
+    if task_config["training"].get("feature_aggregation") or task_config[
+        "evaluation"
+    ].get("feature_aggregation"):
+        raise NotImplementedError(
+            "Feature aggregation is not currently implemented for transform prediction."
+        )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -209,6 +216,13 @@ def evaluate(
     task_config = deep_update(
         deep_update(task_configs["default"], task_configs.get(task, None)), task_config
     )
+
+    if task_config["training"].get("feature_aggregation") or task_config[
+        "evaluation"
+    ].get("feature_aggregation"):
+        raise NotImplementedError(
+            "Feature aggregation is not currently implemented for transform prediction."
+        )
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
