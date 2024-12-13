@@ -110,6 +110,7 @@ def train(
         item_format="raw",
     )
 
+    # If dataset returns subitems per item, need to wrap it
     if train_dataset[0][0].dim() == 3:
         wrapped_train = SubitemDataset(train_dataset)
         wrapped_val = SubitemDataset(val_dataset)
@@ -119,7 +120,6 @@ def train(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-
     transform_obj = get_transform(transform_config)
 
     train_loader = DataLoader(
@@ -264,6 +264,7 @@ def evaluate(
         item_format="raw",
     )
 
+    # If dataset returns subitems per item, need to wrap it
     if test_dataset[0][0].dim() == 3:
         wrapped_test = SubitemDataset(test_dataset)
         del test_dataset

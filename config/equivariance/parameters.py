@@ -5,7 +5,7 @@ configs = {
     "default": {
         "model": {
             "type": "regressor",
-            "params": {"hidden_units": [512, 512]},
+            "params": {"hidden_units": [512, 256]},
         },
         "training": {
             "criterion": nn.MSELoss,
