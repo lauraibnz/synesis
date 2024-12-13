@@ -7,4 +7,5 @@ def test_train():
         dataset="TinySOL",
         transform="Gain",
         task="default",
+        task_config={"training": {"num_epochs": 2}},
     )

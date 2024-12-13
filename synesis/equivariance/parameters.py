@@ -22,6 +22,43 @@ from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update
 
 
+def preprocess_batch(
+    batch_raw_data, transform_obj, transform, feature_extractor, device
+):
+    """Get transformed data, extract features from both the original and
+    transformed data, and concatenate them for input to the model."""
+    batch_raw_data = batch_raw_data.to(device)
+
+    transformed_raw_data = transform_obj(batch_raw_data)
+    # assert shape is the same after transformation
+    assert batch_raw_data.shape == transformed_raw_data.shape
+    # get transformation parameters that were actually applied to batch
+    # they will be of shape [batch, channel, 1], and on device
+    transform_params = transform_obj.transform_parameters[
+        f"{transform.lower()}_factors"
+    ]
+    if transform_params.dim() == 3:
+        transform_params = transform_params.squeeze(1)  # remove channel dim
+
+    # combine original and transformed data
+    combined_raw_data = torch.cat([batch_raw_data, transformed_raw_data], dim=0)
+
+    with torch.no_grad():
+        combined_features = feature_extractor(combined_raw_data)
+        if combined_features.dim() == 2:
+            combined_features = combined_features.unsqueeze(1)
+
+    # currently, features are of shape (2b, c, t), where the first half of the
+    # batch is originals, and the second is transformed. We need to split them
+    # such that original feature 0 is concatenated with transformed 0, etc.
+    original_features, transformed_features = torch.split(
+        combined_features, batch_raw_data.size(0), dim=0
+    )
+    concat_features = torch.cat([original_features, transformed_features], dim=2)
+
+    return concat_features, transform_params
+
+
 def train(
     feature: str,
     dataset: str,
@@ -119,35 +156,9 @@ def train(
         for batch_raw_data, _ in tqdm(
             train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"
         ):
-            batch_raw_data = batch_raw_data.to(device)
-
-            transformed_raw_data = transform_obj(batch_raw_data)
-            # assert shape is the same after transformation
-            assert batch_raw_data.shape == transformed_raw_data.shape
-            # get transformation parameters that were actually applied to batch
-            # they will be of shape [batch, channel, 1], and on device
-            transform_params = transform_obj.transform_parameters[
-                f"{transform.lower()}_factors"
-            ]
-            if transform_params.dim() == 3:
-                transform_params = transform_params.squeeze(1)  # remove channel dim
-
-            # combine original and transformed data
-            combined_raw_data = torch.cat([batch_raw_data, transformed_raw_data], dim=0)
-
-            with torch.no_grad():
-                combined_features = feature_extractor(combined_raw_data)
-                if combined_features.dim() == 2:
-                    combined_features = combined_features.unsqueeze(1)
-
-            # currently, features are of shape (2b, c, t), where the first half of the
-            # batch is originals, and the second is transformed. We need to split thme
-            # such that original feature 0 is concatenated with transformed 0, etc.
-            original_features, transformed_features = torch.split(
-                combined_features, batch_raw_data.size(0), dim=0
-            )
-            concat_features = torch.cat(
-                [original_features, transformed_features], dim=2
+            # prepare data for equivariance training
+            concat_features, transform_params = preprocess_batch(
+                batch_raw_data, transform_obj, transform, feature_extractor, device
             )
 
             optimizer.zero_grad()
@@ -168,23 +179,12 @@ def train(
             for batch_raw_data, _ in tqdm(
                 val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
             ):
-                batch_raw_data = batch_raw_data.to(device)
-
-                original_features = feature_extractor(batch_raw_data)
-
-                transformed_raw_data, transform_params = zip(
-                    *[transform_obj(raw_data) for raw_data in batch_raw_data]
-                )
-                transformed_raw_data = torch.stack(transformed_raw_data).to(device)
-                transform_params = torch.tensor(transform_params).float().to(device)
-
-                transformed_features = feature_extractor(transformed_raw_data)
-
-                combined_features = torch.cat(
-                    [original_features, transformed_features], dim=1
+                # prepare data for equivariance training
+                concat_features, transform_params = preprocess_batch(
+                    batch_raw_data, transform_obj, transform, feature_extractor, device
                 )
 
-                predicted_params = model(combined_features)
+                predicted_params = model(concat_features)
                 loss = criterion(predicted_params, transform_params)
 
                 total_val_loss += loss.item()
