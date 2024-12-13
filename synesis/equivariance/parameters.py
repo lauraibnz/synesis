@@ -123,8 +123,12 @@ def train(
 
     transform_obj = get_transform(transform_config)
 
-    train_loader = DataLoader(train_dataset, shuffle=True)
-    val_loader = DataLoader(val_dataset, shuffle=False)
+    train_loader = DataLoader(
+        train_dataset, shuffle=True, batch_size=task_config["training"]["batch_size"]
+    )
+    val_loader = DataLoader(
+        val_dataset, shuffle=False, batch_size=task_config["training"]["batch_size"]
+    )
 
     model = get_probe(
         model_type=task_config["model"]["type"],
@@ -224,7 +228,6 @@ def evaluate(
     task: str,
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
-    batch_size: int = 32,
 ):
     """
     Evaluate a given trained model for predicting transformation parameters.
@@ -237,7 +240,6 @@ def evaluate(
         task: Name of the task.
         task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
-        batch_size: Batch size for evaluation.
     """
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
@@ -256,18 +258,18 @@ def evaluate(
         item_format="raw",
     )
 
-    assert (
-        transform in test_dataset.transforms
-    ), f"Transform {transform} not available in {dataset}"
+    if test_dataset[0][0].dim() == 3:
+        wrapped_test = SubitemDataset(test_dataset)
+        del test_dataset
+        test_dataset = wrapped_test
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
 
     transform_obj = get_transform(transform_config)
 
-    test_sampler = DynamicBatchSampler(dataset=test_dataset, batch_size=batch_size)
     test_loader = DataLoader(
-        test_dataset, batch_sampler=test_sampler, collate_fn=collate_packed_batch
+        test_dataset, shuffle=False, batch_size=task_config["evaluation"]["batch_size"]
     )
 
     model.eval()
@@ -275,23 +277,16 @@ def evaluate(
     all_predicted_params = []
     all_true_params = []
 
-    criterion = nn.MSELoss()
+    criterion = task_configs[task]["training"]["criterion"]()
 
     with torch.no_grad():
         for batch_raw_data, _ in tqdm(test_loader, desc="Evaluating"):
-            batch_raw_data = batch_raw_data.to(device)
-
-            original_features = feature_extractor(batch_raw_data)
-
-            transformed_raw_data, transform_params = transform_obj(batch_raw_data)
-
-            transformed_features = feature_extractor(transformed_raw_data)
-
-            combined_features = torch.cat(
-                [original_features, transformed_features], dim=1
+            # prepare data for equivariance prediction
+            concat_features, transform_params = preprocess_batch(
+                batch_raw_data, transform_obj, transform, feature_extractor, device
             )
 
-            predicted_params = model(combined_features)
+            predicted_params = model(concat_features)
             loss = criterion(predicted_params, transform_params)
 
             total_loss += loss.item()
