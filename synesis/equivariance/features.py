@@ -17,7 +17,6 @@ from config.features import configs as feature_configs
 from config.transforms import configs as transform_configs
 from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
-from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update
@@ -137,11 +136,6 @@ def train(
         **task_configs[task]["training"]["optimizer"]["params"],
     )
 
-    val_metrics = instantiate_metrics(
-        metric_configs=task_configs[task]["evaluation"]["metrics"],
-        num_classes=feature_config["feature_dim"],
-    )
-
     best_val_loss = float("inf")
     epochs_without_improvement = 0
     best_model_state = None
@@ -177,6 +171,8 @@ def train(
         # Validation
         model.eval()
         total_val_loss = 0
+        total_l2_distance = 0
+        total_cosine_distance = 0
         with torch.no_grad():
             for batch_raw_data, _ in tqdm(
                 val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
@@ -202,11 +198,32 @@ def train(
 
                 total_val_loss += loss.item()
 
-        avg_val_loss = total_val_loss / len(val_loader)
+                # Compute L2 distance
+                l2_distance = F.mse_loss(
+                    predicted_features, transformed_features, reduction="sum"
+                )
+                total_l2_distance += l2_distance.item()
+
+                # Compute cosine distance
+                cosine_distance = (
+                    1
+                    - F.cosine_similarity(
+                        predicted_features, transformed_features, dim=1
+                    )
+                    .sum()
+                    .item()
+                )
+                total_cosine_distance += cosine_distance
+
+            avg_val_loss = total_val_loss / len(val_loader)
+            avg_l2_distance = total_l2_distance / len(val_loader.dataset)
+            avg_cosine_distance = total_cosine_distance / len(val_loader.dataset)
 
         print(
             f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f} - "
             + f"Val Loss: {avg_val_loss:.4f}"
+            + f" - L2 Distance: {avg_l2_distance:.4f}"
+            + f" - Cosine Distance: {avg_cosine_distance:.4f}"
         )
 
         if avg_val_loss < best_val_loss:
@@ -291,7 +308,6 @@ def evaluate(
 
     model.eval()
     total_loss = 0
-    total_l1_distance = 0
     total_l2_distance = 0
     total_cosine_distance = 0
 
@@ -318,12 +334,6 @@ def evaluate(
 
             total_loss += loss.item()
 
-            # Compute L1 distance
-            l1_distance = F.l1_loss(
-                predicted_features, transformed_features, reduction="sum"
-            )
-            total_l1_distance += l1_distance.item()
-
             # Compute L2 distance
             l2_distance = F.mse_loss(
                 predicted_features, transformed_features, reduction="sum"
@@ -340,18 +350,15 @@ def evaluate(
             total_cosine_distance += cosine_distance
 
     avg_loss = total_loss / len(test_loader)
-    avg_l1_distance = total_l1_distance / len(test_loader.dataset)
     avg_l2_distance = total_l2_distance / len(test_loader.dataset)
     avg_cosine_distance = total_cosine_distance / len(test_loader.dataset)
 
     print(f"Average test loss: {avg_loss:.4f}")
-    print(f"Average L1 distance: {avg_l1_distance:.4f}")
     print(f"Average L2 distance: {avg_l2_distance:.4f}")
     print(f"Average cosine distance: {avg_cosine_distance:.4f}")
 
     return {
         "avg_loss": avg_loss,
-        "avg_l1_distance": avg_l1_distance,
         "avg_l2_distance": avg_l2_distance,
         "avg_cosine_distance": avg_cosine_distance,
     }

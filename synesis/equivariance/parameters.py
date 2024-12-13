@@ -16,7 +16,6 @@ from config.features import configs as feature_configs
 from config.transforms import configs as transform_configs
 from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
-from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update
@@ -141,11 +140,6 @@ def train(
     optimizer = optimizer_class(
         model.parameters(),
         **task_configs[task]["training"]["optimizer"]["params"],
-    )
-
-    val_metrics = instantiate_metrics(
-        metric_configs=task_configs[task]["evaluation"]["metrics"],
-        num_classes=1,  # currently only predicting one parameter
     )
 
     best_val_loss = float("inf")
