@@ -1,4 +1,14 @@
 configs = {
+    
+    "AudioMAE": {
+        "__cls__": "AudioMAE",
+        "item_len_sec": 10,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+        'extract_kws': {
+            "pooled": True,
+        },
+    },
     "VGGishMTAT": {
         "__cls__": "VGGishMTAT",
         "item_len_sec": 3.69,
