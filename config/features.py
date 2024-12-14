@@ -47,4 +47,13 @@ configs = {
         "sample_rate": 22050,
         "feature_dim": 384,
     },
+    "MERT": {
+        "__cls__": "MERT",
+        "item_len_sec": 3,
+        "sample_rate": 24000,
+        "feature_dim": 768,
+        'extract_kws': {
+            "pooled": True,
+        },
+    },
 }
