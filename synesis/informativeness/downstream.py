@@ -1,14 +1,16 @@
 """Methods for training and evaluating downstream models."""
 
 import argparse
+import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import wandb
 from config.features import configs as feature_configs
 from config.informativeness.downstream import configs as task_configs
 from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get_dataset
@@ -25,6 +27,7 @@ def train(
     task_config: Optional[dict] = None,
     item_format: str = "feature",
     device: Optional[str] = None,
+    logging: bool = False,
 ):
     """
     Train a downstream model.
@@ -38,11 +41,32 @@ def train(
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
         device: Device to use for training (defaults to "cuda" if available).
+        logging: Whether to log to wandb.
+
+    Returns:
+        If logging is True, returns the wandb run path to the model artifact.
+        Otherwise, returns the trained model.
     """
-    feature_config = feature_configs.get(feature)
+    feature_config = feature_configs[feature]
     task_config = deep_update(
         deep_update(task_configs["default"], task_configs.get(task, None)), task_config
     )
+    # Set up logging
+    if logging:
+        run_name = f"INFO_DOWN_{task}_{dataset}_{feature}"
+        wandb.init(
+            project="synesis",
+            name=run_name,
+            config={
+                "feature": feature,
+                "feature_config": feature_config,
+                "dataset": dataset,
+                "task": task,
+                "task_config": task_config,
+                "item_format": item_format,
+            },
+        )
+        artifact = wandb.Artifact(run_name, type="model", metadata={"task": task})
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -159,6 +183,16 @@ def train(
 
             progress_bar.set_postfix({"loss": f"{avg_loss:.4f}"})
 
+            if logging:
+                # Log training metrics
+                wandb.log(
+                    {
+                        "train/loss": loss.item(),
+                        "train/avg_loss": avg_loss,
+                        "epoch": epoch,
+                    }
+                )
+
         model.eval()
         val_loss = 0
         val_outputs = []
@@ -206,6 +240,20 @@ def train(
         for name, value in val_metric_results.items():
             print(f"{name}: {value:.4f}")
 
+        if logging:
+            # Log validation metrics
+            wandb.log(
+                {
+                    "val/loss": val_loss,
+                    "val/avg_loss": avg_val_loss,
+                    **{
+                        f"val/{name}": value
+                        for name, value in val_metric_results.items()
+                    },
+                    "epoch": epoch,
+                }
+            )
+
         # Check if the validation loss improved
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
@@ -224,27 +272,35 @@ def train(
         model.load_state_dict(best_model_state)
 
     # Save the best model
-    save_path = Path("ckpt") / "downstream" / f"{feature}_{dataset}_{task}.pt"
+    save_path = Path("ckpt") / "INFO" / "DOWN" / task / dataset / f"{feature}.pt"
     save_path.parent.mkdir(parents=True, exist_ok=True)
-
+    torch.save(model.state_dict(), save_path)
+    if logging:
+        artifact.add_file(save_path)
+        wandb.log_artifact(artifact)
+        wandb_path = wandb.run.path + "/" + artifact.name
+        wandb.finish()
+        return wandb_path
     return model
 
 
 def evaluate(
-    model: nn.Module,
+    model: Union[nn.Module, str],
     feature: str,
     dataset: str,
     task: str,
     task_config: Optional[dict] = None,
     item_format: str = "feature",
-    feature_config: Optional[dict] = None,
     device: Optional[str] = None,
+    logging: bool = False,
 ):
     """
     Evaluate a given trained downstream model.
 
     Args:
-        model: Trained downstream model.
+        model: Trained downstream model, or wandb artifact path to model.
+               If str is provided, the configs saved online are used, and
+               the local ones are ignored.
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
         task: Name of the downstream task.
@@ -253,14 +309,22 @@ def evaluate(
                      extracted on-the-fly.
         task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
-    """
-    feature_config = feature_configs.get(feature)
-    task_config = deep_update(
-        deep_update(task_configs["default"], task_configs.get(task, None)), task_config
-    )
+        logging: Whether to log to wandb.
 
-    if not device:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+    Returns:
+        Dictionary of evaluation metrics.
+    """
+
+    if isinstance(model, str):
+        # Resume wandb run
+        entity, project, run_id, model_name = model.split("/")
+        wandb.init(project=project, entity=entity, id=run_id, resume="allow")
+
+    feature_config = feature_configs[feature]
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)),
+        task_config,
+    )
 
     test_dataset = get_dataset(
         name=dataset,
@@ -269,6 +333,25 @@ def evaluate(
         download=False,
         item_format=item_format,
     )
+
+    if isinstance(model, str):
+        # Load model from wandb artifact
+        model_wandb_path = f"{entity}/{project}/{model_name}"
+        artifact = wandb.use_artifact(f"{model_wandb_path}:latest")
+        artifact_dir = artifact.download()
+        model = get_probe(
+            model_type=task_config["model"]["type"],
+            in_features=feature_config["feature_dim"],
+            n_outputs=len(test_dataset.label_encoder.classes_),
+            **task_config["model"]["params"],
+        ).to(device)
+        model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
+        os.remove(Path(artifact_dir) / f"{feature}.pt")
+
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model.to(device)
 
     metrics = instantiate_metrics(
         metric_configs=task_config["evaluation"]["metrics"],
@@ -352,6 +435,19 @@ def evaluate(
     for name, value in test_metric_results.items():
         print(f"{name}: {value:.4f}")
 
+    if logging:
+        # Log test metrics
+        wandb.log(
+            {
+                "test/loss": total_loss,
+                "test/avg_loss": avg_loss,
+                **{
+                    f"test/{name}": value for name, value in test_metric_results.items()
+                },
+            }
+        )
+        wandb.finish()
+
     return test_metric_results
 
 
@@ -392,12 +488,10 @@ if __name__ == "__main__":
         dataset=args.dataset,
         task=args.task,
         device=args.device,
+        logging=True,
     )
 
     results = evaluate(
         model=model,
-        feature=args.feature,
-        dataset=args.dataset,
-        task=args.task,
-        device=args.device,
+        logging=True,
     )
