@@ -1,9 +1,13 @@
+import hashlib
+import os
 import os.path
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
+import pandas as pd
 import sklearn
 import torch
+import wget
 from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -11,120 +15,6 @@ from torch.utils.data import Dataset
 from config.features import feature_configs
 from synesis.datasets.dataset_utils import load_track
 from synesis.utils import download_github_dir, download_github_file
-import pandas as pd
-
-
-import os
-import hashlib
-import requests
-
-# Configuration
-
-
-# def download_files(files_dir, audio_dir, mtg=False):
-#     DEBUG = 0
-#     FILES_DIR = files_dir
-#     BASE_URL = "http://geo-samples.beatport.com/lofi/"
-#     BACKUP_BASE_URL = (
-#         "http://www.cp.jku.at/datasets/giantsteps/backup/"
-#         if not mtg
-#         else "http://www.cp.jku.at/datasets/giantsteps/mtg_key_backup/"
-#     )
-#     AUDIO_PATH = audio_dir
-
-#     # Colors for output
-#     RED = "\033[0;31m"
-#     NC = "\033[0m"  # No Color
-#     YELLOW = "\033[1;33m"
-#     GREEN = "\033[0;32m"
-#     WHITE = "\033[1;37m"
-
-#     # Initialize counters
-#     errors = 0
-#     successful = 0
-#     backup = 0
-#     total_count = 0
-
-#     # Create audio directory if it doesn't exist
-#     os.makedirs(AUDIO_PATH, exist_ok=True)
-
-#     def md5_for(file_path):
-#         try:
-#             with open(file_path, "rb") as f:
-#                 return hashlib.md5(f.read()).hexdigest()
-#         except Exception as e:
-#             print(f"{RED}Error calculating MD5 for {file_path}: {e}{NC}")
-#             return None
-
-#     def download_file(url, output_path):
-#         try:
-#             response = requests.get(url, stream=True)
-#             if response.status_code == 200:
-#                 with open(output_path, "wb") as f:
-#                     for chunk in response.iter_content(1024):
-#                         f.write(chunk)
-#                 return True
-#         except Exception as e:
-#             print(f"{RED}Error downloading {url}: {e}{NC}")
-#         return False
-
-#     # Process each file in the MD5 directory
-#     for md5_file in os.listdir(FILES_DIR):
-#         total_count += 1
-#         filename = os.path.splitext(md5_file)[0]
-#         mp3_filename = f"{filename}.mp3"
-#         mp3_url = f"{BASE_URL}{mp3_filename}"
-#         mp3_backup_url = f"{BACKUP_BASE_URL}{mp3_filename}"
-#         audio_file_path = os.path.join(AUDIO_PATH, mp3_filename)
-#         md5_file_path = os.path.join(FILES_DIR, md5_file)
-
-#         print(f"\n{WHITE}Downloading file: {mp3_filename} ... {NC}")
-
-#         # Download and verify MD5
-#         if download_file(mp3_url, audio_file_path):
-#             md5_value = md5_for(audio_file_path)
-#         else:
-#             md5_value = None
-
-#         with open(md5_file_path, "r") as f:
-#             expected_md5 = f.read().strip()
-
-#         if DEBUG:
-#             print(f"MD5 should be: {expected_md5}")
-#             print(f"MD5 is: {md5_value}")
-
-#         if md5_value == expected_md5:
-#             print(f"{GREEN}MD5 OK!{NC}")
-#             successful += 1
-#         else:
-#             print(f"{YELLOW}MD5 did not match! Downloading from backup location...{NC}")
-#             if download_file(mp3_backup_url, audio_file_path):
-#                 md5_value = md5_for(audio_file_path)
-#             else:
-#                 md5_value = None
-
-#             if md5_value == expected_md5:
-#                 print(f"{GREEN}MD5 OK!{NC}")
-#                 successful += 1
-#                 backup += 1
-#             else:
-#                 print(
-#                     f"{RED}MD5 did not match! Giving up for file: {mp3_filename}!{NC}"
-#                 )
-#                 errors += 1
-#                 if os.path.exists(audio_file_path):
-#                     os.remove(audio_file_path)
-
-#     # Summary
-#     print("\nSummary:")
-#     print(f"Files successfully downloaded: {successful}/{total_count}")
-#     print(f"Files from backup location: {backup}/{successful}")
-#     print(f"Errors: {errors}")
-
-
-import os
-import hashlib
-import wget
 
 
 def download_files(files_dir, audio_dir, mtg=False):
@@ -239,7 +129,8 @@ class GiantstepsKey(Dataset):
     ) -> None:
         """Giantsteps dataset implementation.
 
-        The implementation is the same as MARBLE, with giantsteps used as test set and Giantsteps-Jamendo as train set.
+        The implementation is the same as MARBLE, with giantsteps used as test set
+        and Giantsteps-Jamendo as train set.
 
         Args:
             feature: If split is None, prepare dataset for this feature extractor.
@@ -485,10 +376,6 @@ class GiantstepsKey(Dataset):
                     save_dir=str(self.root / "giantsteps-mtg-key-dataset"),
                 )
 
-            # move the files to the correct directory
-
-            archive_dir = Path(self.root) / "mp3"
-
             download_files(
                 files_dir=os.path.join(self.root, "giantsteps-key-dataset/md5"),
                 audio_dir=os.path.join(self.root, "mp3"),
@@ -532,14 +419,12 @@ class GiantstepsKey(Dataset):
         train_annotations.columns = ["file_path", "key", "confidence"]
         train_annotations = train_annotations[train_annotations["confidence"] == 2]
 
-        # train_annotations = pd.DataFrame(os.listdir(train_audio_path), columns = ['file_path'])
         train_annotations["split"] = "train"
         train_annotations["labels"] = None
         train_annotations["file_path"] = train_audio_path / (
             train_annotations["file_path"].astype(str) + ".LOFI.mp3"
         )
 
-        # train_annotations['key'] = train_annotations['key'].apply(lambda x: x.split('/')[0].strip())
         train_annotations = train_annotations[
             ~train_annotations["key"].str.contains("/")
         ]
