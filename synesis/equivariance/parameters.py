@@ -434,7 +434,7 @@ if __name__ == "__main__":
         help="Device to use for training.",
     )
     parser.add_argument(
-        "no-log",
+        "--nolog",
         action="store_true",
         help="Do not log to wandb.",
     )
@@ -447,7 +447,7 @@ if __name__ == "__main__":
         transform=args.transform,
         task=args.task,
         device=args.device,
-        logging=not args.no_log,
+        logging=not args.nolog,
     )
 
     results = evaluate(
@@ -457,5 +457,5 @@ if __name__ == "__main__":
         transform=args.transform,
         task=args.task,
         device=args.device,
-        logging=not args.no_log,
+        logging=not args.nolog,
     )
