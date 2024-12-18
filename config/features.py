@@ -1,4 +1,14 @@
 configs = {
+    
+    "AudioMAE": {
+        "__cls__": "AudioMAE",
+        "item_len_sec": 10,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+        'extract_kws': {
+            "pooled": True,
+        },
+    },
     "VGGishMTAT": {
         "__cls__": "VGGishMTAT",
         "item_len_sec": 3.69,
@@ -39,6 +49,21 @@ configs = {
         "feature_dim": 64,
         "extract_kws": {
             "extract_features": False,
+        },
+    },
+    "PESTO": {
+        "__cls__": "PESTO",
+        "item_len_sec": 3,
+        "sample_rate": 22050,
+        "feature_dim": 384,
+    },
+    "MERT": {
+        "__cls__": "MERT",
+        "item_len_sec": 3,
+        "sample_rate": 24000,
+        "feature_dim": 768,
+        'extract_kws': {
+            "pooled": True,
         },
     },
 }

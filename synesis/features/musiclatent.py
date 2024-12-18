@@ -37,7 +37,7 @@ class MusicLatent(nn.Module):
         return {"latents": averaged_latents}
 
     def forward(self, x, pool_hop=-1, extract_features=True):
-        if x.dim() == 3:  # stereo
+        if x.dim() == 3: # stereo
             x = x.mean(dim=1)
 
         # override kws with self.extract_kws if they are changed
