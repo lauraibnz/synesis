@@ -51,6 +51,7 @@ def test_feature_extraction(dataset_class, feature_name, tmp_path):
     ]
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
     # Get the pretrained model
     model = get_feature_extractor(feature_name)
