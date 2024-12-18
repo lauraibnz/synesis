@@ -483,6 +483,11 @@ if __name__ == "__main__":
         required=False,
         help="Device to use for training.",
     )
+    parser.add_argument(
+        "no-log",
+        action="store_true",
+        help="Do not log to wandb.",
+    )
 
     args = parser.parse_args()
 
@@ -492,6 +497,7 @@ if __name__ == "__main__":
         transform=args.transform,
         task=args.task,
         device=args.device,
+        logging=not args.no_log,
     )
 
     results = evaluate(
@@ -501,4 +507,5 @@ if __name__ == "__main__":
         transform=args.transform,
         task=args.task,
         device=args.device,
+        logging=not args.no_log,
     )
