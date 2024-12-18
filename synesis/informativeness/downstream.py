@@ -185,13 +185,7 @@ def train(
 
             if logging:
                 # Log training metrics
-                wandb.log(
-                    {
-                        "train/loss": loss.item(),
-                        "train/avg_loss": avg_loss,
-                        "epoch": epoch,
-                    }
-                )
+                wandb.log({"train/loss": loss.item()})
 
         model.eval()
         val_loss = 0
@@ -245,12 +239,10 @@ def train(
             wandb.log(
                 {
                     "val/loss": val_loss,
-                    "val/avg_loss": avg_val_loss,
                     **{
                         f"val/{name}": value
                         for name, value in val_metric_results.items()
                     },
-                    "epoch": epoch,
                 }
             )
 
@@ -344,7 +336,7 @@ def evaluate(
             in_features=feature_config["feature_dim"],
             n_outputs=len(test_dataset.label_encoder.classes_),
             **task_config["model"]["params"],
-        ).to(device)
+        )
         model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
         os.remove(Path(artifact_dir) / f"{feature}.pt")
 
@@ -436,16 +428,14 @@ def evaluate(
         print(f"{name}: {value:.4f}")
 
     if logging:
-        # Log test metrics
-        wandb.log(
-            {
-                "test/loss": total_loss,
-                "test/avg_loss": avg_loss,
-                **{
-                    f"test/{name}": value for name, value in test_metric_results.items()
-                },
-            }
-        )
+        # Create a table for the evaluation metrics
+        metrics_table = wandb.Table(columns=["Metric", "Value"])
+        metrics_table.add_data("Average Loss", avg_loss)
+        for name, value in test_metric_results.items():
+            metrics_table.add_data(name, value)
+
+        # Log the table to wandb
+        wandb.log({"evaluation_metrics": metrics_table})
         wandb.finish()
 
     return test_metric_results
@@ -493,5 +483,9 @@ if __name__ == "__main__":
 
     results = evaluate(
         model=model,
+        feature=args.feature,
+        dataset=args.dataset,
+        task=args.task,
+        device=args.device,
         logging=True,
     )
