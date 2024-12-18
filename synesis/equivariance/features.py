@@ -4,7 +4,9 @@ a transformation parameter.
 """
 
 import argparse
-from typing import Optional
+import os
+from pathlib import Path
+from typing import Optional, Union
 
 import torch
 import torch.nn.functional as F
@@ -12,6 +14,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import wandb
 from config.equivariance.features import configs as task_configs
 from config.features import configs as feature_configs
 from config.transforms import configs as transform_configs
@@ -59,6 +62,7 @@ def train(
     task: str,
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
+    logging: bool = True,
 ):
     """Train a model to predict the transformed feature given
     an original feature and a transformation parameter. Does
@@ -71,12 +75,31 @@ def train(
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
+        logging: Whether to log the model to wandb.
+    Returns:
+        If logging is True, returns the wandb run path to the model artifact.
+        Otherwise, returns trained model.
     """
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
     task_config = deep_update(
         deep_update(task_configs["default"], task_configs.get(task, None)), task_config
     )
+
+    if logging:
+        run_name = f"EQUI_FEAT_{transform}_{dataset}_{feature}"
+        wandb.init(
+            project="synesis",
+            name=run_name,
+            config={
+                "feature": feature,
+                "feature_config": feature_config,
+                "dataset": dataset,
+                "task": task,
+                "task_config": task_config,
+            },
+        )
+        artifact = wandb.Artifact(run_name, type="model", metadata={"task": task})
 
     if task_config["training"].get("feature_aggregation") or task_config[
         "evaluation"
@@ -166,6 +189,9 @@ def train(
 
             total_train_loss += loss.item()
 
+            if logging:
+                wandb.log({"train_loss": loss.item()})
+
         avg_train_loss = total_train_loss / len(train_loader)
 
         # Validation
@@ -226,6 +252,15 @@ def train(
             + f" - Cosine Distance: {avg_cosine_distance:.4f}"
         )
 
+        if logging:
+            wandb.log(
+                {
+                    "val_loss": avg_val_loss,
+                    "l2_distance": avg_l2_distance,
+                    "cosine_distance": avg_cosine_distance,
+                }
+            )
+
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
             epochs_without_improvement = 0
@@ -242,17 +277,28 @@ def train(
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
 
+    save_path = Path("ckpt") / "EQUI" / "FEAT" / transform / dataset / f"{feature}.pt"
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(model.state_dict(), save_path)
+    if logging:
+        artifact.add_file(save_path)
+        wandb.log_artifact(artifact)
+        wandb_path = wandb.run.path + "/" + artifact.name
+        wandb.finish()
+        return wandb_path
+
     return model
 
 
 def evaluate(
-    model: nn.Module,
+    model: Union[nn.Module, str],
     feature: str,
     dataset: str,
     transform: str,
     task: str,
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
+    logging: bool = True,
 ):
     """Evaluate a model to predict the transformed feature given
     an original feature and a transformation parameter. Does
@@ -266,22 +312,21 @@ def evaluate(
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
+        logging: Whether to log to wandb.
+    Returns:
+        Dictionary of evaluation metrics.
     """
+
+    if isinstance(model, str):
+        # resume wandb run
+        entity, project, run_id, model_name = model.split("/")
+        wandb.init(project=project, entity=entity, id=run_id, resume="allow")
+
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
     task_config = deep_update(
         deep_update(task_configs["default"], task_configs.get(task, None)), task_config
     )
-
-    if task_config["training"].get("feature_aggregation") or task_config[
-        "evaluation"
-    ].get("feature_aggregation"):
-        raise NotImplementedError(
-            "Feature aggregation is not currently implemented for transform prediction."
-        )
-
-    if not device:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
 
     test_dataset = get_dataset(
         name=dataset,
@@ -291,6 +336,32 @@ def evaluate(
         item_format="raw",
     )
 
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    if isinstance(model, str):
+        # Load model from wandb artifact
+        model_wandb_path = f"{entity}/{project}/{model_name}"
+        artifact = wandb.use_artifact(f"{model_wandb_path}:latest")
+        artifact_dir = artifact.download()
+        model = get_probe(
+            model_type=task_config["model"]["type"],
+            in_features=feature_config["feature_dim"] * 2,
+            n_outputs=1,  # currently only predicting one parameter
+            **task_config["model"]["params"],
+        )
+        model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
+        os.remove(Path(artifact_dir) / f"{feature}.pt")
+
+    model.to(device)
+
+    if task_config["training"].get("feature_aggregation") or task_config[
+        "evaluation"
+    ].get("feature_aggregation"):
+        raise NotImplementedError(
+            "Feature aggregation is not currently implemented for transform prediction."
+        )
+
     # If dataset returns subitems per item, need to wrap it
     if test_dataset[0][0].dim() == 3:
         wrapped_test = SubitemDataset(test_dataset)
@@ -299,7 +370,6 @@ def evaluate(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-
     transform_obj = get_transform(transform_config)
 
     test_loader = DataLoader(
@@ -357,6 +427,16 @@ def evaluate(
     print(f"Average L2 distance: {avg_l2_distance:.4f}")
     print(f"Average cosine distance: {avg_cosine_distance:.4f}")
 
+    if logging:
+        # Create a table for the evaluation metrics
+        metrics_table = wandb.Table(columns=["Metric", "Value"])
+        metrics_table.add_data("Average Loss", avg_loss)
+        metrics_table.add_data("Average L2 Distance", avg_l2_distance)
+        metrics_table.add_data("Average Cosine Distance", avg_cosine_distance)
+
+        wandb.log({"evaluation_metrics": metrics_table})
+        wandb.finish()
+
     return {
         "avg_loss": avg_loss,
         "avg_l2_distance": avg_l2_distance,
@@ -384,10 +464,18 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--transform",
-        "-t",
+        "-tf",
         type=str,
         required=True,
         help="Data transform name.",
+    )
+    parser.add_argument(
+        "--task",
+        "-t",
+        type=str,
+        required=False,
+        default="default",
+        help="Task name.",
     )
     parser.add_argument(
         "--device",
@@ -402,6 +490,7 @@ if __name__ == "__main__":
         feature=args.feature,
         dataset=args.dataset,
         transform=args.transform,
+        task=args.task,
         device=args.device,
     )
 
@@ -410,5 +499,6 @@ if __name__ == "__main__":
         feature=args.feature,
         dataset=args.dataset,
         transform=args.transform,
+        task=args.task,
         device=args.device,
     )

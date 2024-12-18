@@ -6,7 +6,7 @@ feature pair.
 import argparse
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch import nn
@@ -253,7 +253,7 @@ def train(
 
 
 def evaluate(
-    model: nn.Module,
+    model: Union[nn.Module, str],
     feature: str,
     dataset: str,
     transform: str,
@@ -274,7 +274,6 @@ def evaluate(
         task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
         logging: Whether to log to wandb.
-
     Returns:
         Dictionary of evaluation metrics.
     """

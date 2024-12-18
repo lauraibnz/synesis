@@ -37,6 +37,7 @@ def test_train(
         transform=transform_name,
         task=task_name,
         task_config={"training": {"num_epochs": 2}},
+        # logging=False,
     )
 
     # Basic assertions
@@ -64,6 +65,7 @@ def test_evaluate(
         transform=transform_name,
         task=task_name,
         task_config={"training": {"num_epochs": 1}},
+        # logging=False,
     )
 
     # Evaluate the model
@@ -74,6 +76,7 @@ def test_evaluate(
         transform=transform_name,
         task=task_name,
         task_config={"training": {"num_epochs": 1}},
+        # logging=False,
     )
 
     # Check evaluation results
