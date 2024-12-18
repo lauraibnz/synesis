@@ -22,6 +22,12 @@ python -m synesis.equivariance.parameters -tf <transform_name> -f <feature_name>
 python -m synesis.equivariance.features -tf <transform_name> -f <feature_name> -d <dataset_name> (-t <task_name>)
 ```
 
+## Extract features
+**Feature extraction** helps speed up downstream training.
+```
+python -m synesis.extract -f <feature> -d <dataset> (-b <batch_size>)
+```
+
 ## Develop
 Before working with the repo, please install requirements (or ruff and pre-commit) and run
 ```pre-commit install``` to install the pre-commit ruff formatting hook.
