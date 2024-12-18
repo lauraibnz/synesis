@@ -190,7 +190,7 @@ def train(
             total_train_loss += loss.item()
 
             if logging:
-                wandb.log({"train_loss": loss.item()})
+                wandb.log({"train/loss": loss.item()})
 
         avg_train_loss = total_train_loss / len(train_loader)
 
@@ -255,7 +255,7 @@ def train(
         if logging:
             wandb.log(
                 {
-                    "val_loss": avg_val_loss,
+                    "val/loss": avg_val_loss,
                     "l2_distance": avg_l2_distance,
                     "cosine_distance": avg_cosine_distance,
                 }
