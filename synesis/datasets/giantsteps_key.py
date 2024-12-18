@@ -118,7 +118,7 @@ class GiantstepsKey(Dataset):
     def __init__(
         self,
         feature: str,
-        root: Union[str, Path] = "data/GiantsetpsKey",
+        root: Union[str, Path] = "data/GiantstepsKey",
         split: Optional[str] = None,
         download: bool = False,
         feature_config: Optional[dict] = None,
