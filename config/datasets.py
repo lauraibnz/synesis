@@ -5,4 +5,5 @@ configs = {
     },
     "TinySOL": {},
     "GiantstepsKey": {},
+    "AllTempo": {},
 }
