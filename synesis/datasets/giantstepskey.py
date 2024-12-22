@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Optional, Tuple, Union
 
 import pandas as pd
-import sklearn
 import torch
 import wget
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -439,10 +439,8 @@ class GiantstepsKey(Dataset):
             "A#": "Bb",
         }
 
-        train_train_annotations, val_train_annotations = (
-            sklearn.model_selection.train_test_split(
-                train_annotations, test_size=0.1, random_state=self.seed
-            )
+        train_train_annotations, val_train_annotations = train_test_split(
+            train_annotations, test_size=0.1, random_state=self.seed
         )
 
         train_train_annotations["split"] = "train"
