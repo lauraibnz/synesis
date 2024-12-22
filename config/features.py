@@ -1,11 +1,10 @@
 configs = {
-    
     "AudioMAE": {
         "__cls__": "AudioMAE",
         "item_len_sec": 10,
         "sample_rate": 16000,
         "feature_dim": 768,
-        'extract_kws': {
+        "extract_kws": {
             "pooled": True,
         },
     },
@@ -62,7 +61,7 @@ configs = {
         "item_len_sec": 3,
         "sample_rate": 24000,
         "feature_dim": 768,
-        'extract_kws': {
+        "extract_kws": {
             "pooled": True,
         },
     },
