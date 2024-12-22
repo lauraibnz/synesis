@@ -3,19 +3,16 @@ import os.path
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
+import numpy as np
 import pandas as pd
 import torch
 from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, random_split
 
 from config.features import configs as feature_configs
 from synesis.datasets.dataset_utils import load_track
-from synesis.utils import download_github_dir, download_github_file
-import numpy as np
-
-from torch.utils.data import random_split
-
+from synesis.utils import download_github_dir
 
 
 class AllTempo(Dataset):
@@ -189,7 +186,9 @@ class AllTempo(Dataset):
     def _load_metadata(self) -> Tuple[list, torch.Tensor]:
         gtzan_annotations, gtzan_idx2class = self.get_gtzan_tempo_annotations(
             audio_path=os.path.join(self.root, "gtzan/audio"),
-            tempo_annotations_folder=os.path.join(self.root, "gtzan/gtzan_tempo_beat/tempo"),
+            tempo_annotations_folder=os.path.join(
+                self.root, "gtzan/gtzan_tempo_beat/tempo"
+            ),
             split_path=os.path.join(self.root, "gtzan/music_dataset_split"),
         )
 
@@ -216,10 +215,11 @@ class AllTempo(Dataset):
 
         xballroom_annotations, _ = self.get_xballroom_tempo_annotations(
             xml_path=os.path.join(
-                self.root, "extended_ballroom/ballroom_extended_2016/extendedballroom_v1.1.xml"
+                self.root,
+                "extended_ballroom/ballroom_extended_2016/extendedballroom_v1.1.xml",
             )
         )
-        
+
         datasets = {
             "gtzan": gtzan_annotations,
             "hainsworth": hainsworth_annotations,
@@ -229,9 +229,7 @@ class AllTempo(Dataset):
         }
 
         annotations = pd.concat(
-            [
-                datasets[dataset_] for dataset_ in self.datasets if dataset_ in datasets
-            ]
+            [datasets[dataset_] for dataset_ in self.datasets if dataset_ in datasets]
         )
 
         # task is the testing set, the rest is split using val_split
@@ -242,10 +240,10 @@ class AllTempo(Dataset):
         train_val_annotations = annotations[annotations["task"] != task]
 
         train_len = int(len(train_val_annotations) * (1 - val_split))
-        
+
         generator = torch.Generator()
         generator.manual_seed(self.seed)
-        
+
         train_annotations, val_annotations = random_split(
             train_val_annotations,
             [train_len, len(train_val_annotations) - train_len],
@@ -260,7 +258,6 @@ class AllTempo(Dataset):
         test_annotations.loc[:, "split"] = "test"
 
         annotations = pd.concat([train_annotations, val_annotations, test_annotations])
-        
 
         self.labels = annotations["labels"].tolist()
         encoded_labels = torch.tensor(self.labels)
@@ -333,7 +330,6 @@ class AllTempo(Dataset):
 
         return track, label
 
-
     def tempo_to_dummies(self, tempo_series):
         dummies = []
         new_tempo_series = []
@@ -347,11 +343,7 @@ class AllTempo(Dataset):
             dummies.append(dummy)
         return dummies, new_tempo_series
 
-
     def get_acmm_tempo_annotations(self, acmm_annotation_path, audio_path):
-        # acmm_annotation_path = "/import/c4dm-datasets-ext/acm-mirum/Annotations/acm_mirum_tempos.mf"
-        # audio_path = "/import/c4dm-datasets-ext/acm-mirum/Audio"
-
         tempo_annotations = pd.read_csv(acmm_annotation_path, sep="\t", header=None)
         tempo_annotations.columns = ["file_path", "tempo"]
         tempo_annotations.tempo = tempo_annotations.tempo.apply(lambda x: int(x))
@@ -377,8 +369,9 @@ class AllTempo(Dataset):
 
         return tempo_annotations, idx2class
 
-
-    def get_gtzan_tempo_annotations(self, audio_path, tempo_annotations_folder, split_path):
+    def get_gtzan_tempo_annotations(
+        self, audio_path, tempo_annotations_folder, split_path
+    ):
         train_annotations = pd.read_csv(
             f"{split_path}/GTZAN_split/train_filtered.txt", sep=" ", header=None
         )
@@ -403,7 +396,10 @@ class AllTempo(Dataset):
         tempi = []
 
         annotations["tempo_file"] = annotations["file_path"].apply(
-            lambda x: f"{tempo_annotations_folder}/gtzan_{x.split('/')[1][:-4].replace('.','_')}.bpm"
+            lambda x: (
+                f"{tempo_annotations_folder}/gtzan_"
+                + f"{x.split('/')[1][:-4].replace('.','_')}.bpm"
+            )
         )
 
         for idx, row in annotations.iterrows():
@@ -413,7 +409,6 @@ class AllTempo(Dataset):
                 tempi.append(tempo)
 
         # labels
-
         dummies, tempi = self.tempo_to_dummies(tempi)
 
         annotations["labels"] = dummies
@@ -429,13 +424,9 @@ class AllTempo(Dataset):
 
         return annotations, idx2class
 
-
     def get_hainsworth_tempo_annotations(
         self, hainsworth_audio_path, hainsworth_annotations_path
     ):
-        # hainsworth_audio_path = '/import/c4dm-datasets/hainsworth/'
-        # hainsworth_annotations_path = '/import/c4dm-datasets/hainsworth/beat_and_downbeat_annotations'
-
         annotations = {}
 
         for root, dirs, files in os.walk(hainsworth_audio_path):
@@ -466,7 +457,6 @@ class AllTempo(Dataset):
 
         return annotations, idx2class
 
-
     def get_xballroom_tempo_annotations(self, xml_path):
         import xml.etree.ElementTree as ET
 
@@ -488,7 +478,9 @@ class AllTempo(Dataset):
                     song_id = song.get("id")
 
                     # Construct the file path based on genre folder and song ID
-                    file_path = os.path.join(xml_parent_dir, genre_name, f"{song_id}.mp3")
+                    file_path = os.path.join(
+                        xml_parent_dir, genre_name, f"{song_id}.mp3"
+                    )
 
                     # Append the extracted data to the list
                     songs_data.append({"tempo": int(bpm), "file_path": file_path})
@@ -497,7 +489,6 @@ class AllTempo(Dataset):
             df = pd.DataFrame(songs_data)
             return df
 
-        # xml_path = '/import/c4dm-datasets/ballroom_extended_2016/extendedballroom_v1.1.xml'  # Replace with the path to your XML file
         annotations = parse_xml_to_dataframe(xml_path)
 
         annotations["split"] = "train"
@@ -511,19 +502,14 @@ class AllTempo(Dataset):
 
         return annotations, idx2class
 
-
     def get_giantsteps_tempo_annotations(
         self, giansteps_annotations_path, giansteps_audio_path
     ):
-        # giansteps_annotations_path = '/import/c4dm-datasets/giantsteps_tempo/annotations_v2/tempo'
-        # giansteps_audio_path = '/import/c4dm-datasets/giantsteps_tempo/audio'
-
         annotations = {}
         for root, dirs, files in os.walk(giansteps_annotations_path):
             for file in files:
                 if file.endswith(".bpm"):
                     file_name = file.replace(".bpm", "")
-                    audio_path = os.path.join(giansteps_audio_path, file_name + ".mp3")
                     # open the file and get the first line without the newline symbol
                     with open(os.path.join(giansteps_annotations_path, file), "r") as f:
                         tempo = int(eval(f.readline().replace("\n", "")))
@@ -545,48 +531,3 @@ class AllTempo(Dataset):
         idx2class = {i: c for i, c in enumerate(range(300))}
 
         return annotations, idx2class
-
-
-# def get_one_vs_all_tempo(self, ):
-
-#     # assume 4 tempo datasets : gtzan, hainsworth, ACMM and giansteps
-#     # get the tempo annotations for each dataset
-
-
-#     gtzan_annotations, gtzan_idx2class = self.get_gtzan_tempo_annotations()
-#     hainsworth_annotations, hainsworth_idx2class = self.get_hainsworth_tempo_annotations()
-#     acmm_annotations, acmm_idx2class = self.get_acmm_tempo_annotations()
-#     giantsteps_annotations, giantsteps_idx2class = self.get_giantsteps_tempo_annotations()
-#     ballroom_annotations, ballroom_idx2class = self.get_xballroom_tempo_annotations()
-
-#     # concat all
-
-#     # annotations = pd.concat([
-#     #     # gtzan_annotations,
-#     #     hainsworth_annotations,
-#     #     giantsteps_annotations,
-#     #     acmm_annotations,
-#     #     ballroom_annotations,
-#     #     gtzan_annotations
-#     #     ])
-
-#     # task is the testing set, the rest is split using val_split
-
-#     test_annotations = annotations[annotations['task'] == task]
-#     train_val_annotations = annotations[annotations['task'] != task]
-
-#     train_len = int(len(train_val_annotations) * (1 - self.val_split))
-#     train_annotations, val_annotations = random_split(
-#         train_val_annotations, [train_len, len(train_val_annotations) - train_len]
-#     )
-
-#     train_annotations = train_val_annotations.iloc[train_annotations.indices]
-#     val_annotations = train_val_annotations.iloc[val_annotations.indices]
-
-#     train_annotations.loc[:, "split"] = "train"
-#     val_annotations.loc[:, "split"] = "val"
-#     test_annotations.loc[:, "split"] = "test"
-
-#     annotations = pd.concat([train_annotations, val_annotations,test_annotations])
-
-#     return annotations, gtzan_idx2class # they all have the same idx2class

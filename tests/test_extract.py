@@ -5,26 +5,14 @@ import torch
 
 from config.datasets import configs as dataset_configs
 from config.features import configs as feature_configs
-from synesis.datasets.magnatagatune import MagnaTagATune
-from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.datasets.tinysol import TinySOL
-from synesis.datasets.giantsteps_key import GiantstepsKey
-from synesis.datasets.alltempo import AllTempo
 from synesis.features.feature_utils import (
     dynamic_batch_extractor,
     get_feature_extractor,
 )
 
 
-@pytest.fixture(
-    params=[
-        # MagnaTagATune,
-        # MTGJamendo,
-        # TinySOL,
-        # GiantstepsKey
-        AllTempo,
-    ]
-)
+@pytest.fixture(params=[TinySOL])
 def dataset_class(request):
     return request.param
 
