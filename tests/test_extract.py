@@ -9,6 +9,7 @@ from synesis.datasets.magnatagatune import MagnaTagATune
 from synesis.datasets.mtgjamendo import MTGJamendo
 from synesis.datasets.tinysol import TinySOL
 from synesis.datasets.giantsteps_key import GiantstepsKey
+from synesis.datasets.alltempo import AllTempo
 from synesis.features.feature_utils import (
     dynamic_batch_extractor,
     get_feature_extractor,
@@ -20,7 +21,8 @@ from synesis.features.feature_utils import (
         # MagnaTagATune,
         # MTGJamendo,
         # TinySOL,
-        GiantstepsKey
+        # GiantstepsKey
+        AllTempo,
     ]
 )
 def dataset_class(request):

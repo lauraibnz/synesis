@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from config.features import feature_configs
+from config.features import configs as feature_configs
 from synesis.datasets.dataset_utils import load_track
 from synesis.utils import download_github_dir, download_github_file
 
