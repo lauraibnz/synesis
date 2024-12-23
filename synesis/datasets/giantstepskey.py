@@ -479,6 +479,7 @@ class GiantstepsKey(Dataset):
             .replace("mp3", self.feature)
             for path in raw_data_paths
         ]
+
         self.paths = (
             self.raw_data_paths if self.item_format == "raw" else self.feature_paths
         )
@@ -503,6 +504,10 @@ class GiantstepsKey(Dataset):
         self.labels = self.labels[
             [idx for idx in range(len(self.labels)) if idx not in idx_to_remove]
         ]
+
+        self.paths = (
+            self.raw_data_paths if self.item_format == "raw" else self.feature_paths
+        )
 
     def __len__(self) -> int:
         return len(self.paths)
