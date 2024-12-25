@@ -1,6 +1,7 @@
 import hashlib
 import os
 import os.path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional, Tuple, Union
 
@@ -11,6 +12,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch import Tensor
 from torch.utils.data import Dataset
+from tqdm import tqdm
 
 from config.features import configs as feature_configs
 from synesis.datasets.dataset_utils import load_track
@@ -18,7 +20,6 @@ from synesis.utils import download_github_dir, download_github_file
 
 
 def download_files(files_dir, audio_dir, mtg=False):
-    DEBUG = 0
     FILES_DIR = files_dir
     BASE_URL = "http://geo-samples.beatport.com/lofi/"
     BACKUP_BASE_URL = (
@@ -28,40 +29,29 @@ def download_files(files_dir, audio_dir, mtg=False):
     )
     AUDIO_PATH = audio_dir
 
-    # Colors for output
-    RED = "\033[0;31m"
-    NC = "\033[0m"  # No Color
-    YELLOW = "\033[1;33m"
-    GREEN = "\033[0;32m"
-    WHITE = "\033[1;37m"
-
-    # Initialize counters
     errors = 0
     successful = 0
     backup = 0
     total_count = 0
 
-    # Create audio directory if it doesn't exist
     os.makedirs(AUDIO_PATH, exist_ok=True)
 
     def md5_for(file_path):
         try:
             with open(file_path, "rb") as f:
                 return hashlib.md5(f.read()).hexdigest()
-        except Exception as e:
-            print(f"{RED}Error calculating MD5 for {file_path}: {e}{NC}")
+        except Exception:
             return None
 
     def download_file_wget(url, output_path):
         try:
-            wget.download(url, out=output_path)
+            wget.download(url, out=output_path, bar=None)
             return True
-        except Exception as e:
-            print(f"{RED}Error downloading {url}: {e}{NC}")
+        except Exception:
             return False
 
-    # Process each file in the MD5 directory
-    for md5_file in os.listdir(FILES_DIR):
+    def process_md5_file(md5_file):
+        nonlocal successful, backup, errors, total_count
         total_count += 1
         filename = os.path.splitext(md5_file)[0]
         mp3_filename = f"{filename}.mp3"
@@ -70,9 +60,6 @@ def download_files(files_dir, audio_dir, mtg=False):
         audio_file_path = os.path.join(AUDIO_PATH, mp3_filename)
         md5_file_path = os.path.join(FILES_DIR, md5_file)
 
-        print(f"\n{WHITE}Downloading file: {mp3_filename} ... {NC}")
-
-        # Download and verify MD5
         if download_file_wget(mp3_url, audio_file_path):
             md5_value = md5_for(audio_file_path)
         else:
@@ -81,35 +68,30 @@ def download_files(files_dir, audio_dir, mtg=False):
         with open(md5_file_path, "r") as f:
             expected_md5 = f.read().strip()
 
-        if DEBUG:
-            print(f"MD5 should be: {expected_md5}")
-            print(f"MD5 is: {md5_value}")
-
         if md5_value == expected_md5:
-            print(f"{GREEN}MD5 OK!{NC}")
             successful += 1
         else:
-            print(f"{YELLOW}MD5 did not match! Downloading from backup location...{NC}")
             if download_file_wget(mp3_backup_url, audio_file_path):
                 md5_value = md5_for(audio_file_path)
             else:
                 md5_value = None
 
             if md5_value == expected_md5:
-                print(f"{GREEN}MD5 OK!{NC}")
                 successful += 1
                 backup += 1
             else:
-                print(
-                    f"{RED}MD5 did not match! Giving up for file: {mp3_filename}!{NC}"
-                )
                 errors += 1
                 if os.path.exists(audio_file_path):
                     os.remove(audio_file_path)
 
-    # Summary
-    print("\nSummary:")
-    print(f"Files successfully downloaded: {successful}/{total_count}")
+    md5_list = os.listdir(FILES_DIR)
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(process_md5_file, md5_file) for md5_file in md5_list]
+        with tqdm(total=len(md5_list), desc="Downloading files") as pbar:
+            for _ in as_completed(futures):
+                pbar.update(1)
+
+    print(f"\nFiles successfully downloaded: {successful}/{total_count}")
     print(f"Files from backup location: {backup}/{successful}")
     print(f"Errors: {errors}")
 
