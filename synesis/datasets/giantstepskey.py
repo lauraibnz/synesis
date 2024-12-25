@@ -176,7 +176,6 @@ class GiantstepsKey(Dataset):
 
     def _download(self) -> None:
         # make data dir if it doesn't exist or if it exists but is empty
-
         if (
             os.path.exists(
                 os.path.join(self.root, "giantsteps-mtg-key-dataset/annotations")
@@ -388,49 +387,64 @@ class GiantstepsKey(Dataset):
             )
 
     def _load_metadata(self) -> Tuple[list, torch.Tensor]:
+        # First load all annotations
         test_annotations_path = self.root / "giantsteps-key-dataset/annotations/key"
-        test_audio_path = self.root / "mp3"
-
-        test_annotations = pd.DataFrame(
-            os.listdir(test_audio_path), columns=["file_path"]
-        )
-        test_annotations["split"] = "test"
-        test_annotations["labels"] = None
-        test_annotations["annotation_file"] = (
-            test_annotations_path / test_annotations["file_path"].str[:-4] / ".key"
-        )
-        test_annotations["file_path"] = test_audio_path / test_annotations["file_path"]
-
-        for idx, row in test_annotations.iterrows():
-            if os.path.exists(row["annotation_file"]):
-                with open(row["annotation_file"], "r") as f:
-                    key = f.read()
-                    test_annotations.loc[idx, "key"] = key
-            else:
-                test_annotations.drop(idx, inplace=True)
-
-        train_audio_path = self.root / "mp3"
         train_annotations_txt = (
             self.root / "giantsteps-mtg-key-dataset/annotations/annotations.txt"
         )
+        audio_path = self.root / "mp3"
 
+        # Get all files ending in .key in the test annotations dir
+        test_annotations = [
+            f
+            for f in os.listdir(test_annotations_path)
+            if f.endswith(".key")
+            and os.path.isfile(os.path.join(test_annotations_path, f))
+        ]
+        # create df with file path and key
+        test_annotations = pd.DataFrame(
+            [
+                (Path(f).stem, open(test_annotations_path / f, "r").read().strip())
+                for f in test_annotations
+            ],
+            columns=["file_path", "key"],
+        )
+        test_annotations["file_path"] = audio_path / (
+            test_annotations["file_path"].astype(str) + ".mp3"
+        )
+        # clean up
+        test_annotations = test_annotations[~test_annotations["key"].str.contains("/")]
+        test_annotations = test_annotations[test_annotations["key"].notna()]
+        test_annotations = test_annotations[test_annotations["key"] != "-"]
+
+        # Load and process train annotations
         train_annotations = pd.read_csv(train_annotations_txt, sep="\t")
         train_annotations = train_annotations.iloc[:, :3]
         train_annotations.columns = ["file_path", "key", "confidence"]
         train_annotations = train_annotations[train_annotations["confidence"] == 2]
-
-        train_annotations["split"] = "train"
-        train_annotations["labels"] = None
-        train_annotations["file_path"] = train_audio_path / (
+        train_annotations["file_path"] = audio_path / (
             train_annotations["file_path"].astype(str) + ".LOFI.mp3"
         )
 
+        # Clean annotations
         train_annotations = train_annotations[
             ~train_annotations["key"].str.contains("/")
         ]
         train_annotations = train_annotations[train_annotations["key"].notna()]
         train_annotations = train_annotations[train_annotations["key"] != "-"]
 
+        # Create train/validation split
+        train_fold, val_fold = train_test_split(
+            train_annotations, test_size=0.1, random_state=self.seed
+        )
+        train_fold["split"] = "train"
+        val_fold["split"] = "validation"
+        test_annotations["split"] = "test"
+
+        # Combine all annotations
+        annotations = pd.concat([train_fold, val_fold, test_annotations])
+
+        # Normalize key names
         enharmonic = {
             "C#": "Db",
             "D#": "Eb",
@@ -438,76 +452,55 @@ class GiantstepsKey(Dataset):
             "G#": "Ab",
             "A#": "Bb",
         }
-
-        train_train_annotations, val_train_annotations = train_test_split(
-            train_annotations, test_size=0.1, random_state=self.seed
-        )
-
-        train_train_annotations["split"] = "train"
-        val_train_annotations["split"] = "val"
-
-        train_annotations = pd.concat([train_train_annotations, val_train_annotations])
-        annotations = pd.concat([train_annotations, test_annotations])
-
         annotations["key"] = annotations["key"].replace(enharmonic, regex=True)
         annotations["key"] = annotations["key"].apply(lambda x: x.strip())
 
-        # labelencoder to get class2idx
-        labelenc = LabelEncoder()
-        labels = labelenc.fit_transform(annotations["key"])
-
-        annotations["labels"] = labels
-
+        # Encode labels
+        labels = self.label_encoder.fit_transform(annotations["key"])
         encoded_labels = torch.tensor(labels, dtype=torch.long)
 
+        # Filter by requested split
         if self.split:
-            # keep these indices in path and labels
-            indices = annotations["split"] == self.split
-
-            raw_data_paths = annotations["file_path"][indices].tolist()
-            encoded_labels = encoded_labels[indices]
-
+            mask = annotations["split"] == self.split
+            paths = annotations.loc[mask, "file_path"].tolist()
+            encoded_labels = encoded_labels[mask]
         else:
-            raw_data_paths = annotations["file_path"].tolist()
-            encoded_labels = encoded_labels
+            paths = annotations["file_path"].tolist()
 
-        self.raw_data_paths, self.labels = raw_data_paths, encoded_labels
+        # Store paths and labels
+        self.raw_data_paths = paths
+        self.labels = encoded_labels
 
+        # Generate feature paths
         self.feature_paths = [
             str(path)
             .replace(f".{self.audio_format}", ".pt")
             .replace("mp3", self.feature)
-            for path in raw_data_paths
+            for path in paths
         ]
 
         self.paths = (
             self.raw_data_paths if self.item_format == "raw" else self.feature_paths
         )
 
-        # remove paths that don't exist
+        # Remove non-existent paths
         idx_to_remove = [
             idx for idx, path in enumerate(self.paths) if not os.path.exists(path)
         ]
 
-        self.raw_data_paths = [
-            path
-            for idx, path in enumerate(self.raw_data_paths)
-            if idx not in idx_to_remove
-        ]
-
-        self.feature_paths = [
-            path
-            for idx, path in enumerate(self.feature_paths)
-            if idx not in idx_to_remove
-        ]
-
-        self.labels = self.labels[
-            [idx for idx in range(len(self.labels)) if idx not in idx_to_remove]
-        ]
-
-        self.paths = (
-            self.raw_data_paths if self.item_format == "raw" else self.feature_paths
-        )
+        if idx_to_remove:
+            self.raw_data_paths = [
+                p for i, p in enumerate(self.raw_data_paths) if i not in idx_to_remove
+            ]
+            self.feature_paths = [
+                p for i, p in enumerate(self.feature_paths) if i not in idx_to_remove
+            ]
+            self.labels = self.labels[
+                [i for i in range(len(self.labels)) if i not in idx_to_remove]
+            ]
+            self.paths = (
+                self.raw_data_paths if self.item_format == "raw" else self.feature_paths
+            )
 
     def __len__(self) -> int:
         return len(self.paths)
