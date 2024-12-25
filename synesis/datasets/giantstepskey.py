@@ -438,8 +438,7 @@ class GiantstepsKey(Dataset):
         annotations["key"] = annotations["key"].apply(lambda x: x.strip())
 
         # Encode labels
-        labels = self.label_encoder.fit_transform(annotations["key"])
-        encoded_labels = torch.tensor(labels, dtype=torch.long)
+        encoded_labels = self.label_encoder.fit_transform(annotations["key"])
 
         # Filter by requested split
         if self.split:
@@ -448,6 +447,8 @@ class GiantstepsKey(Dataset):
             encoded_labels = encoded_labels[mask]
         else:
             paths = annotations["file_path"].tolist()
+
+        encoded_labels = torch.tensor(encoded_labels, dtype=torch.long)
 
         # Store paths and labels
         self.raw_data_paths = paths
