@@ -7,7 +7,7 @@ from torch.utils.data import Sampler
 from tqdm import tqdm
 
 from config.features import configs as feature_configs
-
+import os
 
 class FeatureExtractorFactory:
     @classmethod
@@ -43,7 +43,12 @@ class FeatureExtractorFactory:
 
         # Load weights
         try:
-            weights_path = Path("models") / "pretrained" / f"{name.lower()}.pt"
+            if os.path.exists(f"models/pretrained/{name.lower()}.pt"):
+                weights_path = f"models/pretrained/{name.lower()}.pt"
+            elif os.path.exists(f"models/pretrained/{name.lower()}.pth"):
+                weights_path = f"models/pretrained/{name.lower()}.pth"
+            else:
+                weights_path = f"models/pretrained/{name.lower()}.ckpt"
             model.load_state_dict(torch.load(weights_path, weights_only=True))
         except FileNotFoundError:
             print(f"No pretrained weights found for {name}.")

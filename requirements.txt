@@ -16,3 +16,4 @@ music2latent
 transformers
 einops
 timm
+nnaudio
