@@ -184,6 +184,7 @@ artifacts/
 # test scipts
 test.py
 test.ipynb
+test.sh
 
 # nano temp files
 *.txt.*

@@ -25,8 +25,8 @@ configs = {
     "PitchShift": {
         "class": PitchShift,
         "params": {
-            "min_semitones": -6,
-            "max_semitones": 6,
+            "min_transpose_semitones": -12,
+            "max_transpose_semitones": 12,
             "p": 1,
             "mode": "per_example",
         },

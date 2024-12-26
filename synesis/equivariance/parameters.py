@@ -34,11 +34,21 @@ def preprocess_batch(
     transformed_raw_data = transform_obj(batch_raw_data)
     # assert shape is the same after transformation
     assert batch_raw_data.shape == transformed_raw_data.shape
-    # get transformation parameters that were actually applied to batch
-    # they will be of shape [batch, channel, 1], and on device
-    transform_params = transform_obj.transform_parameters[
-        f"{transform.lower()}_factors"
-    ]
+    if transform == "PitchShift":
+        # for some reason, these are stored as a list of Fractions
+        transform_params = [
+            float(t_param)
+            for t_param in transform_obj.transform_parameters["transpositions"]
+        ]
+        # convert to tensor of shape [batch, 1, 1] and move to device
+        transform_params = (
+            torch.tensor(transform_params).unsqueeze(1).unsqueeze(1).to(device)
+        )
+    else:
+        # they will be of shape [batch, channel, 1], and on device
+        transform_params = transform_obj.transform_parameters[
+            f"{transform.lower()}_factors"
+        ]
     if transform_params.dim() == 3:
         transform_params = transform_params.squeeze(1)  # remove channel dim
 
@@ -142,7 +152,13 @@ def train(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    transform_obj = get_transform(transform_config)
+    if transform == "PitchShift":
+        transform_obj = get_transform(
+            transform_config,
+            sample_rate=feature_config["sample_rate"],
+        )
+    else:
+        transform_obj = get_transform(transform_config)
 
     train_loader = DataLoader(
         train_dataset, shuffle=True, batch_size=task_config["training"]["batch_size"]
@@ -331,7 +347,13 @@ def evaluate(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    transform_obj = get_transform(transform_config)
+    if transform == "PitchShift":
+        transform_obj = get_transform(
+            transform_config,
+            sample_rate=feature_config["sample_rate"],
+        )
+    else:
+        transform_obj = get_transform(transform_config)
 
     test_loader = DataLoader(
         test_dataset, shuffle=False, batch_size=task_config["evaluation"]["batch_size"]
