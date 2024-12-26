@@ -1,10 +1,11 @@
 from pathlib import Path
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
+import cv2
+import numpy as np
 import torch
 import torchvision.transforms as T
 from sklearn.model_selection import train_test_split
-from torch import Tensor
 from torch.utils.data import Dataset, Subset
 from torchvision.datasets import ImageNet as TorchImageNet
 
@@ -45,7 +46,9 @@ class ImageNet(Dataset):
             )
         self.item_format = item_format
         self.fv = fv
-        self.ratio = 0.1
+        self.ratio = ratio
+        if download:
+            raise NotImplementedError("Download not supported for ImageNet")
 
         # Load feature extractor config
         if not feature_config:
@@ -109,4 +112,20 @@ class ImageNet(Dataset):
 
     def __getitem__(self, idx: int):
         image, label = self.dataset[idx]
+        if self.fv:
+            # calculate fv
+            hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            hue, saturation, brightness = cv2.split(hsv_image)
+            match self.fv:
+                case "hue":
+                    label = np.mean(hue)
+                case "saturation":
+                    label = np.mean(saturation)
+                case "brightness":
+                    label = np.mean(brightness)
+                case "value":
+                    label = np.mean(brightness)
+                case _:
+                    raise ValueError(f"Invalid factor of variation: {self.fv}")
+
         return image, label
