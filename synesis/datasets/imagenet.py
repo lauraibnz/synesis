@@ -5,9 +5,10 @@ import cv2
 import numpy as np
 import torch
 import torchvision.transforms as T
+import torchvision.transforms.functional as F
 from sklearn.model_selection import train_test_split
-from torch.utils.data import Dataset, Subset
-from torchvision.datasets import ImageNet as TorchImageNet
+from sklearn.preprocessing import LabelEncoder
+from torch.utils.data import Dataset
 
 from config.features import configs as feature_configs
 
@@ -21,6 +22,7 @@ class ImageNet(Dataset):
         download: bool = False,
         feature_config: Optional[dict] = None,
         item_format: str = "feature",
+        image_format: str = "JPEG",
         fv: Optional[str] = None,
         ratio: Optional[float] = 0.1,
         seed: int = 42,
@@ -44,9 +46,13 @@ class ImageNet(Dataset):
                 f"Invalid split: {split}"
                 + "Options: None, 'train', 'test', 'validation'"
             )
+        self.split = split
         self.item_format = item_format
         self.fv = fv
         self.ratio = ratio
+        self.image_format = image_format
+        self.seed = seed
+        self.label_encoder = LabelEncoder()
         if download:
             raise NotImplementedError("Download not supported for ImageNet")
 
@@ -58,60 +64,94 @@ class ImageNet(Dataset):
         # Define transforms based on model requirements
         self.transform = T.Compose(
             [
-                T.Resize(feature_config["input_size"]),
-                T.CenterCrop(feature_config["input_size"]),
+                # T.Resize(feature_config["input_dim"]),
+                # T.CenterCrop(feature_config["input_dim"]),
                 T.ToTensor(),
-                T.Normalize(mean=feature_config["mean"], std=feature_config["std"]),
+                # T.Normalize(mean=feature_config["mean"], std=feature_config["std"]),
             ]
         )
 
-        # Initialize torchvision ImageNet
-        split_map = {
-            "train": "train",
-            "test": "val",
-            "validation": "train",
-        }
-        self.dataset = TorchImageNet(
-            root=str(self.root),
-            split=split_map[self.split] if self.split else None,
-            transform=self.transform,
-        )
-
-        # Perform stratified split if necessary
-        if self.split in ["train", "validation"]:
-            self._stratified_split()
+        self._load_metadata()
 
         # Reduce dataset size if ratio is provided
         if self.ratio is not None:
             self._reduce_dataset()
 
-    def _stratified_split(self):
-        indices = list(range(len(self.dataset)))
-        labels = [self.dataset[i][1] for i in indices]
+    def _load_metadata(self):
+        """Build dataset by scanning directory structure."""
+        # Define split directory mapping
+        split_map = {"train": "train", "validation": "train", "test": "val"}
 
-        train_indices, val_indices = train_test_split(
-            indices, test_size=0.1, stratify=labels, random_state=self.seed
+        split_dir = (
+            Path(self.root)
+            / self.image_format
+            / (split_map[self.split] if self.split else None)
         )
 
-        if self.split == "train":
-            self.dataset = Subset(self.dataset, train_indices)
-        elif self.split == "validation":
-            self.dataset = Subset(self.dataset, val_indices)
+        self.raw_data_paths = []
+        self.labels = []
+        if self.split == "test":
+            metadata_path = Path(self.root) / "metadata" / "LOC_val_solution.csv"
+            # read line by line
+            with open(metadata_path, "r") as f:
+                f.readline()
+                for line in f:
+                    img_name, label = line.strip().split(",")
+                    label = label.split(" ")[0]  # remove bounding box info
+                    self.raw_data_paths.append(
+                        str(split_dir / f"{img_name}.{self.image_format}")
+                    )
+                    self.labels.append(label)
+        elif self.split == "train" or self.split == "validation":
+            # traverse subdirs
+            for class_dir in split_dir.iterdir():
+                if class_dir.is_dir():
+                    for img_path in class_dir.glob("*.JPEG"):
+                        self.raw_data_paths.append(str(img_path))
+                        self.labels.append(class_dir.name)
+        labels = self.label_encoder.fit_transform(self.labels)
+        self.labels = torch.tensor(labels, dtype=torch.long)
+
+        # if train or validation, need to split the original train set
+        if self.split in ["train", "validation"]:
+            train_indices, val_indices = train_test_split(
+                range(len(self.raw_data_paths)),
+                test_size=0.1,
+                stratify=self.labels,
+                random_state=42,
+            )
+            if self.split == "train":
+                self.raw_data_paths = [self.raw_data_paths[i] for i in train_indices]
+                self.labels = self.labels[train_indices]
+            elif self.split == "validation":
+                self.raw_data_paths = [self.raw_data_paths[i] for i in val_indices]
+                self.labels = self.labels[val_indices]
+
+        self.feature_paths = [
+            path.replace(f".{self.image_format}", ".pt")
+            .replace(f"/{self.image_format}/", f"/{self.feature}/")
+            .replace("/img/", f"/{self.feature}/")
+            for path in self.raw_data_paths
+        ]
+        self.paths = (
+            self.raw_data_paths if self.item_format == "raw" else self.feature_paths
+        )
 
     def _reduce_dataset(self):
-        total_size = len(self.dataset)
-        reduced_size = int(total_size * self.ratio)
-        rng = torch.Generator().manual_seed(self.seed)
-        reduced_indices = torch.randperm(total_size, generator=rng).tolist()[
-            :reduced_size
-        ]
-        self.dataset = Subset(self.dataset, reduced_indices)
+        """Reduce dataset size by sampling a subset based on a ratio."""
+        num_samples = int(self.ratio * len(self))
+        indices = np.random.choice(len(self), num_samples, replace=False)
+        self.paths = [self.paths[i] for i in indices]
+        self.labels = self.labels[indices]
 
     def __len__(self) -> int:
-        return len(self.dataset)
+        return len(self.paths)
 
     def __getitem__(self, idx: int):
-        image, label = self.dataset[idx]
+        image = cv2.imread(self.paths[idx])
+        if self.transform:
+            image = self.transform(image)
+        label = self.labels[idx]
         if self.fv:
             # calculate fv
             hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -127,5 +167,6 @@ class ImageNet(Dataset):
                     label = np.mean(brightness)
                 case _:
                     raise ValueError(f"Invalid factor of variation: {self.fv}")
+            label = torch.tensor(label, dtype=torch.float32)
 
         return image, label
