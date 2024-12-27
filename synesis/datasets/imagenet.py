@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 import torchvision.transforms.functional as F
+from PIL import Image
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import Dataset
@@ -62,12 +63,16 @@ class ImageNet(Dataset):
         self.feature_config = feature_config
 
         # Define transforms based on model requirements
-        self.transform = T.Compose(
+        self.transform_1 = T.Compose(
             [
-                # T.Resize(feature_config["input_dim"]),
-                # T.CenterCrop(feature_config["input_dim"]),
+                T.Resize(feature_config["resize_dim"]),
+                T.CenterCrop(feature_config["input_dim"]),
+            ]
+        )
+        self.transform_2 = T.Compose(
+            [
                 T.ToTensor(),
-                # T.Normalize(mean=feature_config["mean"], std=feature_config["std"]),
+                T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
 
@@ -148,13 +153,15 @@ class ImageNet(Dataset):
         return len(self.paths)
 
     def __getitem__(self, idx: int):
-        image = cv2.imread(self.paths[idx])
-        if self.transform:
-            image = self.transform(image)
+        image = Image.open(self.paths[idx]).convert("RGB")
         label = self.labels[idx]
+
+        if self.transform_1:
+            image = self.transform_1(image)
+
         if self.fv:
-            # calculate fv
-            hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            image_np = np.array(image)
+            hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
             hue, saturation, brightness = cv2.split(hsv_image)
             match self.fv:
                 case "hue":
@@ -168,5 +175,8 @@ class ImageNet(Dataset):
                 case _:
                     raise ValueError(f"Invalid factor of variation: {self.fv}")
             label = torch.tensor(label, dtype=torch.float32)
+
+        if self.transform_2:
+            image = self.transform_2(image)
 
         return image, label
