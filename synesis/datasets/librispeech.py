@@ -71,17 +71,18 @@ class LibriSpeech(Dataset):
         }
         if split is None:
             # we need to load all splits and concatenate them
-            datasets = []
+            self.datasets = []
             for split_name in split_map.values():
-                datasets.append(
+                self.datasets.append(
                     torchaudio.datasets.LIBRISPEECH(
                         root=str(self.root).replace("LibriSpeech", ""),
                         url=split_name,
                         download=download,
                     )
                 )
-            self.dataset = ConcatDataset(datasets)
+            self.dataset = ConcatDataset(self.datasets)
         else:
+            self.datasets = None
             self.dataset = torchaudio.datasets.LIBRISPEECH(
                 root=str(self.root).replace("LibriSpeech", ""),
                 url=split_map[split] if split else None,
@@ -90,17 +91,48 @@ class LibriSpeech(Dataset):
 
         self._load_metadata()
 
+    def _get_dataset_and_index(self, idx: int):
+        """Maps global index to (dataset, local_index) for ConcatDataset."""
+        if not self.datasets:
+            return self.dataset, idx
+
+        dataset_idx = 0
+        while idx >= len(self.datasets[dataset_idx]):
+            idx -= len(self.datasets[dataset_idx])
+            dataset_idx += 1
+        return self.datasets[dataset_idx], idx
+
     def _load_metadata(self) -> None:
-        # load audio paths
-        self.paths = [
-            str(
-                Path(self.dataset._path)
-                / self.dataset._walker[i].split("-")[0]
-                / self.dataset._walker[i].split("-")[1]
-                / f"{self.dataset._walker[i]}.{self.audio_format}"
-            )
-            for i in range(len(self.dataset))
-        ]
+        self.paths = []
+        if self.datasets:
+            # Handle concatenated datasets
+            for dataset in self.datasets:
+                dataset_path = Path(dataset._path)
+                for i in range(len(dataset)):
+                    file_id = dataset._walker[i]
+                    speaker_id, chapter_id = file_id.split("-")[:2]
+                    self.paths.append(
+                        str(
+                            dataset_path
+                            / speaker_id
+                            / chapter_id
+                            / f"{file_id}.{self.audio_format}"
+                        )
+                    )
+        else:
+            # Handle single dataset
+            dataset_path = Path(self.dataset._path)
+            for i in range(len(self.dataset)):
+                file_id = self.dataset._walker[i]
+                speaker_id, chapter_id = file_id.split("-")[:2]
+                self.paths.append(
+                    str(
+                        dataset_path
+                        / speaker_id
+                        / chapter_id
+                        / f"{file_id}.{self.audio_format}"
+                    )
+                )
 
         self.feature_paths = [
             path.replace(f".{self.audio_format}", ".pt").replace(
@@ -126,17 +158,16 @@ class LibriSpeech(Dataset):
         )
 
         if self.fv == "wps":
-            # get transcript path
-            transcript_file_name = (
-                "-".join(self.paths[idx].split("/")[-1].split("-")[:-1]) + ".trans.txt"
-            )
-            transcript_path = Path(self.paths[idx]).parent / transcript_file_name
-            transcript_id = self.paths[idx].split("/")[-1].split(".")[0]
+            # Use pathlib for cleaner path handling
+            path = Path(self.paths[idx])
+            file_id = path.stem  # Get filename without extension
+            transcript_file_name = "-".join(file_id.split("-")[:-1]) + ".trans.txt"
+            transcript_path = path.parent / transcript_file_name
+            transcript_id = file_id
 
             # calculate words from the transcript
             transcript = ""
             with open(transcript_path, "r") as f:
-                # get line that starts with transcript_id
                 for line in f:
                     if line.startswith(transcript_id):
                         transcript = line.split(" ", 1)[1].strip()
@@ -145,7 +176,7 @@ class LibriSpeech(Dataset):
                 warnings.warn(f"Transcript not found for {transcript_id}")
 
             words = len(transcript.split())
-            audio_len = get_duration(path=self.paths[idx])
+            audio_len = get_duration(path=str(path))
             wps = words / audio_len
             target = torch.tensor(wps, dtype=torch.float32)
         else:
