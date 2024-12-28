@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import torch
 import torchvision.transforms as T
-import torchvision.transforms.functional as F
 from PIL import Image
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -87,33 +86,38 @@ class ImageNet(Dataset):
         # Define split directory mapping
         split_map = {"train": "train", "validation": "train", "test": "val"}
 
-        split_dir = (
-            Path(self.root)
-            / self.image_format
-            / (split_map[self.split] if self.split else None)
-        )
-
         self.raw_data_paths = []
         self.labels = []
-        if self.split == "test":
-            metadata_path = Path(self.root) / "metadata" / "LOC_val_solution.csv"
-            # read line by line
-            with open(metadata_path, "r") as f:
-                f.readline()
-                for line in f:
-                    img_name, label = line.strip().split(",")
-                    label = label.split(" ")[0]  # remove bounding box info
-                    self.raw_data_paths.append(
-                        str(split_dir / f"{img_name}.{self.image_format}")
-                    )
-                    self.labels.append(label)
-        elif self.split == "train" or self.split == "validation":
-            # traverse subdirs
-            for class_dir in split_dir.iterdir():
-                if class_dir.is_dir():
-                    for img_path in class_dir.glob("*.JPEG"):
-                        self.raw_data_paths.append(str(img_path))
-                        self.labels.append(class_dir.name)
+
+        if self.split is None:
+            splits = ["train", "test"]  # no validation, as we're not splitting
+        else:
+            splits = [self.split]
+
+        for split in splits:
+            split_dir = (
+                Path(self.root) / self.image_format / split_map.get(split, split)
+            )
+            if split == "test":
+                metadata_path = Path(self.root) / "metadata" / "LOC_val_solution.csv"
+                # read line by line
+                with open(metadata_path, "r") as f:
+                    f.readline()
+                    for line in f:
+                        img_name, label = line.strip().split(",")
+                        label = label.split(" ")[0]  # remove bounding box info
+                        self.raw_data_paths.append(
+                            str(split_dir / f"{img_name}.{self.image_format}")
+                        )
+                        self.labels.append(label)
+            else:
+                # traverse subdirs
+                for class_dir in split_dir.iterdir():
+                    if class_dir.is_dir():
+                        for img_path in class_dir.glob("*.JPEG"):
+                            self.raw_data_paths.append(str(img_path))
+                            self.labels.append(class_dir.name)
+
         labels = self.label_encoder.fit_transform(self.labels)
         self.labels = torch.tensor(labels, dtype=torch.long)
 
