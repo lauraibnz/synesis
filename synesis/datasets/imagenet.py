@@ -157,30 +157,58 @@ class ImageNet(Dataset):
         return len(self.paths)
 
     def __getitem__(self, idx: int):
-        image = Image.open(self.paths[idx]).convert("RGB")
-        label = self.labels[idx]
+        if self.item_format == "raw":
+            image = Image.open(self.paths[idx]).convert("RGB")
+            label = self.labels[idx]
 
-        if self.transform_1:
-            image = self.transform_1(image)
+            if self.transform_1:
+                image = self.transform_1(image)
 
-        if self.fv:
-            image_np = np.array(image)
-            hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
-            hue, saturation, brightness = cv2.split(hsv_image)
-            match self.fv:
-                case "hue":
-                    label = np.mean(hue)
-                case "saturation":
-                    label = np.mean(saturation)
-                case "brightness":
-                    label = np.mean(brightness)
-                case "value":
-                    label = np.mean(brightness)
-                case _:
-                    raise ValueError(f"Invalid factor of variation: {self.fv}")
-            label = torch.tensor(label, dtype=torch.float32)
+            if self.fv:
+                image_np = np.array(image)
+                hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
+                hue, saturation, brightness = cv2.split(hsv_image)
+                match self.fv:
+                    case "hue":
+                        label = np.mean(hue)
+                    case "saturation":
+                        label = np.mean(saturation)
+                    case "brightness":
+                        label = np.mean(brightness)
+                    case "value":
+                        label = np.mean(brightness)
+                    case _:
+                        raise ValueError(f"Invalid factor of variation: {self.fv}")
 
-        if self.transform_2:
-            image = self.transform_2(image)
+            if self.transform_2:
+                image = self.transform_2(image)
+
+        elif self.item_format == "feature":
+            image = torch.load(self.paths[idx], weights_only=False)
+            image = image.unsqueeze(0)
+            label = self.labels[idx]
+
+            if self.fv:
+                # need to load image to compute
+                image = Image.open(self.raw_data_paths[idx]).convert("RGB")
+                image = self.transform_1(image)
+                image_np = np.array(image)
+                hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
+                hue, saturation, brightness = cv2.split(hsv_image)
+                match self.fv:
+                    case "hue":
+                        label = np.mean(hue)
+                    case "saturation":
+                        label = np.mean(saturation)
+                    case "brightness":
+                        label = np.mean(brightness)
+                    case "value":
+                        label = np.mean(brightness)
+                    case _:
+                        raise ValueError(f"Invalid factor of variation: {self.fv}")
+        else:
+            raise ValueError(f"Invalid item format: {self.item_format}")
+
+        label = torch.tensor(label, dtype=torch.float32)
 
         return image, label
