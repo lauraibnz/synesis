@@ -74,4 +74,10 @@ configs = {
             "pooled": True,
         },
     },
+    "ResNet50": {
+        "__cls__": "ResNet50",
+        "resize_dim": 256,
+        "input_dim": 224,
+        "feature_dim": 2048,
+    },
 }
