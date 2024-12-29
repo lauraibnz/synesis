@@ -193,3 +193,4 @@ test.sh
 .ruff_cache/
 notes.txt
 models/pretrained/mduo.pth
+models/pretrained/simclr.pt
