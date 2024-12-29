@@ -74,8 +74,14 @@ configs = {
             "pooled": True,
         },
     },
-    "ResNet50": {
+    "ResNet50_ImageNet": {
         "__cls__": "ResNet50",
+        "resize_dim": 256,
+        "input_dim": 224,
+        "feature_dim": 2048,
+    },
+    "SimCLR": {
+        "__cls__": "SimCLR",
         "resize_dim": 256,
         "input_dim": 224,
         "feature_dim": 2048,
