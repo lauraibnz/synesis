@@ -98,4 +98,10 @@ configs = {
         "input_dim": 224,
         "feature_dim": 2048,
     },
+    "ViT_MAE": {
+        "__cls__": "ViT_MAE",
+        "resize_dim": 256,
+        "input_dim": 224,
+        "feature_dim": 768,
+    },
 }
