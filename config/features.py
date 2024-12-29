@@ -79,12 +79,16 @@ configs = {
         "resize_dim": 256,
         "input_dim": 224,
         "feature_dim": 2048,
+        "mean": [0.485, 0.456, 0.406],
+        "std": [0.229, 0.224, 0.225],
     },
     "ViT_ImageNet": {
         "__cls__": "ViT_ImageNet",
         "resize_dim": 256,
         "input_dim": 224,
         "feature_dim": 768,
+        "mean": [0.485, 0.456, 0.406],
+        "std": [0.229, 0.224, 0.225],
     },
     "SimCLR": {
         "__cls__": "SimCLR",
@@ -97,12 +101,16 @@ configs = {
         "resize_dim": 256,
         "input_dim": 224,
         "feature_dim": 2048,
+        "mean": [0.485, 0.456, 0.406],
+        "std": [0.229, 0.224, 0.225],
     },
     "ViT_MAE": {
         "__cls__": "ViT_MAE",
         "resize_dim": 256,
         "input_dim": 224,
         "feature_dim": 768,
+        "mean": [0.5, 0.5, 0.5],
+        "std": [0.5, 0.5, 0.5],
     },
     "CLIP": {
         "__cls__": "CLIP",
