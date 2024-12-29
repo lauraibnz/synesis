@@ -75,7 +75,7 @@ configs = {
         },
     },
     "ResNet50_ImageNet": {
-        "__cls__": "ResNet50",
+        "__cls__": "ResNet50_ImageNet",
         "resize_dim": 256,
         "input_dim": 224,
         "feature_dim": 2048,
