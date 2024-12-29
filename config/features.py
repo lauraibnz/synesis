@@ -80,6 +80,12 @@ configs = {
         "input_dim": 224,
         "feature_dim": 2048,
     },
+    "ViT_ImageNet": {
+        "__cls__": "ViT_ImageNet",
+        "resize_dim": 256,
+        "input_dim": 224,
+        "feature_dim": 768,
+    },
     "SimCLR": {
         "__cls__": "SimCLR",
         "resize_dim": 256,
