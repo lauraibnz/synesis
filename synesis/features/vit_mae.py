@@ -17,8 +17,6 @@ class ViT_MAE(nn.Module):
         if self.feature_extractor:
             with torch.no_grad():
                 h = self.encoder(x)
-                # 32, 768 to 768
-                h = h.mean(dim=0)
                 return h
         else:
             raise NotImplementedError("Training not implemented yet.")
