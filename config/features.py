@@ -104,4 +104,12 @@ configs = {
         "input_dim": 224,
         "feature_dim": 768,
     },
+    "CLIP": {
+        "__cls__": "CLIP",
+        "resize_dim": 256,
+        "input_dim": 224,
+        "feature_dim": 512,
+        "mean": [0.48145466, 0.4578275, 0.40821073],
+        "std": [0.26862954, 0.26130258, 0.27577711],
+    },
 }
