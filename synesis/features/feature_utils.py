@@ -1,4 +1,5 @@
 import importlib
+import os
 from pathlib import Path
 
 import numpy as np
@@ -7,7 +8,7 @@ from torch.utils.data import Sampler
 from tqdm import tqdm
 
 from config.features import configs as feature_configs
-import os
+
 
 class FeatureExtractorFactory:
     @classmethod
@@ -170,6 +171,43 @@ def dynamic_batch_extractor(
         save_or_append(embeddings.cpu(), batch_paths)
 
     pbar.close()
+
+
+def fixed_batch_extractor(
+    dataset,
+    extractor,
+    batch_size: int = 32,
+    device: str = "cpu",
+):
+    """
+    Normal batch extractor for fixed length items
+    (e.g. images from ImageNet that are transformed to a fixed size).
+    """
+    pbar = tqdm(total=len(dataset))
+    extractor = extractor.to(device)
+
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+
+    for i, (x, _) in enumerate(dataloader):
+        x = x.to(device)
+        with torch.no_grad():
+            embeddings = extractor(x)
+
+        # squeeze channels if present
+        if embeddings.dim() == 3:
+            embeddings = embeddings.squeeze(1)
+
+        for j, emb in enumerate(embeddings):
+            output_path = dataset.feature_paths[i * batch_size + j]
+            path = Path(output_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(emb, path)
+
+        pbar.update(batch_size)
 
 
 class DynamicBatchSampler(Sampler):

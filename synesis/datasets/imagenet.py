@@ -25,6 +25,7 @@ class ImageNet(Dataset):
         image_format: str = "JPEG",
         fv: Optional[str] = None,
         ratio: Optional[float] = 0.1,
+        itemization: Optional[str] = None,
         seed: int = 42,
     ) -> None:
         """ImageNet dataset implementation supporting different feature extractors.
@@ -38,6 +39,7 @@ class ImageNet(Dataset):
             fv: Factor of variation (i.e. label) to return
             ratio: Ratio for using a subset of the dataset
             item_format: 'raw' or 'feature'
+            itemization: ignored, for compatibility with other datasets
         """
         self.feature = feature
         self.root = root

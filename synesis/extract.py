@@ -7,6 +7,7 @@ from config.features import configs as feature_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.features.feature_utils import (
     dynamic_batch_extractor,
+    fixed_batch_extractor,
     get_feature_extractor,
 )
 
@@ -45,20 +46,30 @@ def extract_features(
         itemization=False,  # dynamic extractor will handle itemization
     )
 
-    # attempt to get item length directly in samples, if
-    # it doesn't exist, calculate it from item_len_sec and sr
-    item_len = feature_config.get(
-        "item_len",
-        int(feature_config["item_len_sec"] * feature_config["sample_rate"]),
-    )
+    if "item_len" in feature_config or "item_len_sec" in feature_config:
+        # variable length items (e.g. audio)
+        # attempt to get item length directly in samples, if
+        # it doesn't exist, calculate it from item_len_sec and sr
+        item_len = feature_config.get(
+            "item_len",
+            int(feature_config["item_len_sec"] * feature_config["sample_rate"]),
+        )
 
-    dynamic_batch_extractor(
-        dataset=dataset,
-        extractor=extractor,
-        item_len=item_len,
-        batch_size=batch_size,
-        device=device,
-    )
+        dynamic_batch_extractor(
+            dataset=dataset,
+            extractor=extractor,
+            item_len=item_len,
+            batch_size=batch_size,
+            device=device,
+        )
+    else:
+        # fixed length items (e.g. images)
+        fixed_batch_extractor(
+            dataset=dataset,
+            extractor=extractor,
+            batch_size=batch_size,
+            device=device,
+        )
 
 
 if __name__ == "__main__":
