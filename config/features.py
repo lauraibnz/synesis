@@ -92,4 +92,10 @@ configs = {
         "input_dim": 224,
         "feature_dim": 2048,
     },
+    "DINO": {
+        "__cls__": "DINO",
+        "resize_dim": 256,
+        "input_dim": 224,
+        "feature_dim": 2048,
+    },
 }
