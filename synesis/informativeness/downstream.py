@@ -545,6 +545,8 @@ if __name__ == "__main__":
         dataset=args.dataset,
         task=args.task,
         device=args.device,
+        fv=args.fv,
+        item_format=args.item_format,
         logging=not args.nolog,
     )
 
@@ -553,6 +555,7 @@ if __name__ == "__main__":
         feature=args.feature,
         dataset=args.dataset,
         item_format=args.item_format,
+        fv=args.fv,
         task=args.task,
         device=args.device,
         logging=not args.nolog,
