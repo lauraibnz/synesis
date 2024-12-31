@@ -104,6 +104,7 @@ class GiantstepsKey(Dataset):
         split: Optional[str] = None,
         download: bool = False,
         feature_config: Optional[dict] = None,
+        label: str = "key",
         audio_format: str = "mp3",
         item_format: str = "feature",
         itemization: bool = True,
@@ -122,6 +123,7 @@ class GiantstepsKey(Dataset):
                      where None uses the full dataset (e.g. for feature extraction).
             download: Whether to download the dataset if it doesn't exist.
             feature_config: Configuration for the feature extractor.
+            label: Factor of variation/label to return.
             audio_format: Format of the audio files: ["mp3", "wav", "ogg"].
             item_format: Format of the items to return: ["raw", "feature"].
             itemization: For datasets with variable-length items, whether to return them
@@ -129,7 +131,9 @@ class GiantstepsKey(Dataset):
             seed: Random seed for reproducibility.
         """
         self.tasks = ["key_estimation"]
-        self.fvs = ["pitch", "tempo", "eq"]
+        if label not in ["key", "dummy"]:
+            raise ValueError(f"Invalid label: {label}. ")
+        self.label = label
 
         root = Path(root)
         self.root = root
@@ -494,7 +498,10 @@ class GiantstepsKey(Dataset):
             if self.item_format == "raw"
             else self.feature_paths[idx]
         )
-        label = self.labels[idx]
+        if self.label != "dummy":
+            label = self.labels[idx]
+        else:
+            label = torch.tensor(0, dtype=torch.long)
 
         track = load_track(
             path=path,

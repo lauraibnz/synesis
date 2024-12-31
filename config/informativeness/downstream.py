@@ -62,6 +62,8 @@ configs = {
         "training": {
             "criterion": nn.MSELoss,
             "feature_aggregation": False,
+            "num_epochs": 10,
+            "patience": 3,
         },
         "evaluation": {
             "metrics": [
