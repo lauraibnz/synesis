@@ -27,6 +27,7 @@ def train(
     task_config: Optional[dict] = None,
     item_format: str = "feature",
     device: Optional[str] = None,
+    fv: Optional[str] = None,
     logging: bool = False,
 ):
     """
@@ -40,6 +41,7 @@ def train(
         item_format: Format of the input data: ["raw", "feature"].
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
+        fv: Factor of variation (i.e. label) to return
         device: Device to use for training (defaults to "cuda" if available).
         logging: Whether to log to wandb.
 
@@ -71,22 +73,45 @@ def train(
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    train_dataset = get_dataset(
-        name=dataset,
-        feature=feature,
-        split="train",
-        download=False,
-        item_format=item_format,
-    )
-    val_dataset = get_dataset(
-        name=dataset,
-        feature=feature,
-        split="validation",
-        download=False,
-        item_format=item_format,
-    )
+    # !hacky, other tasks require images to be returned unnormalized
+    if dataset == "ImageNet":
+        train_dataset = get_dataset(
+            name=dataset,
+            feature=feature,
+            fv=fv,
+            split="train",
+            download=False,
+            item_format=item_format,
+            norm=True,
+        )
+        val_dataset = get_dataset(
+            name=dataset,
+            feature=feature,
+            fv=fv,
+            split="validation",
+            download=False,
+            item_format=item_format,
+            norm=True,
+        )
+    else:
+        train_dataset = get_dataset(
+            name=dataset,
+            feature=feature,
+            fv=fv,
+            split="train",
+            download=False,
+            item_format=item_format,
+        )
+        val_dataset = get_dataset(
+            name=dataset,
+            feature=feature,
+            fv=fv,
+            split="validation",
+            download=False,
+            item_format=item_format,
+        )
 
-    if train_dataset[0][0].dim() == 3:
+    if train_dataset[0][0].dim() == 3 and dataset != "ImageNet":
         # If item is 3D, this is a dataset that returns items with subitems
         # (e.g. for audio).
         if task_config["training"]["feature_aggregation"]:
@@ -130,10 +155,15 @@ def train(
         extractor.to(device)
 
     # train setup
+    n_outputs = (
+        1
+        if task_config["model"]["type"] == "regressor"
+        else len(train_dataset.label_encoder.classes_)
+    )
     model = get_probe(
         model_type=task_config["model"]["type"],
         in_features=feature_config["feature_dim"],
-        n_outputs=len(train_dataset.label_encoder.classes_),
+        n_outputs=n_outputs,
         **task_config["model"]["params"],
     ).to(device)
     criterion = task_config["training"]["criterion"]()
@@ -165,7 +195,7 @@ def train(
 
             if (
                 item_format == "raw"
-                and not task_config["training"]["feature_aggregation"]
+                and task_config["training"]["feature_aggregation"] is False
             ):
                 with torch.no_grad():
                     item = extractor(item)
@@ -283,6 +313,7 @@ def evaluate(
     task: str,
     task_config: Optional[dict] = None,
     item_format: str = "feature",
+    fv: Optional[str] = None,
     device: Optional[str] = None,
     logging: bool = False,
 ):
@@ -300,6 +331,7 @@ def evaluate(
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
         task_config: Override certain values of the task configuration.
+        fv: Factor of variation (i.e. label) to return
         device: Device to use for evaluation (defaults to "cuda" if available).
         logging: Whether to log to wandb.
 
@@ -318,13 +350,23 @@ def evaluate(
         task_config,
     )
 
-    test_dataset = get_dataset(
-        name=dataset,
-        feature=feature,
-        split="test",
-        download=False,
-        item_format=item_format,
-    )
+    if dataset == "ImageNet":
+        test_dataset = get_dataset(
+            name=dataset,
+            feature=feature,
+            split="test",
+            download=False,
+            item_format=item_format,
+            norm=True,
+        )
+    else:
+        test_dataset = get_dataset(
+            name=dataset,
+            feature=feature,
+            split="test",
+            download=False,
+            item_format=item_format,
+        )
 
     if isinstance(model, str):
         # Load model from wandb artifact
@@ -350,7 +392,7 @@ def evaluate(
         num_classes=len(test_dataset.label_encoder.classes_),
     )
 
-    if test_dataset[0][0].dim() == 3:
+    if test_dataset[0][0].dim() == 3 and dataset != "ImageNet":
         # If item is 3D, this is a dataset that returns items with subitems
         # (e.g. for audio).
         if task_config["evaluation"]["feature_aggregation"]:
@@ -475,6 +517,20 @@ if __name__ == "__main__":
         action="store_true",
         help="Do not log to wandb.",
     )
+    parser.add_argument(
+        "--item_format",
+        "-i",
+        type=str,
+        default="feature",
+        help="Format of the input data: ['raw', 'feature']. Defaults to 'feature'.",
+    )
+    parser.add_argument(
+        "--fv",
+        "-fv",
+        type=str,
+        default=None,
+        help="Factor of variation (i.e. label) to return.",
+    )
 
     args = parser.parse_args()
 
@@ -490,6 +546,7 @@ if __name__ == "__main__":
         model=model,
         feature=args.feature,
         dataset=args.dataset,
+        item_format=args.item_format,
         task=args.task,
         device=args.device,
         logging=not args.nolog,

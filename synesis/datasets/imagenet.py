@@ -26,6 +26,8 @@ class ImageNet(Dataset):
         fv: Optional[str] = None,
         ratio: Optional[float] = 0.1,
         itemization: Optional[str] = None,
+        norm: bool = False,
+        target_norm: bool = False,
         seed: int = 42,
     ) -> None:
         """ImageNet dataset implementation supporting different feature extractors.
@@ -40,6 +42,7 @@ class ImageNet(Dataset):
             ratio: Ratio for using a subset of the dataset
             item_format: 'raw' or 'feature'
             itemization: ignored, for compatibility with other datasets
+            norm: whether to convert to tensor and normalize before returning
         """
         self.feature = feature
         self.root = root
@@ -54,6 +57,7 @@ class ImageNet(Dataset):
         self.ratio = ratio
         self.image_format = image_format
         self.seed = seed
+        self.norm = norm
         self.label_encoder = LabelEncoder()
         if download:
             raise NotImplementedError("Download not supported for ImageNet")
@@ -64,13 +68,13 @@ class ImageNet(Dataset):
         self.feature_config = feature_config
 
         # Define transforms based on model requirements
-        self.transform_1 = T.Compose(
+        self.transform = T.Compose(
             [
                 T.Resize(feature_config["resize_dim"]),
                 T.CenterCrop(feature_config["input_dim"]),
             ]
         )
-        self.transform_2 = T.Compose(
+        self.tensor_and_norm = T.Compose(
             [
                 T.ToTensor(),
                 T.Normalize(
@@ -189,8 +193,7 @@ class ImageNet(Dataset):
             image = Image.open(self.paths[idx]).convert("RGB")
             label = self.labels[idx]
 
-            if self.transform_1:
-                image = self.transform_1(image)
+            image = self.transform(image)
 
             if self.fv:
                 image_np = np.array(image)
@@ -208,8 +211,8 @@ class ImageNet(Dataset):
                     case _:
                         raise ValueError(f"Invalid factor of variation: {self.fv}")
 
-            if self.transform_2:
-                image = self.transform_2(image)
+            if self.norm:
+                image = self.tensor_and_norm(image)
 
         elif self.item_format == "feature":
             image = torch.load(self.paths[idx], weights_only=False)
