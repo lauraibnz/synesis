@@ -23,7 +23,7 @@ class LibriSpeech(Dataset):
         audio_format: str = "flac",
         item_format: str = "feature",
         itemization: bool = True,
-        fv: str = "wps",
+        label: str = "wps",
         seed: int = 42,
     ) -> None:
         """
@@ -40,7 +40,7 @@ class LibriSpeech(Dataset):
             audio_format: Format of the audio files: ["flac", "wav"].
             item_format: Format of the items to return: ["raw", "feature"].
             itemization: Whether to return the full item or itemized parts.
-            fv: factor of variations (i.e. label) to return
+            label: factor of variations (i.e. label) to return
                 e.g. "wps" for words per second
             seed: Random seed for reproducibility.
         """
@@ -56,7 +56,7 @@ class LibriSpeech(Dataset):
         self.itemization = itemization
         self.audio_format = audio_format
         self.feature = feature
-        self.fv = fv
+        self.label = label
 
         if not feature_config:
             # load default feature config
@@ -157,7 +157,7 @@ class LibriSpeech(Dataset):
             sample_rate=self.feature_config["sample_rate"],
         )
 
-        if self.fv == "wps":
+        if self.label == "wps":
             # Use pathlib for cleaner path handling
             path = Path(self.paths[idx])
             file_id = path.stem  # Get filename without extension

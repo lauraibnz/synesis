@@ -70,6 +70,7 @@ def train(
     feature: str,
     dataset: str,
     transform: str,
+    label: str,
     task: str,
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
@@ -82,7 +83,8 @@ def train(
     Args:
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        transform: Name of the transform (factor of variation).
+        transform: Name of the transform.
+        label: Name of the label (factor of variation).
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         device: Device to use for training (defaults to "cuda" if available).
@@ -98,7 +100,7 @@ def train(
     )
 
     if logging:
-        run_name = f"EQUI_FEAT_{transform}_{dataset}_{feature}"
+        run_name = f"EQUI_FEAT_{transform}_{label}_{dataset}_{feature}"
         wandb.init(
             project="synesis",
             name=run_name,
@@ -108,6 +110,7 @@ def train(
                 "dataset": dataset,
                 "task": task,
                 "task_config": task_config,
+                "label": label,
             },
         )
         artifact = wandb.Artifact(run_name, type="model", metadata={"task": task})
@@ -125,6 +128,7 @@ def train(
     train_dataset = get_dataset(
         name=dataset,
         feature=feature,
+        label=label,
         split="train",
         download=False,
         item_format="raw",
@@ -132,6 +136,7 @@ def train(
     val_dataset = get_dataset(
         name=dataset,
         feature=feature,
+        label=label,
         split="validation",
         download=False,
         item_format="raw",
@@ -312,6 +317,7 @@ def evaluate(
     feature: str,
     dataset: str,
     transform: str,
+    label: str,
     task: str,
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
@@ -325,7 +331,8 @@ def evaluate(
         model: Model to evaluate.
         feature: Name of the feature/embedding model.
         dataset: Name of the dataset.
-        transform: Name of the transform (factor of variation).
+        transform: Name of the transform.
+        label: Name of the label (factor of variation).
         task: Name of the downstream task.
         task_config: Override certain values of the task configuration.
         device: Device to use for evaluation (defaults to "cuda" if available).
@@ -348,6 +355,7 @@ def evaluate(
     test_dataset = get_dataset(
         name=dataset,
         feature=feature,
+        label=label,
         split="test",
         download=False,
         item_format="raw",
@@ -507,6 +515,13 @@ if __name__ == "__main__":
         help="Device to use for training.",
     )
     parser.add_argument(
+        "--label",
+        "-l",
+        type=str,
+        required=True,
+        help="Factor of variation.",
+    )
+    parser.add_argument(
         "--nolog",
         action="store_true",
         help="Do not log to wandb.",
@@ -518,6 +533,7 @@ if __name__ == "__main__":
         feature=args.feature,
         dataset=args.dataset,
         transform=args.transform,
+        label=args.label,
         task=args.task,
         device=args.device,
         logging=not args.nolog,
@@ -528,6 +544,7 @@ if __name__ == "__main__":
         feature=args.feature,
         dataset=args.dataset,
         transform=args.transform,
+        label=args.label,
         task=args.task,
         device=args.device,
         logging=not args.nolog,

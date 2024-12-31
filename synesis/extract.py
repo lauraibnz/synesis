@@ -41,6 +41,7 @@ def extract_features(
         name=dataset,
         feature=feature,
         item_format="raw",
+        label="dummy",
         split=None,  # Use full dataset for feature extraction
         download=download_dataset,
         itemization=False,  # dynamic extractor will handle itemization
