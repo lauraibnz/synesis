@@ -54,4 +54,20 @@ configs = {
             ],
         },
     },
+    "regression": {
+        "model": {
+            "type": "regressor",
+            "params": {"hidden_units": [512, 256]},
+        },
+        "training": {
+            "criterion": nn.MSELoss,
+            "feature_aggregation": False,
+        },
+        "evaluation": {
+            "metrics": [
+                {"name": "MSE", "class": nn.MSELoss, "params": {}},
+            ],
+            "feature_aggregation": False,
+        },
+    },
 }

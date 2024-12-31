@@ -26,6 +26,8 @@ class ImageNet(Dataset):
         fv: Optional[str] = None,
         ratio: Optional[float] = 0.1,
         itemization: Optional[str] = None,
+        norm: bool = False,
+        target_norm: bool = False,
         seed: int = 42,
     ) -> None:
         """ImageNet dataset implementation supporting different feature extractors.
@@ -40,6 +42,7 @@ class ImageNet(Dataset):
             ratio: Ratio for using a subset of the dataset
             item_format: 'raw' or 'feature'
             itemization: ignored, for compatibility with other datasets
+            norm: whether to convert to tensor and normalize before returning
         """
         self.feature = feature
         self.root = root
@@ -54,6 +57,7 @@ class ImageNet(Dataset):
         self.ratio = ratio
         self.image_format = image_format
         self.seed = seed
+        self.norm = norm
         self.label_encoder = LabelEncoder()
         if download:
             raise NotImplementedError("Download not supported for ImageNet")
@@ -64,13 +68,13 @@ class ImageNet(Dataset):
         self.feature_config = feature_config
 
         # Define transforms based on model requirements
-        self.transform_1 = T.Compose(
+        self.transform = T.Compose(
             [
                 T.Resize(feature_config["resize_dim"]),
                 T.CenterCrop(feature_config["input_dim"]),
             ]
         )
-        self.transform_2 = T.Compose(
+        self.tensor_and_norm = T.Compose(
             [
                 T.ToTensor(),
                 T.Normalize(
@@ -82,10 +86,6 @@ class ImageNet(Dataset):
 
         self._load_metadata()
 
-        # Reduce dataset size if ratio is provided
-        if self.ratio is not None:
-            self._reduce_dataset()
-
     def _load_metadata(self):
         """Build dataset by scanning directory structure."""
         # Define split directory mapping
@@ -95,11 +95,14 @@ class ImageNet(Dataset):
         self.labels = []
 
         if self.split is None:
-            splits = ["train", "test"]  # no validation, as we're not splitting
+            splits = ["train", "validation", "test"]
         else:
             splits = [self.split]
 
+        # collect paths and labels for each split
         for split in splits:
+            self.raw_data_paths.append([])
+            self.labels.append([])
             split_dir = (
                 Path(self.root) / self.image_format / split_map.get(split, split)
             )
@@ -111,35 +114,59 @@ class ImageNet(Dataset):
                     for line in f:
                         img_name, label = line.strip().split(",")
                         label = label.split(" ")[0]  # remove bounding box info
-                        self.raw_data_paths.append(
+                        self.raw_data_paths[-1].append(
                             str(split_dir / f"{img_name}.{self.image_format}")
                         )
-                        self.labels.append(label)
+                        self.labels[-1].append(label)
             else:
                 # traverse subdirs
                 for class_dir in split_dir.iterdir():
                     if class_dir.is_dir():
                         for img_path in class_dir.glob("*.JPEG"):
-                            self.raw_data_paths.append(str(img_path))
-                            self.labels.append(class_dir.name)
-
-        labels = self.label_encoder.fit_transform(self.labels)
-        self.labels = torch.tensor(labels, dtype=torch.long)
+                            self.raw_data_paths[-1].append(str(img_path))
+                            self.labels[-1].append(class_dir.name)
 
         # if train or validation, need to split the original train set
-        if self.split in ["train", "validation"]:
-            train_indices, val_indices = train_test_split(
-                range(len(self.raw_data_paths)),
-                test_size=0.1,
-                stratify=self.labels,
-                random_state=42,
-            )
-            if self.split == "train":
-                self.raw_data_paths = [self.raw_data_paths[i] for i in train_indices]
-                self.labels = self.labels[train_indices]
-            elif self.split == "validation":
-                self.raw_data_paths = [self.raw_data_paths[i] for i in val_indices]
-                self.labels = self.labels[val_indices]
+        for i, split in enumerate(splits):
+            if split in ["train", "validation"]:
+                train_indices, val_indices = train_test_split(
+                    range(len(self.raw_data_paths[i])),
+                    test_size=0.1,
+                    stratify=self.labels[i],
+                    random_state=42,
+                )
+                if split == "train":
+                    self.raw_data_paths[i] = [
+                        self.raw_data_paths[i][j] for j in train_indices
+                    ]
+                    self.labels[i] = [self.labels[i][j] for j in train_indices]
+                elif split == "validation":
+                    self.raw_data_paths[i] = [
+                        self.raw_data_paths[i][j] for j in val_indices
+                    ]
+                    self.labels[i] = [self.labels[i][j] for j in val_indices]
+
+        # if ratio provided, need to get a subset of each split
+        if self.ratio:
+            for i in range(len(splits)):
+                indices = self.create_subset(self.raw_data_paths[i])
+                self.raw_data_paths[i] = [self.raw_data_paths[i][j] for j in indices]
+                self.labels[i] = [self.labels[i][j] for j in indices]
+
+        size = [len(paths) for paths in self.raw_data_paths]
+        size = sum(size)
+
+        # flatten lists
+        self.raw_data_paths = [path for paths in self.raw_data_paths for path in paths]
+        self.labels = [label for labels in self.labels for label in labels]
+
+        size_2 = len(set(self.raw_data_paths))
+
+        assert size == size_2
+
+        # encode labels
+        self.labels = self.label_encoder.fit_transform(self.labels)
+        self.labels = torch.tensor(self.labels, dtype=torch.long)
 
         self.feature_paths = [
             path.replace(f".{self.image_format}", ".pt")
@@ -151,12 +178,12 @@ class ImageNet(Dataset):
             self.raw_data_paths if self.item_format == "raw" else self.feature_paths
         )
 
-    def _reduce_dataset(self):
+    def create_subset(self, paths: list):
         """Reduce dataset size by sampling a subset based on a ratio."""
-        num_samples = int(self.ratio * len(self))
-        indices = np.random.choice(len(self), num_samples, replace=False)
-        self.paths = [self.paths[i] for i in indices]
-        self.labels = self.labels[indices]
+        np.random.seed(self.seed)
+        num_samples = int(self.ratio * len(paths))
+        indices = np.random.choice(len(paths), num_samples, replace=False)
+        return indices
 
     def __len__(self) -> int:
         return len(self.paths)
@@ -166,8 +193,7 @@ class ImageNet(Dataset):
             image = Image.open(self.paths[idx]).convert("RGB")
             label = self.labels[idx]
 
-            if self.transform_1:
-                image = self.transform_1(image)
+            image = self.transform(image)
 
             if self.fv:
                 image_np = np.array(image)
@@ -185,8 +211,8 @@ class ImageNet(Dataset):
                     case _:
                         raise ValueError(f"Invalid factor of variation: {self.fv}")
 
-            if self.transform_2:
-                image = self.transform_2(image)
+            if self.norm:
+                image = self.tensor_and_norm(image)
 
         elif self.item_format == "feature":
             image = torch.load(self.paths[idx], weights_only=False)
