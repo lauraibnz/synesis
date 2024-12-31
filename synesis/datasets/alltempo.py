@@ -21,6 +21,7 @@ class AllTempo(Dataset):
         feature: str,
         root: Union[str, Path] = "data/GiantsetpsKey",
         split: Optional[str] = None,
+        label: str = "tempo",
         download: bool = False,
         feature_config: Optional[dict] = None,
         audio_format: str = ["mp3", "wav"],
@@ -50,7 +51,9 @@ class AllTempo(Dataset):
             seed: Random seed for reproducibility.
         """
         self.tasks = ["tempo_estimation"]
-        self.fvs = ["pitch", "tempo", "eq"]
+        if label not in ["tempo", "dummy"]:
+            raise ValueError(f"Invalid label: {label} " + "Options: 'tempo'")
+        self.label = label
         self.datasets = datasets
         self.test_dataset = test_dataset
 
@@ -318,7 +321,10 @@ class AllTempo(Dataset):
             if self.item_format == "raw"
             else self.feature_paths[idx]
         )
-        label = self.labels[idx]
+        if self.label != "dummy":
+            label = self.labels[idx]
+        else:
+            label = torch.tensor(0, dtype=torch.long)
 
         track = load_track(
             path=path,

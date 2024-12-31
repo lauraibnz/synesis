@@ -23,7 +23,7 @@ class ImageNet(Dataset):
         feature_config: Optional[dict] = None,
         item_format: str = "feature",
         image_format: str = "JPEG",
-        fv: Optional[str] = None,
+        label: str = "class",
         ratio: Optional[float] = 0.1,
         itemization: Optional[str] = None,
         norm: bool = False,
@@ -38,7 +38,7 @@ class ImageNet(Dataset):
             split: 'train', 'validation', 'test' or None
             download: Whether to download dataset
             feature_config: Override default feature extractor config
-            fv: Factor of variation (i.e. label) to return
+            label: Factor of variation (i.e. label) to return
             ratio: Ratio for using a subset of the dataset
             item_format: 'raw' or 'feature'
             itemization: ignored, for compatibility with other datasets
@@ -53,7 +53,7 @@ class ImageNet(Dataset):
             )
         self.split = split
         self.item_format = item_format
-        self.fv = fv
+        self.label = label
         self.ratio = ratio
         self.image_format = image_format
         self.seed = seed
@@ -191,15 +191,13 @@ class ImageNet(Dataset):
     def __getitem__(self, idx: int):
         if self.item_format == "raw":
             image = Image.open(self.paths[idx]).convert("RGB")
-            label = self.labels[idx]
-
             image = self.transform(image)
 
-            if self.fv:
+            if self.label:
                 image_np = np.array(image)
                 hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
                 hue, saturation, brightness = cv2.split(hsv_image)
-                match self.fv:
+                match self.label:
                     case "hue":
                         label = np.mean(hue)
                     case "saturation":
@@ -208,8 +206,12 @@ class ImageNet(Dataset):
                         label = np.mean(brightness)
                     case "value":
                         label = np.mean(brightness)
+                    case "class":
+                        label = self.labels[idx]
+                    case "dummy":
+                        label = torch.tensor(0, dtype=torch.float32)
                     case _:
-                        raise ValueError(f"Invalid factor of variation: {self.fv}")
+                        raise ValueError(f"Invalid label type: {self.label}")
 
             if self.norm:
                 image = self.tensor_and_norm(image)
@@ -217,7 +219,6 @@ class ImageNet(Dataset):
         elif self.item_format == "feature":
             image = torch.load(self.paths[idx], weights_only=False)
             image = image.unsqueeze(0)
-            label = self.labels[idx]
 
             if self.fv:
                 # need to load image to compute
@@ -235,6 +236,10 @@ class ImageNet(Dataset):
                         label = np.mean(brightness)
                     case "value":
                         label = np.mean(brightness)
+                    case "class":
+                        label = self.labels[idx]
+                    case "dummy":
+                        label = torch.tensor(0, dtype=torch.float32)
                     case _:
                         raise ValueError(f"Invalid factor of variation: {self.fv}")
         else:

@@ -24,10 +24,10 @@ def train(
     feature: str,
     dataset: str,
     task: str,
+    label: str,
     task_config: Optional[dict] = None,
     item_format: str = "feature",
     device: Optional[str] = None,
-    fv: Optional[str] = None,
     logging: bool = False,
 ):
     """
@@ -41,7 +41,7 @@ def train(
         item_format: Format of the input data: ["raw", "feature"].
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
-        fv: Factor of variation (i.e. label) to return
+        label: Factor of variation/label to return
         device: Device to use for training (defaults to "cuda" if available).
         logging: Whether to log to wandb.
 
@@ -55,7 +55,7 @@ def train(
     )
     # Set up logging
     if logging:
-        run_name = f"INFO_DOWN_{task}_{dataset}_{feature}"
+        run_name = f"INFO_DOWN_{dataset}_{label}_{feature}"
         wandb.init(
             project="synesis",
             name=run_name,
@@ -78,7 +78,7 @@ def train(
         train_dataset = get_dataset(
             name=dataset,
             feature=feature,
-            fv=fv,
+            label=label,
             split="train",
             download=False,
             item_format=item_format,
@@ -87,7 +87,7 @@ def train(
         val_dataset = get_dataset(
             name=dataset,
             feature=feature,
-            fv=fv,
+            label=label,
             split="validation",
             download=False,
             item_format=item_format,
@@ -97,7 +97,7 @@ def train(
         train_dataset = get_dataset(
             name=dataset,
             feature=feature,
-            fv=fv,
+            label=label,
             split="train",
             download=False,
             item_format=item_format,
@@ -105,7 +105,7 @@ def train(
         val_dataset = get_dataset(
             name=dataset,
             feature=feature,
-            fv=fv,
+            label=label,
             split="validation",
             download=False,
             item_format=item_format,
@@ -204,7 +204,7 @@ def train(
                         item = item.unsqueeze(1)
             optimizer.zero_grad()
             output = model(item)
-            if output.shape[1] == 1:
+            if len(output.shape) == 2:
                 output = output.squeeze(1)
             loss = criterion(output, target)
             loss.backward()
@@ -239,8 +239,8 @@ def train(
                             item = item.unsqueeze(1)
 
                 val_output = model(item)
-                if output.shape[1] == 1:
-                    val_output = output.squeeze(1)
+                if len(val_output.shape) == 2:
+                    val_output = val_output.squeeze(1)
                 val_loss += criterion(val_output, target).item()
 
                 # Store outputs and targets for metric calculation
@@ -315,9 +315,9 @@ def evaluate(
     feature: str,
     dataset: str,
     task: str,
+    label: str,
     task_config: Optional[dict] = None,
     item_format: str = "feature",
-    fv: Optional[str] = None,
     device: Optional[str] = None,
     logging: bool = False,
 ):
@@ -335,7 +335,7 @@ def evaluate(
                      Defaults to "feature". If raw, feature is
                      extracted on-the-fly.
         task_config: Override certain values of the task configuration.
-        fv: Factor of variation (i.e. label) to return
+        label: Factor of variation/label to return
         device: Device to use for evaluation (defaults to "cuda" if available).
         logging: Whether to log to wandb.
 
@@ -449,7 +449,7 @@ def evaluate(
                         item = item.unsqueeze(1)
 
             output = model(item)
-            if output.shape[1] == 1:
+            if len(output.shape) == 2:
                 output = output.squeeze(1)
             total_loss += criterion(output, target).item()
 
@@ -519,11 +519,6 @@ if __name__ == "__main__":
         help="Device to use for training.",
     )
     parser.add_argument(
-        "--nolog",
-        action="store_true",
-        help="Do not log to wandb.",
-    )
-    parser.add_argument(
         "--item_format",
         "-i",
         type=str,
@@ -531,13 +526,17 @@ if __name__ == "__main__":
         help="Format of the input data: ['raw', 'feature']. Defaults to 'feature'.",
     )
     parser.add_argument(
-        "--fv",
-        "-fv",
+        "--label",
+        "-l",
         type=str,
-        default=None,
-        help="Factor of variation (i.e. label) to return.",
+        required=True,
+        help="Factor of variation or label to predict.",
     )
-
+    parser.add_argument(
+        "--nolog",
+        action="store_true",
+        help="Do not log to wandb.",
+    )
     args = parser.parse_args()
 
     model = train(
@@ -545,7 +544,7 @@ if __name__ == "__main__":
         dataset=args.dataset,
         task=args.task,
         device=args.device,
-        fv=args.fv,
+        label=args.label,
         item_format=args.item_format,
         logging=not args.nolog,
     )
@@ -555,7 +554,7 @@ if __name__ == "__main__":
         feature=args.feature,
         dataset=args.dataset,
         item_format=args.item_format,
-        fv=args.fv,
+        label=args.label,
         task=args.task,
         device=args.device,
         logging=not args.nolog,
