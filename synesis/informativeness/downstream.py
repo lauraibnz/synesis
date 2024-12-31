@@ -204,6 +204,8 @@ def train(
                         item = item.unsqueeze(1)
             optimizer.zero_grad()
             output = model(item)
+            if output.shape[1] == 1:
+                output = output.squeeze(1)
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
@@ -237,6 +239,8 @@ def train(
                             item = item.unsqueeze(1)
 
                 val_output = model(item)
+                if output.shape[1] == 1:
+                    val_output = output.squeeze(1)
                 val_loss += criterion(val_output, target).item()
 
                 # Store outputs and targets for metric calculation
@@ -445,6 +449,8 @@ def evaluate(
                         item = item.unsqueeze(1)
 
             output = model(item)
+            if output.shape[1] == 1:
+                output = output.squeeze(1)
             total_loss += criterion(output, target).item()
 
             # Store outputs and targets for metric calculation
