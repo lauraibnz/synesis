@@ -220,14 +220,14 @@ class ImageNet(Dataset):
             image = torch.load(self.paths[idx], weights_only=False)
             image = image.unsqueeze(0)
 
-            if self.fv:
+            if self.label:
                 # need to load image to compute
                 image = Image.open(self.raw_data_paths[idx]).convert("RGB")
-                image = self.transform_1(image)
+                image = self.transform(image)
                 image_np = np.array(image)
                 hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
                 hue, saturation, brightness = cv2.split(hsv_image)
-                match self.fv:
+                match self.label:
                     case "hue":
                         label = np.mean(hue)
                     case "saturation":
@@ -241,7 +241,7 @@ class ImageNet(Dataset):
                     case "dummy":
                         label = torch.tensor(0, dtype=torch.float32)
                     case _:
-                        raise ValueError(f"Invalid factor of variation: {self.fv}")
+                        raise ValueError(f"Invalid factor of variation: {self.label}")
         else:
             raise ValueError(f"Invalid item format: {self.item_format}")
 
