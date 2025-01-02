@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import torch
 import torchvision.transforms as T
+import torchvision.transforms.functional as TF
 from PIL import Image
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -24,6 +25,7 @@ class ImageNet(Dataset):
         item_format: str = "feature",
         image_format: str = "JPEG",
         label: str = "class",
+        transform: Optional[str] = None,
         ratio: Optional[float] = 0.1,
         itemization: Optional[str] = None,
         norm: bool = False,
@@ -39,6 +41,9 @@ class ImageNet(Dataset):
             download: Whether to download dataset
             feature_config: Override default feature extractor config
             label: Factor of variation (i.e. label) to return
+            transform: Transformation to apply to images, makes the dataset return
+                       two items: the original and the transformed image
+                       !NOTE hacky, need to refactor
             ratio: Ratio for using a subset of the dataset
             item_format: 'raw' or 'feature'
             itemization: ignored, for compatibility with other datasets
@@ -54,6 +59,7 @@ class ImageNet(Dataset):
         self.split = split
         self.item_format = item_format
         self.label = label
+        self.transform = transform
         self.ratio = ratio
         self.image_format = image_format
         self.seed = seed
@@ -68,7 +74,7 @@ class ImageNet(Dataset):
         self.feature_config = feature_config
 
         # Define transforms based on model requirements
-        self.transform = T.Compose(
+        self.resize_and_crop = T.Compose(
             [
                 T.Resize(feature_config["resize_dim"]),
                 T.CenterCrop(feature_config["input_dim"]),
@@ -191,9 +197,27 @@ class ImageNet(Dataset):
     def __getitem__(self, idx: int):
         if self.item_format == "raw":
             image = Image.open(self.paths[idx]).convert("RGB")
-            image = self.transform(image)
+            image = self.resize_and_crop(image)
 
-            if self.label:
+            if self.transform:
+                if self.transform == "HueShift":
+                    tf_param = np.random.uniform(-0.5, 0.5)
+                    tf_image = TF.adjust_hue(image, tf_param)
+                elif self.transform == "SaturationShift":
+                    tf_param = np.random.uniform(-2.0, 2.0)
+                    tf_image = TF.adjust_saturation(image, tf_param)
+                elif self.transform == "BrightnessShift":
+                    tf_param = np.random.uniform(-2.0, 2.0)
+                    tf_image = TF.adjust_brightness(image, tf_param)
+
+                image = self.tensor_and_norm(image)
+                tf_image = self.tensor_and_norm(tf_image)
+                image = torch.stack([image, tf_image])
+                label = torch.tensor(tf_param, dtype=torch.float32)
+
+                return image, label
+
+            elif self.label:
                 image_np = np.array(image)
                 hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
                 hue, saturation, brightness = cv2.split(hsv_image)
@@ -213,7 +237,9 @@ class ImageNet(Dataset):
                     case _:
                         raise ValueError(f"Invalid label type: {self.label}")
 
-            if self.norm:
+                image = self.tensor_and_norm(image)
+
+            else:
                 image = self.tensor_and_norm(image)
 
         elif self.item_format == "feature":
@@ -223,7 +249,7 @@ class ImageNet(Dataset):
             if self.label:
                 # need to load image to compute
                 image = Image.open(self.raw_data_paths[idx]).convert("RGB")
-                image = self.transform(image)
+                image = self.resize_and_crop(image)
                 image_np = np.array(image)
                 hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
                 hue, saturation, brightness = cv2.split(hsv_image)
