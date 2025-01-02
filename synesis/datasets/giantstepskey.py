@@ -105,6 +105,7 @@ class GiantstepsKey(Dataset):
         download: bool = False,
         feature_config: Optional[dict] = None,
         label: str = "key",
+        transform=None,  # !NOTE ignored, for compatability
         audio_format: str = "mp3",
         item_format: str = "feature",
         itemization: bool = True,

@@ -24,6 +24,7 @@ class LibriSpeech(Dataset):
         item_format: str = "feature",
         itemization: bool = True,
         label: str = "wps",
+        transform=None,  # !NOTE ignored, for compatability
         seed: int = 42,
     ) -> None:
         """

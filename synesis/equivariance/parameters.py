@@ -8,9 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional, Union
 
-import numpy as np
 import torch
-import torchvision.transforms.functional as TF
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -27,52 +25,47 @@ from synesis.utils import deep_update
 
 
 def preprocess_batch(
-    batch_raw_data, batch_fvs, transform_obj, transform, feature_extractor, device
+    batch_raw_data,
+    batch_targets,
+    transform_obj,
+    dataset,
+    transform,
+    feature_extractor,
+    device,
 ):
     """Get transformed data, extract features from both the original and
     transformed data, and concatenate them for input to the model."""
 
-    if transform in ["hue", "brightness", "saturation"]:
-        if transform == "hue":
-            # get random values from [-0.5, 0.5] for batch
-            transform_params = np.rand(batch_raw_data.size(0), 1, 1) - 0.5
-            for img, transform_param in zip(batch_raw_data, transform_params):
-                img = TF.adjust_hue(img, transform_param)
-        elif transform == "brightness":
-            # get random values from [-2, 2] for batch
-            transform_params = np.rand(batch_raw_data.size(0), 1, 1) * 4 - 2
-            for img, transform_param in zip(batch_raw_data, transform_params):
-                img = TF.adjust_brightness(img, transform_param)
-        elif transform == "saturation":
-            # get random values from [-2, 2] for batch
-            transform_params = np.rand(batch_raw_data.size(0), 1, 1) * 4 - 2
-            for img, transform_param in zip(batch_raw_data, transform_params):
-                img = TF.adjust_saturation(img, transform_param)
+    if transform in ["HueShift", "BrightnessShift", "SaturationShift"]:
+        original_raw_data = batch_raw_data[:, 0].to(device)
+        transformed_raw_data = batch_raw_data[:, 1].to(device)
+        transform_params = batch_targets.to(device)
 
-    batch_raw_data = batch_raw_data.to(device)
-    transformed_raw_data = transform_obj(batch_raw_data)
-    # assert shape is the same after transformation
-    assert batch_raw_data.shape == transformed_raw_data.shape
-    if transform == "PitchShift":
-        # for some reason, these are stored as a list of Fractions
-        transform_params = [
-            float(t_param)
-            for t_param in transform_obj.transform_parameters["transpositions"]
-        ]
-        # convert to tensor of shape [batch, 1, 1] and move to device
-        transform_params = (
-            torch.tensor(transform_params).unsqueeze(1).unsqueeze(1).to(device)
-        )
     else:
-        # they will be of shape [batch, channel, 1], and on device
-        transform_params = transform_obj.transform_parameters[
-            f"{transform.lower()}_factors"
-        ]
-    if transform_params.dim() == 3:
-        transform_params = transform_params.squeeze(1)  # remove channel dim
+        original_raw_data = batch_raw_data.to(device)
+        transformed_raw_data = transform_obj(original_raw_data)
+        # assert shape is the same after transformation
+        assert original_raw_data.shape == transformed_raw_data.shape
+        if transform == "PitchShift":
+            # for some reason, these are stored as a list of Fractions
+            transform_params = [
+                float(t_param)
+                for t_param in transform_obj.transform_parameters["transpositions"]
+            ]
+            # convert to tensor of shape [batch, 1, 1] and move to device
+            transform_params = (
+                torch.tensor(transform_params).unsqueeze(1).unsqueeze(1).to(device)
+            )
+        else:
+            # they will be of shape [batch, channel, 1], and on device
+            transform_params = transform_obj.transform_parameters[
+                f"{transform.lower()}_factors"
+            ]
+        if transform_params.dim() == 3:
+            transform_params = transform_params.squeeze(1)  # remove channel dim
 
     # combine original and transformed data
-    combined_raw_data = torch.cat([batch_raw_data, transformed_raw_data], dim=0)
+    combined_raw_data = torch.cat([original_raw_data, transformed_raw_data], dim=0)
 
     with torch.no_grad():
         combined_features = feature_extractor(combined_raw_data)
@@ -152,6 +145,7 @@ def train(
     train_dataset = get_dataset(
         name=dataset,
         feature=feature,
+        transform=transform,
         label=label,
         split="train",
         download=False,
@@ -160,6 +154,7 @@ def train(
     val_dataset = get_dataset(
         name=dataset,
         feature=feature,
+        transform=transform,
         label=label,
         split="validation",
         download=False,
@@ -167,7 +162,7 @@ def train(
     )
 
     # If dataset returns subitems per item, need to wrap it
-    if train_dataset[0][0].dim() == 3 and dataset != "ImageNet":
+    if dataset != "ImageNet" and train_dataset[0][0].dim() == 3:
         wrapped_train = SubitemDataset(train_dataset)
         wrapped_val = SubitemDataset(val_dataset)
         del train_dataset, val_dataset
@@ -182,7 +177,7 @@ def train(
             sample_rate=feature_config["sample_rate"],
         )
     elif dataset == "ImageNet":
-        # need to handle manually
+        # transform handled in dataset
         transform_obj = None
     else:
         transform_obj = get_transform(transform_config)
@@ -216,14 +211,15 @@ def train(
     for epoch in range(num_epochs):
         model.train()
         total_train_loss = 0
-        for batch_raw_data, batch_fvs in tqdm(
+        for batch_raw_data, batch_targets in tqdm(
             train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"
         ):
             # prepare data for equivariance training
             concat_features, transform_params = preprocess_batch(
                 batch_raw_data=batch_raw_data,
-                batch_fvs=batch_fvs,
+                batch_targets=batch_targets,
                 transform_obj=transform_obj,
+                dataset=train_dataset,
                 transform=transform,
                 feature_extractor=feature_extractor,
                 device=device,
@@ -231,6 +227,8 @@ def train(
 
             optimizer.zero_grad()
             predicted_params = model(concat_features)
+            if len(predicted_params.shape) == 2:
+                predicted_params = predicted_params.squeeze(1)
             loss = criterion(predicted_params, transform_params)
 
             loss.backward()
@@ -247,15 +245,22 @@ def train(
         model.eval()
         total_val_loss = 0
         with torch.no_grad():
-            for batch_raw_data, _ in tqdm(
+            for batch_raw_data, batch_targets in tqdm(
                 val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
             ):
                 # prepare data for equivariance training
                 concat_features, transform_params = preprocess_batch(
-                    batch_raw_data, transform_obj, transform, feature_extractor, device
+                    batch_raw_data=batch_raw_data,
+                    batch_targets=batch_targets,
+                    transform_obj=transform_obj,
+                    transform=transform,
+                    feature_extractor=feature_extractor,
+                    device=device,
                 )
 
                 predicted_params = model(concat_features)
+                if len(predicted_params.shape) == 2:
+                    predicted_params = predicted_params.squeeze(1)
                 loss = criterion(predicted_params, transform_params)
 
                 total_val_loss += loss.item()
@@ -342,6 +347,7 @@ def evaluate(
         name=dataset,
         feature=feature,
         label=label,
+        transform=transform,
         split="test",
         download=False,
         item_format="raw",
@@ -374,7 +380,7 @@ def evaluate(
         )
 
     # If dataset returns subitems per item, need to wrap it
-    if test_dataset[0][0].dim() == 3:
+    if dataset != "ImageNet" and test_dataset[0][0].dim() == 3:
         wrapped_test = SubitemDataset(test_dataset)
         del test_dataset
         test_dataset = wrapped_test
@@ -386,6 +392,9 @@ def evaluate(
             transform_config,
             sample_rate=feature_config["sample_rate"],
         )
+    elif dataset == "ImageNet":
+        # transform handled in dataset
+        transform_obj = None
     else:
         transform_obj = get_transform(transform_config)
 
@@ -401,13 +410,20 @@ def evaluate(
     criterion = task_configs[task]["training"]["criterion"]()
 
     with torch.no_grad():
-        for batch_raw_data, _ in tqdm(test_loader, desc="Evaluating"):
+        for batch_raw_data, batch_targets in tqdm(test_loader, desc="Evaluating"):
             # prepare data for equivariance prediction
             concat_features, transform_params = preprocess_batch(
-                batch_raw_data, transform_obj, transform, feature_extractor, device
+                batch_raw_data=batch_raw_data,
+                batch_targets=batch_targets,
+                transform_obj=transform_obj,
+                transform=transform,
+                feature_extractor=feature_extractor,
+                device=device,
             )
 
             predicted_params = model(concat_features)
+            if len(predicted_params.shape) == 2:
+                predicted_params = predicted_params.squeeze(1)
             loss = criterion(predicted_params, transform_params)
 
             total_loss += loss.item()
