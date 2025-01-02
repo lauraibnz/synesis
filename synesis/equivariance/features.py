@@ -26,32 +26,47 @@ from synesis.utils import deep_update
 
 
 def preprocess_batch(
-    batch_raw_data, transform_obj, transform, feature_extractor, device
+    batch_raw_data,
+    batch_targets,
+    transform_obj,
+    transform,
+    feature_extractor,
+    device,
 ):
-    batch_raw_data = batch_raw_data.to(device)
+    if transform in ["HueShift", "BrightnessShift", "SaturationShift"]:
+        original_raw_data = batch_raw_data[:, 0].to(device)
+        transformed_raw_data = batch_raw_data[:, 1].to(device)
+        transform_params = batch_targets
+        if len(transform_params.shape) == 1:
+            transform_params = transform_params.unsqueeze(1)
+        if len(transform_params.shape) == 2:
+            transform_params = transform_params.unsqueeze(2)
+        transform_params = transform_params.to(device)
 
-    transformed_raw_data = transform_obj(batch_raw_data)
-    # assert shape is the same after transformation
-    assert batch_raw_data.shape == transformed_raw_data.shape
-    # get transformation parameters that were actually applied to batch
-    if transform == "PitchShift":
-        # for some reason, these are stored as a list of Fractions
-        transform_params = [
-            float(t_param)
-            for t_param in transform_obj.transform_parameters["transpositions"]
-        ]
-        # convert to tensor of shape [batch, 1, 1] and move to device
-        transform_params = (
-            torch.tensor(transform_params).unsqueeze(1).unsqueeze(1).to(device)
-        )
     else:
-        # they will be of shape [batch, channel, 1], and on device
-        transform_params = transform_obj.transform_parameters[
-            f"{transform.lower()}_factors"
-        ]
+        original_raw_data = batch_raw_data.to(device)
+        transformed_raw_data = transform_obj(original_raw_data)
+        # assert shape is the same after transformation
+        assert original_raw_data.shape == transformed_raw_data.shape
+        # get transformation parameters that were actually applied to batch
+        if transform == "PitchShift":
+            # for some reason, these are stored as a list of Fractions
+            transform_params = [
+                float(t_param)
+                for t_param in transform_obj.transform_parameters["transpositions"]
+            ]
+            # convert to tensor of shape [batch, 1, 1] and move to device
+            transform_params = (
+                torch.tensor(transform_params).unsqueeze(1).unsqueeze(1).to(device)
+            )
+        else:
+            # they will be of shape [batch, channel, 1], and on device
+            transform_params = transform_obj.transform_parameters[
+                f"{transform.lower()}_factors"
+            ]
 
     # combine original and transformed data
-    combined_raw_data = torch.cat([batch_raw_data, transformed_raw_data], dim=0)
+    combined_raw_data = torch.cat([original_raw_data, transformed_raw_data], dim=0)
 
     with torch.no_grad():
         combined_features = feature_extractor(combined_raw_data)
@@ -129,6 +144,7 @@ def train(
         name=dataset,
         feature=feature,
         label=label,
+        transform=transform,
         split="train",
         download=False,
         item_format="raw",
@@ -137,13 +153,14 @@ def train(
         name=dataset,
         feature=feature,
         label=label,
+        transform=transform,
         split="validation",
         download=False,
         item_format="raw",
     )
 
     # If dataset returns subitems per item, need to wrap it
-    if train_dataset[0][0].dim() == 3:
+    if dataset != "ImageNet" and train_dataset[0][0].dim() == 3:
         wrapped_train = SubitemDataset(train_dataset)
         wrapped_val = SubitemDataset(val_dataset)
         del train_dataset, val_dataset
@@ -157,6 +174,8 @@ def train(
             transform_config,
             sample_rate=feature_config["sample_rate"],
         )
+    elif dataset == "ImageNet":
+        transform_obj = None
     else:
         transform_obj = get_transform(transform_config)
 
@@ -189,13 +208,18 @@ def train(
     for epoch in range(num_epochs):
         model.train()
         total_train_loss = 0
-        for batch_raw_data, _ in tqdm(
+        for batch_raw_data, batch_targets in tqdm(
             train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"
         ):
             # prepare data for equivariance training
             original_features, transformed_features, transform_params = (
                 preprocess_batch(
-                    batch_raw_data, transform_obj, transform, feature_extractor, device
+                    batch_raw_data=batch_raw_data,
+                    batch_targets=batch_targets,
+                    transform_obj=transform_obj,
+                    transform=transform,
+                    feature_extractor=feature_extractor,
+                    device=device,
                 )
             )
 
@@ -228,11 +252,12 @@ def train(
                 # prepare data for equivariance training
                 original_features, transformed_features, transform_params = (
                     preprocess_batch(
-                        batch_raw_data,
-                        transform_obj,
-                        transform,
-                        feature_extractor,
-                        device,
+                        batch_raw_data=batch_raw_data,
+                        batch_targets=batch_targets,
+                        transform_obj=transform_obj,
+                        transform=transform,
+                        feature_extractor=feature_extractor,
+                        device=device,
                     )
                 )
 
@@ -356,6 +381,7 @@ def evaluate(
         name=dataset,
         feature=feature,
         label=label,
+        transform=transform,
         split="test",
         download=False,
         item_format="raw",
@@ -388,7 +414,7 @@ def evaluate(
         )
 
     # If dataset returns subitems per item, need to wrap it
-    if test_dataset[0][0].dim() == 3:
+    if dataset != "ImageNet" and test_dataset[0][0].dim() == 3:
         wrapped_test = SubitemDataset(test_dataset)
         del test_dataset
         test_dataset = wrapped_test
@@ -400,6 +426,8 @@ def evaluate(
             transform_config,
             sample_rate=feature_config["sample_rate"],
         )
+    elif dataset == "ImageNet":
+        transform_obj = None
     else:
         transform_obj = get_transform(transform_config)
 
@@ -415,15 +443,16 @@ def evaluate(
     criterion = task_configs[task]["training"]["criterion"]()
 
     with torch.no_grad():
-        for batch_raw_data, _ in tqdm(test_loader, desc="Evaluating"):
+        for batch_raw_data, batch_targets in tqdm(test_loader, desc="Evaluating"):
             # prepare data for equivariance training
             original_features, transformed_features, transform_params = (
                 preprocess_batch(
-                    batch_raw_data,
-                    transform_obj,
-                    transform,
-                    feature_extractor,
-                    device,
+                    batch_raw_data=batch_raw_data,
+                    batch_targets=batch_targets,
+                    transform_obj=transform_obj,
+                    transform=transform,
+                    feature_extractor=feature_extractor,
+                    device=device,
                 )
             )
 
