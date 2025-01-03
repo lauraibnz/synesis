@@ -73,43 +73,22 @@ def train(
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # !hacky, other tasks require images to be returned unnormalized
-    if dataset == "ImageNet":
-        train_dataset = get_dataset(
-            name=dataset,
-            feature=feature,
-            label=label,
-            split="train",
-            download=False,
-            item_format=item_format,
-            norm=True,
-        )
-        val_dataset = get_dataset(
-            name=dataset,
-            feature=feature,
-            label=label,
-            split="validation",
-            download=False,
-            item_format=item_format,
-            norm=True,
-        )
-    else:
-        train_dataset = get_dataset(
-            name=dataset,
-            feature=feature,
-            label=label,
-            split="train",
-            download=False,
-            item_format=item_format,
-        )
-        val_dataset = get_dataset(
-            name=dataset,
-            feature=feature,
-            label=label,
-            split="validation",
-            download=False,
-            item_format=item_format,
-        )
+    train_dataset = get_dataset(
+        name=dataset,
+        feature=feature,
+        label=label,
+        split="train",
+        download=False,
+        item_format=item_format,
+    )
+    val_dataset = get_dataset(
+        name=dataset,
+        feature=feature,
+        label=label,
+        split="validation",
+        download=False,
+        item_format=item_format,
+    )
 
     if train_dataset[0][0].dim() == 3 and dataset != "ImageNet":
         # If item is 3D, this is a dataset that returns items with subitems

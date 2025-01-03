@@ -22,6 +22,7 @@ class AllTempo(Dataset):
         root: Union[str, Path] = "data/GiantsetpsKey",
         split: Optional[str] = None,
         label: str = "tempo",
+        transform=None,  # !NOTE ignored, for compatability
         download: bool = False,
         feature_config: Optional[dict] = None,
         audio_format: str = ["mp3", "wav"],
