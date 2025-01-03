@@ -174,7 +174,7 @@ def train(
 
     val_metrics = instantiate_metrics(
         metric_configs=task_config["evaluation"]["metrics"],
-        num_classes=len(train_dataset.label_encoder.classes_),
+        num_classes=n_outputs,
     )
 
     # train and validation loop
@@ -204,7 +204,7 @@ def train(
                         item = item.unsqueeze(1)
             optimizer.zero_grad()
             output = model(item)
-            if len(output.shape) == 2:
+            if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
             loss = criterion(output, target)
             loss.backward()
@@ -354,36 +354,34 @@ def evaluate(
         task_config,
     )
 
-    if dataset == "ImageNet":
-        test_dataset = get_dataset(
-            name=dataset,
-            feature=feature,
-            split="test",
-            download=False,
-            item_format=item_format,
-            norm=True,
-        )
-    else:
-        test_dataset = get_dataset(
-            name=dataset,
-            feature=feature,
-            split="test",
-            download=False,
-            item_format=item_format,
-        )
+    test_dataset = get_dataset(
+        name=dataset,
+        feature=feature,
+        label=label,
+        split="test",
+        download=False,
+        item_format=item_format,
+    )
 
     if isinstance(model, str):
         # Load model from wandb artifact
         model_wandb_path = f"{entity}/{project}/{model_name}"
         artifact = wandb.use_artifact(f"{model_wandb_path}:latest")
         artifact_dir = artifact.download()
+        n_outputs = (
+            1
+            if task_config["model"]["type"] == "regressor"
+            else len(test_dataset.label_encoder.classes_)
+        )
         model = get_probe(
             model_type=task_config["model"]["type"],
             in_features=feature_config["feature_dim"],
-            n_outputs=len(test_dataset.label_encoder.classes_),
+            n_outputs=n_outputs,
             **task_config["model"]["params"],
         )
-        model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
+        model.load_state_dict(
+            torch.load(Path(artifact_dir) / f"{feature}.pt", weights_only=True)
+        )
         os.remove(Path(artifact_dir) / f"{feature}.pt")
 
     if not device:
@@ -393,7 +391,7 @@ def evaluate(
 
     metrics = instantiate_metrics(
         metric_configs=task_config["evaluation"]["metrics"],
-        num_classes=len(test_dataset.label_encoder.classes_),
+        num_classes=n_outputs,
     )
 
     if test_dataset[0][0].dim() == 3 and dataset != "ImageNet":
@@ -449,7 +447,7 @@ def evaluate(
                         item = item.unsqueeze(1)
 
             output = model(item)
-            if len(output.shape) == 2:
+            if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
             total_loss += criterion(output, target).item()
 

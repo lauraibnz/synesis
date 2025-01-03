@@ -66,6 +66,7 @@ configs = {
             "patience": 3,
         },
         "evaluation": {
+            "criterion": nn.MSELoss,
             "metrics": [
                 {"name": "MSE", "class": nn.MSELoss, "params": {}},
             ],
