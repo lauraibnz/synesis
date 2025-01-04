@@ -76,7 +76,7 @@ configs = {
     },
     "Wav2Vec2": {
         "__cls__": "Wav2Vec2",
-        "item_len_sec": 10,
+        "item_len_sec": 5,
         "sample_rate": 16000,
         "feature_dim": 768,
     },

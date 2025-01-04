@@ -1,6 +1,6 @@
 import torch
+import torchaudio
 from torch import nn
-from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 
 
 class Wav2Vec2(nn.Module):
@@ -9,18 +9,13 @@ class Wav2Vec2(nn.Module):
 
         self.feature_extractor = feature_extractor
 
-        self.processor = Wav2Vec2Processor.from_pretrained(
-            "facebook/wav2vec2-base-960h"
-        )
-        self.model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
+        self.bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
+        self.model = self.bundle.get_model()
 
     def forward(self, x):
-        if self.feature_extractor:
-            with torch.no_grad():
-                inputs = self.processor(
-                    x, return_tensors="pt", padding="longest"
-                ).input_values.squeeze(0)
-                h = self.model(inputs).last_hidden_state.mean(dim=1)
-                return h
-        else:
-            raise NotImplementedError("Training not implemented yet.")
+        # squeeze channel dim
+        x = x.squeeze(1)
+        with torch.inference_mode():
+            # get last layer and mean pool over time
+            features = self.model.extract_features(x)[0][-1].mean(dim=1)
+        return features
