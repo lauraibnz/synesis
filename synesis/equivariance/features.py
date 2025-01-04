@@ -208,37 +208,37 @@ def train(
     for epoch in range(num_epochs):
         model.train()
         total_train_loss = 0
-        for batch_raw_data, batch_targets in tqdm(
-            train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"
-        ):
-            # prepare data for equivariance training
-            original_features, transformed_features, transform_params = (
-                preprocess_batch(
-                    batch_raw_data=batch_raw_data,
-                    batch_targets=batch_targets,
-                    transform_obj=transform_obj,
-                    transform=transform,
-                    feature_extractor=feature_extractor,
-                    device=device,
-                )
-            )
+        # for batch_raw_data, batch_targets in tqdm(
+        #     train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"
+        # ):
+        #     # prepare data for equivariance training
+        #     original_features, transformed_features, transform_params = (
+        #         preprocess_batch(
+        #             batch_raw_data=batch_raw_data,
+        #             batch_targets=batch_targets,
+        #             transform_obj=transform_obj,
+        #             transform=transform,
+        #             feature_extractor=feature_extractor,
+        #             device=device,
+        #         )
+        #     )
 
-            # add parameter to original features - currently both are (b, c, 1)
-            concat_features = torch.cat([original_features, transform_params], dim=2)
+        #     # add parameter to original features - currently both are (b, c, 1)
+        #     concat_features = torch.cat([original_features, transform_params], dim=2)
 
-            optimizer.zero_grad()
-            predicted_features = model(concat_features)
-            loss = criterion(original_features, predicted_features)
+        #     optimizer.zero_grad()
+        #     predicted_features = model(concat_features)
+        #     loss = criterion(original_features, predicted_features)
 
-            loss.backward()
-            optimizer.step()
+        #     loss.backward()
+        #     optimizer.step()
 
-            total_train_loss += loss.item()
+        #     total_train_loss += loss.item()
 
-            if logging:
-                wandb.log({"train/loss": loss.item()})
+        #     if logging:
+        #         wandb.log({"train/loss": loss.item()})
 
-        avg_train_loss = total_train_loss / len(train_loader)
+        # avg_train_loss = total_train_loss / len(train_loader)
 
         # Validation
         model.eval()
@@ -246,7 +246,7 @@ def train(
         total_l2_distance = 0
         total_cosine_distance = 0
         with torch.no_grad():
-            for batch_raw_data, _ in tqdm(
+            for batch_raw_data, batch_targets in tqdm(
                 val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
             ):
                 # prepare data for equivariance training
@@ -293,8 +293,8 @@ def train(
             avg_cosine_distance = total_cosine_distance / len(val_loader.dataset)
 
         print(
-            f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f} - "
-            + f"Val Loss: {avg_val_loss:.4f}"
+            # f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f} - "
+            +f"Val Loss: {avg_val_loss:.4f}"
             + f" - L2 Distance: {avg_l2_distance:.4f}"
             + f" - Cosine Distance: {avg_cosine_distance:.4f}"
         )
