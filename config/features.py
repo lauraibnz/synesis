@@ -74,6 +74,12 @@ configs = {
             "pooled": True,
         },
     },
+    "Wav2Vec2": {
+        "__cls__": "Wav2Vec2",
+        "item_len_sec": 10,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+    },
     "ResNet50_ImageNet": {
         "__cls__": "ResNet50_ImageNet",
         "resize_dim": 256,
