@@ -1,6 +1,6 @@
 import torch
+import torchaudio
 from torch import nn
-from transformers import AutoModel, AutoProcessor
 
 
 class HuBERT(nn.Module):
@@ -9,14 +9,15 @@ class HuBERT(nn.Module):
 
         self.feature_extractor = feature_extractor
 
-        self.processor = AutoProcessor.from_pretrained("facebook/hubert-base-ls960")
-        self.model = AutoModel.from_pretrained("facebook/hubert-base-ls960")
+        self.bundle = torchaudio.pipelines.HUBERT_BASE
+        self.model = self.bundle.get_model()
 
     def forward(self, x):
-        if self.feature_extractor:
-            with torch.no_grad():
-                inputs = self.processor(x)
-                h = self.model(**inputs).last_hidden_state.mean(dim=1)
-                return h
-        else:
-            raise NotImplementedError("Training not implemented yet.")
+        # squeeze channel dim
+        x = x.squeeze(1)
+        with torch.inference_mode():
+            # Extract features and clone/detach immediately
+            features = self.model.extract_features(x)[0][-1].clone().detach()
+
+        features = features.mean(dim=1)
+        return features

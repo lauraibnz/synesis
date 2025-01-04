@@ -80,6 +80,12 @@ configs = {
         "sample_rate": 16000,
         "feature_dim": 768,
     },
+    "HuBERT": {
+        "__cls__": "HuBERT",
+        "item_len_sec": 5,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+    },
     "ResNet50_ImageNet": {
         "__cls__": "ResNet50_ImageNet",
         "resize_dim": 256,
