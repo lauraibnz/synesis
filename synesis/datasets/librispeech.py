@@ -57,6 +57,7 @@ class LibriSpeech(Dataset):
         self.audio_format = audio_format
         self.feature = feature
         self.label = label
+        self.label_encoder = None  # placeholder
 
         if not feature_config:
             # load default feature config
