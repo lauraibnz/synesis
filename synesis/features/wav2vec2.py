@@ -16,6 +16,8 @@ class Wav2Vec2(nn.Module):
         # squeeze channel dim
         x = x.squeeze(1)
         with torch.inference_mode():
-            # get last layer and mean pool over time
-            features = self.model.extract_features(x)[0][-1].mean(dim=1)
+            # Extract features and clone/detach immediately
+            features = self.model.extract_features(x)[0][-1].clone().detach()
+
+        features = features.mean(dim=1)
         return features
