@@ -246,7 +246,7 @@ def train(
         total_l2_distance = 0
         total_cosine_distance = 0
         with torch.no_grad():
-            for batch_raw_data, _ in tqdm(
+            for batch_raw_data, batch_targets in tqdm(
                 val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
             ):
                 # prepare data for equivariance training
