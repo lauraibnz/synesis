@@ -92,6 +92,12 @@ configs = {
         "sample_rate": 48000,
         "feature_dim": 512,
     },
+    "Whisper": {
+        "__cls__": "Whisper",
+        "item_len_sec": 5,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+    },
     "ResNet50_ImageNet": {
         "__cls__": "ResNet50_ImageNet",
         "resize_dim": 256,
