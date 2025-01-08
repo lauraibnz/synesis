@@ -14,7 +14,8 @@ class DINO(nn.Module):
     def forward(self, x):
         if self.feature_extractor:
             with torch.no_grad():
-                h = self.model(x)
+                h = self.model(x).last_hidden_state
+                h = h.mean(dim=[-1, -2])
                 return h
         else:
             raise NotImplementedError("Training not implemented yet.")
