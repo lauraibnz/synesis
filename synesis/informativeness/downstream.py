@@ -55,7 +55,7 @@ def train(
     )
     # Set up logging
     if logging:
-        run_name = f"INFO_DOWN_{dataset}_{label}_{feature}"
+        run_name = f"INFO_DOWN_{task}_{dataset}_{label}_{feature}"
         wandb.init(
             project="synesis",
             name=run_name,

@@ -64,6 +64,7 @@ configs = {
             "feature_aggregation": False,
             "num_epochs": 10,
             "patience": 3,
+            "batch_size": 16,
         },
         "evaluation": {
             "criterion": nn.MSELoss,
@@ -71,6 +72,28 @@ configs = {
                 {"name": "MSE", "class": nn.MSELoss, "params": {}},
             ],
             "feature_aggregation": False,
+            "batch_size": 16,
+        },
+    },
+    "regression_linear": {
+        "model": {
+            "type": "regressor",
+            "params": {"hidden_units": [512, 256]},
+        },
+        "training": {
+            "criterion": nn.MSELoss,
+            "feature_aggregation": False,
+            "num_epochs": 10,
+            "patience": 3,
+            "batch_size": 16,
+        },
+        "evaluation": {
+            "criterion": nn.MSELoss,
+            "metrics": [
+                {"name": "MSE", "class": nn.MSELoss, "params": {}},
+            ],
+            "feature_aggregation": False,
+            "batch_size": 16,
         },
     },
 }
