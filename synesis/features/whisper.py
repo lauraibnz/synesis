@@ -13,7 +13,7 @@ class Whisper(nn.Module):
         # Constants
         self.sample_rate = 16000
         self.expected_seconds = 30
-        self.clip_seconds = 5
+        self.clip_seconds = 10
         self.frames_per_second = 50
         self.frames_per_clip = self.clip_seconds * self.frames_per_second
 
