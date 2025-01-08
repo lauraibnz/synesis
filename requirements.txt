@@ -17,3 +17,5 @@ transformers
 einops
 timm
 nnaudio
+torchmetrics
+laion-clap

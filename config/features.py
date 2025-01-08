@@ -74,6 +74,42 @@ configs = {
             "pooled": True,
         },
     },
+    "Wav2Vec2": {
+        "__cls__": "Wav2Vec2",
+        "item_len_sec": 10,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+    },
+    "HuBERT": {
+        "__cls__": "HuBERT",
+        "item_len_sec": 10,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+    },
+    "CLAP": {
+        "__cls__": "CLAP",
+        "item_len_sec": 10,
+        "sample_rate": 48000,
+        "feature_dim": 512,
+    },
+    "Whisper": {
+        "__cls__": "Whisper",
+        "item_len_sec": 10,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+    },
+    "UniSpeech": {
+        "__cls__": "UniSpeech",
+        "item_len_sec": 10,
+        "sample_rate": 16000,
+        "feature_dim": 768,
+    },
+    "XVector": {
+        "__cls__": "XVector",
+        "item_len_sec": 10,
+        "sample_rate": 16000,
+        "feature_dim": 512,
+    },
     "ResNet50_ImageNet": {
         "__cls__": "ResNet50_ImageNet",
         "resize_dim": 256,

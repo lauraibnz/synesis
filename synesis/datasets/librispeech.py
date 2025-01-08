@@ -4,7 +4,6 @@ from typing import Optional, Tuple, Union
 
 import torch
 import torchaudio
-from librosa import get_duration
 from torch import Tensor
 from torch.utils.data import ConcatDataset, Dataset
 
@@ -58,11 +57,17 @@ class LibriSpeech(Dataset):
         self.audio_format = audio_format
         self.feature = feature
         self.label = label
+        self.label_encoder = None  # placeholder
 
         if not feature_config:
             # load default feature config
             feature_config = feature_configs[feature]
         self.feature_config = feature_config
+        with open("./synesis/datasets/librispeech_durations.csv", "r") as f:
+            self.audio_durations = {
+                line.split(",")[0]: float(line.split(",")[1].strip())
+                for line in f.readlines()
+            }
 
         # initialize torchaudio dataset
         split_map = {
@@ -177,8 +182,10 @@ class LibriSpeech(Dataset):
                 warnings.warn(f"Transcript not found for {transcript_id}")
 
             words = len(transcript.split())
-            audio_len = get_duration(path=str(path))
-            wps = words / audio_len
+            wps = (
+                words
+                / self.audio_durations[self.paths[idx].replace(str(self.root), "")]
+            )
             target = torch.tensor(wps, dtype=torch.float32)
         else:
             target = torch.tensor(0, dtype=torch.float32)
