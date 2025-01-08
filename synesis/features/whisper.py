@@ -4,7 +4,7 @@ from transformers import WhisperModel, WhisperProcessor
 
 
 class Whisper(nn.Module):
-    def __init__(self):
+    def __init__(self, feature_extractor=True):
         super(Whisper, self).__init__()
         self.processor = WhisperProcessor.from_pretrained("openai/whisper-small")
         self.model = WhisperModel.from_pretrained("openai/whisper-small").to("cuda")
@@ -38,6 +38,9 @@ class Whisper(nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
         feature_list = []
+
+        if x.dim() == 3:
+            x = x.squeeze(1)
 
         # Process in smaller batches
         for i in range(0, batch_size, self.max_batch_size):
