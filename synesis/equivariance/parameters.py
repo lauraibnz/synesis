@@ -43,25 +43,30 @@ def preprocess_batch(
     else:
         original_raw_data = batch_raw_data.to(device)
         transformed_raw_data = transform_obj(original_raw_data)
+
         # assert shape is the same after transformation
         assert original_raw_data.shape == transformed_raw_data.shape
         if transform == "PitchShift":
-            # for some reason, these are stored as a list of Fractions
             transform_params = [
                 float(t_param)
                 for t_param in transform_obj.transform_parameters["transpositions"]
             ]
+            # map [0.5, 2.0] to [0, 1]
+            transform_params = [(t_param - 0.5) / 1.5 for t_param in transform_params]
+
             # convert to tensor of shape [batch, 1, 1] and move to device
-            transform_params = (
-                torch.tensor(transform_params).unsqueeze(1).unsqueeze(1).to(device)
-            )
+            transform_params = torch.tensor(transform_params).to(device)
+        elif transform == "AddWhiteNoise":
+            transform_params = transform_obj.transform_parameters["snr_in_db"]
+            # map [-30, 50] to [1, 0]
+            transform_params = 1 - (transform_params + 30) / 80
+            # convert to tensor of shape [batch, 1, 1] and move to device
+            transform_params = torch.tensor(transform_params).to(device)
         else:
             # they will be of shape [batch, channel, 1], and on device
             transform_params = transform_obj.transform_parameters[
                 f"{transform.lower()}_factors"
             ]
-        if transform_params.dim() == 3:
-            transform_params = transform_params.squeeze(1)  # remove channel dim
 
     # combine original and transformed data
     combined_raw_data = torch.cat([original_raw_data, transformed_raw_data], dim=0)
@@ -70,6 +75,8 @@ def preprocess_batch(
         combined_features = feature_extractor(combined_raw_data)
         if combined_features.dim() == 2:
             combined_features = combined_features.unsqueeze(1)
+        if combined_features.device != device:
+            combined_features = combined_features.to(device)
 
     # currently, features are of shape (2b, c, t), where the first half of the
     # batch is originals, and the second is transformed. We need to split them
@@ -170,7 +177,7 @@ def train(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    if transform == "PitchShift":
+    if transform == "PitchShift" or transform == "AddWhiteNoise":
         transform_obj = get_transform(
             transform_config,
             sample_rate=feature_config["sample_rate"],
@@ -385,7 +392,7 @@ def evaluate(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    if transform == "PitchShift":
+    if transform == "PitchShift" or transform == "AddWhiteNoise":
         transform_obj = get_transform(
             transform_config,
             sample_rate=feature_config["sample_rate"],
