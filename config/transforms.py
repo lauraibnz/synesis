@@ -25,8 +25,9 @@ configs = {
     "TimeStretch": {
         "class": TimeStretch,
         "params": {
-            "min_rate": 0.8,
-            "max_rate": 1.2,
+            "min_rate": 0.5,
+            "max_rate": 2,
+            "leave_length_unchanged": False,
             "p": 1,
         },
     },
