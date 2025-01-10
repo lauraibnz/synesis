@@ -181,6 +181,8 @@ def train(
                     # if channels eaten up, unsqueeze
                     if item.dim() == 2:
                         item = item.unsqueeze(1)
+                    if item.device != device:
+                        item = item.to(device)
             optimizer.zero_grad()
             output = model(item)
             if len(output.shape) == 2 and n_outputs == 1:
@@ -216,6 +218,8 @@ def train(
                         # if channels eaten up, unsqueeze
                         if item.dim() == 2:
                             item = item.unsqueeze(1)
+                        if item.device != device:
+                            item = item.to(device)
 
                 val_output = model(item)
                 if len(val_output.shape) == 2:
@@ -424,6 +428,8 @@ def evaluate(
                     # if channels eaten up, unsqueeze
                     if item.dim() == 2:
                         item = item.unsqueeze(1)
+                    if item.device != device:
+                        item = item.to(device)
 
             output = model(item)
             if len(output.shape) == 2 and n_outputs == 1:
