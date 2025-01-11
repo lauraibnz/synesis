@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional, Union
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -31,6 +32,7 @@ def preprocess_batch(
     transform_obj,
     transform,
     feature_extractor,
+    sample_rate,
     device,
 ):
     if transform in ["HueShift", "BrightnessShift", "SaturationShift"]:
@@ -42,6 +44,74 @@ def preprocess_batch(
         if len(transform_params.shape) == 2:
             transform_params = transform_params.unsqueeze(2)
         transform_params = transform_params.to(device)
+
+    elif transform == "TimeStretch":
+        # need to perform on gpu, item by item
+        original_raw_data = batch_raw_data.to("cpu").numpy()
+        transformed_raw_data = []
+        transform_params = []
+        for i in range(original_raw_data.shape[0]):
+            transformed_item = transform_obj(
+                original_raw_data[i][0], sample_rate=sample_rate
+            )
+            transform_param = transform_obj.parameters["rate"]
+
+            # when slowed down, randomly decide an offset to crop
+            # the original length from, to prevent overfiting/shortcutting
+            # based on length of silence (happens when the track already
+            # contains silence at one end)
+            if len(transformed_item) > original_raw_data.shape[2]:
+                offset = torch.randint(
+                    0, len(transformed_item) - original_raw_data.shape[2], (1,)
+                ).item()
+                transformed_item = transformed_item[
+                    offset : offset + original_raw_data.shape[2]
+                ]
+            # when sped up, figure out how much padding is needed, and
+            # randomly decide how much to repeat pad from each side,
+            # again to prevent learning the length of silence (the
+            # left side will usually have speech)s
+            elif len(transformed_item) < original_raw_data.shape[2]:
+                pad = original_raw_data.shape[2] - len(transformed_item)
+                left_pad = torch.randint(0, pad, (1,)).item()
+                right_pad = pad - left_pad
+
+                # Repeat pad left side
+                left_audio = torch.tensor(
+                    [
+                        transformed_item[i % len(transformed_item)]
+                        for i in range(left_pad)
+                    ]
+                )
+
+                # Repeat pad right side
+                right_audio = torch.tensor(
+                    [
+                        transformed_item[i % len(transformed_item)]
+                        for i in range(
+                            len(transformed_item) - right_pad, len(transformed_item)
+                        )
+                    ]
+                )
+
+                transformed_item = np.concatenate(
+                    [left_audio, transformed_item, right_audio]
+                )
+            transformed_raw_data.append(torch.tensor(transformed_item))
+
+            # map [0.5, 2.0] to [0, 1]
+            transform_param = (transform_param - 0.5) / 1.5
+            transform_params.append(transform_param)
+
+        # make tensors and stack
+        original_raw_data = batch_raw_data.to(device)
+        transformed_raw_data = torch.stack(transformed_raw_data, dim=0).to(device)
+        if transformed_raw_data.dim() == 2:
+            transformed_raw_data = transformed_raw_data.unsqueeze(1)
+        transform_params = (
+            torch.tensor(transform_params).unsqueeze(1).unsqueeze(2).to(device)
+        )
+        assert original_raw_data.shape == transformed_raw_data.shape
 
     else:
         original_raw_data = batch_raw_data.to(device)
@@ -231,6 +301,7 @@ def train(
                     transform_obj=transform_obj,
                     transform=transform,
                     feature_extractor=feature_extractor,
+                    sample_rate=feature_config["sample_rate"],
                     device=device,
                 )
             )
@@ -271,6 +342,7 @@ def train(
                         transform_obj=transform_obj,
                         transform=transform,
                         feature_extractor=feature_extractor,
+                        sample_rate=feature_config["sample_rate"],
                         device=device,
                     )
                 )
@@ -468,6 +540,7 @@ def evaluate(
                     transform_obj=transform_obj,
                     transform=transform,
                     feature_extractor=feature_extractor,
+                    sample_rate=feature_config["sample_rate"],
                     device=device,
                 )
             )
