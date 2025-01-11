@@ -19,3 +19,4 @@ timm
 nnaudio
 torchmetrics
 laion-clap
+speechbrain

@@ -1,9 +1,8 @@
-from transformers import AutoModel
 import torch
 from einops import rearrange
 from torch import nn
 from torchaudio.compliance import kaldi
-
+from transformers import AutoModel
 
 # loading our model weights
 # loading the corresponding preprocessor config
@@ -37,7 +36,7 @@ class AudioMAE(nn.Module):
         ]  # (1, 1, length, n_freq_bins) = (1, 1, 1024, 128)
         z = self.model.encoder.forward_features(
             melspec.to(device)
-        ).cpu()  # (b, 1+n, d); d=768
+        )  # (b, 1+n, d); d=768
         z = z[:, 1:, :]  # (b n d); remove [CLS], the class token
 
         b, c, w, h = melspec.shape  # w: temporal dim; h:freq dim

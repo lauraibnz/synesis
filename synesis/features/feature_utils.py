@@ -1,5 +1,6 @@
 import importlib
 import os
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -50,10 +51,18 @@ class FeatureExtractorFactory:
                 weights_path = f"models/pretrained/{name.lower()}.pth"
             else:
                 weights_path = f"models/pretrained/{name.lower()}.ckpt"
-            model.load_state_dict(torch.load(weights_path, weights_only=True))
+            try:
+                model.load_state_dict(torch.load(weights_path))
+            except AttributeError as e:
+                warnings.warn(f"Weights might not be loaded! Error: {e}", UserWarning)
         except FileNotFoundError:
             print(f"No pretrained weights found for {name}.")
-        model.eval()
+        try:
+            model.eval()
+        except AttributeError as e:
+            warnings.warn(
+                f"Model might not be set to eval mode! Error: {e}", UserWarning
+            )
 
         return model
 

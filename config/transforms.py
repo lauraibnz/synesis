@@ -1,4 +1,5 @@
-from torch_audiomentations import PitchShift
+from audiomentations import TimeStretch
+from torch_audiomentations import AddColoredNoise, PitchShift
 
 configs = {
     "PitchShift": {
@@ -8,6 +9,26 @@ configs = {
             "max_transpose_semitones": 12,
             "p": 1,
             "mode": "per_example",
+        },
+    },
+    "AddWhiteNoise": {
+        "class": AddColoredNoise,
+        "params": {
+            "min_f_decay": 0,
+            "max_f_decay": 0,
+            "min_snr_in_db": -30,
+            "max_snr_in_db": 50,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
+    "TimeStretch": {
+        "class": TimeStretch,
+        "params": {
+            "min_rate": 0.5,
+            "max_rate": 2,
+            "leave_length_unchanged": False,
+            "p": 1,
         },
     },
 }
