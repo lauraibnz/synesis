@@ -301,7 +301,7 @@ def train(
                     transform_obj=transform_obj,
                     transform=transform,
                     feature_extractor=feature_extractor,
-                    sample_rate=feature_config.get(["sample_rate"], None),
+                    sample_rate=feature_config.get("sample_rate", None),
                     device=device,
                 )
             )
@@ -342,7 +342,7 @@ def train(
                         transform_obj=transform_obj,
                         transform=transform,
                         feature_extractor=feature_extractor,
-                        sample_rate=feature_config.get(["sample_rate"], None),
+                        sample_rate=feature_config.get("sample_rate", None),
                         device=device,
                     )
                 )
@@ -540,7 +540,7 @@ def evaluate(
                     transform_obj=transform_obj,
                     transform=transform,
                     feature_extractor=feature_extractor,
-                    sample_rate=feature_config.get(["sample_rate"], None),
+                    sample_rate=feature_config.get("sample_rate", None),
                     device=device,
                 )
             )
