@@ -295,7 +295,7 @@ def train(
                 transform_obj=transform_obj,
                 transform=transform,
                 feature_extractor=feature_extractor,
-                sample_rate=feature_config["sample_rate"],
+                sample_rate=feature_config.get(["sample_rate"], None),
                 device=device,
             )
 
@@ -328,7 +328,7 @@ def train(
                     batch_targets=batch_targets,
                     transform_obj=transform_obj,
                     transform=transform,
-                    sample_rate=feature_config["sample_rate"],
+                    sample_rate=feature_config.get(["sample_rate"], None),
                     feature_extractor=feature_extractor,
                     device=device,
                 )
@@ -492,7 +492,7 @@ def evaluate(
                 batch_targets=batch_targets,
                 transform_obj=transform_obj,
                 transform=transform,
-                sample_rate=feature_config["sample_rate"],
+                sample_rate=feature_config.get(["sample_rate"], None),
                 feature_extractor=feature_extractor,
                 device=device,
             )
