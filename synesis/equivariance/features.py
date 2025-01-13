@@ -481,7 +481,10 @@ def evaluate(
     if isinstance(model, str):
         # Load model from wandb artifact
         model_wandb_path = f"{entity}/{project}/{model_name}"
-        artifact = wandb.use_artifact(f"{model_wandb_path}:latest")
+        artifact_name = (
+            f"{model_wandb_path}:latest" if ":" not in model_name else model_name
+        )
+        artifact = wandb.use_artifact(artifact_name)
         artifact_dir = artifact.download()
         model = get_probe(
             model_type=task_config["model"]["type"],
