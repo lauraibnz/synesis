@@ -1,3 +1,4 @@
+from collections import Counter
 from itertools import product
 
 import wandb
@@ -46,6 +47,8 @@ transforms = ["PitchShift", "AddWhiteNoise", "TimeStretch"]
 wandb_runs = wandb.Api().runs(f"{entity}/{project}")
 run_names = get_equi_run_names() + get_info_run_names()
 wandb_runs = [str(run.name) for run in wandb_runs if "LibriSpeech" in run.name]
+print("wandb runs:", len(wandb_runs))
+print("searched runs:", len(run_names))
 
 # print differences between run_names and wandb_runs
 print("Not in wandb:")
@@ -56,3 +59,6 @@ print("Not in run_names:")
 for wandb_run in wandb_runs:
     if wandb_run not in run_names:
         print(wandb_run)
+# check if there are duplicates in wandbruns
+print("Duplicates:")
+print([k for k, v in Counter(wandb_runs).items() if v > 1])
