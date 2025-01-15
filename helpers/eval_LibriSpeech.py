@@ -77,6 +77,15 @@ for i, wandb_path in enumerate(wandb_paths):
         # retrieve run from api
         run = wandb.Api().run(f"{entity}/{project}/{run_id}")
 
+        # if runs.summary["evaluation_metrics"] exists, the run has already been evaluated
+        try:
+            if "evaluation_metrics" in run.summary:
+                print(f"✓ Already evaluated: {run.name}")
+                successful_runs.append(run.name)
+                continue
+        except:
+            pass
+
         artifact_base_name = run.logged_artifacts()[0].name
 
         print(f"\nEvaluating run: {run.name}")
@@ -87,7 +96,8 @@ for i, wandb_path in enumerate(wandb_paths):
                 feature=run.config["feature"],
                 dataset=run.config["dataset"],
                 task=run.config["task"],
-                label=run.config["label"],
+                task_config={"evaluation": {"batch_size": 1}},
+                label="wps",
                 item_format="raw",
                 device="cuda",
             )
@@ -106,6 +116,7 @@ for i, wandb_path in enumerate(wandb_paths):
                 transform=transform,
                 label=run.config["label"],
                 task=run.config["task"],
+                task_config={"evaluation": {"batch_size": 1}},
                 device="cuda",
             )
 
@@ -123,6 +134,7 @@ for i, wandb_path in enumerate(wandb_paths):
                 transform=transform,
                 label=run.config["label"],
                 task=run.config["task"],
+                task_config={"evaluation": {"batch_size": 1}},
                 device="cuda",
             )
 
