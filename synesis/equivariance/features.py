@@ -457,7 +457,8 @@ def evaluate(
     if isinstance(model, str):
         # resume wandb run
         entity, project, run_id, model_name = model.split("/")
-        wandb.init(project=project, entity=entity, id=run_id, resume="allow")
+        if logging:
+            wandb.init(project=project, entity=entity, id=run_id, resume="allow")
 
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
@@ -478,13 +479,13 @@ def evaluate(
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    if isinstance(model, str):
+    if isinstance(model, str) and logging:
         # Load model from wandb artifact
         model_wandb_path = f"{entity}/{project}/{model_name}"
         artifact_name = (
             f"{model_wandb_path}:latest" if ":" not in model_name else model_name
         )
-        artifact = wandb.use_artifact(artifact_name)
+        artifact = wandb.Api().artifact(f"{entity}/{project}/{artifact_name}")
         artifact_dir = artifact.download()
         model = get_probe(
             model_type=task_config["model"]["type"],

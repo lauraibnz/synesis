@@ -329,7 +329,8 @@ def evaluate(
     if isinstance(model, str):
         # Resume wandb run
         entity, project, run_id, model_name = model.split("/")
-        wandb.init(project=project, entity=entity, id=run_id, resume="allow")
+        if logging:
+            wandb.init(project=project, entity=entity, id=run_id, resume="allow")
 
     feature_config = feature_configs[feature]
     task_config = deep_update(
@@ -352,7 +353,7 @@ def evaluate(
         artifact_name = (
             f"{model_wandb_path}:latest" if ":" not in model_name else model_name
         )
-        artifact = wandb.use_artifact(artifact_name)
+        artifact = wandb.Api().artifact(f"{entity}/{project}/{artifact_name}")
         artifact_dir = artifact.download()
         n_outputs = (
             1
