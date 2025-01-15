@@ -205,7 +205,9 @@ def train(
         val_outputs = []
         val_targets = []
         with torch.no_grad():
-            for item, target in val_dataloader:
+            for item, target in tqdm(
+                val_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
+            ):
                 item = item.to(device)
                 target = target.to(device)
 
@@ -419,7 +421,7 @@ def evaluate(
     criterion = task_config["evaluation"]["criterion"]()
 
     with torch.no_grad():
-        for item, target in dataloader:
+        for item, target in tqdm(dataloader, desc="Evaluating"):
             item = item.to(device)
             target = target.to(device)
 
