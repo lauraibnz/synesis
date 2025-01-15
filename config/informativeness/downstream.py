@@ -78,7 +78,7 @@ configs = {
     "regression_linear": {
         "model": {
             "type": "regressor",
-            "params": {"hidden_units": [512, 256]},
+            "params": {"hidden_units": []},
         },
         "training": {
             "criterion": nn.MSELoss,
