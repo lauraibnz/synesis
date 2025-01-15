@@ -48,6 +48,8 @@ transform_map = {
 wandb_runs = wandb.Api().runs(f"{entity}/{project}")
 run_names = get_equi_run_names() + get_info_run_names()
 wandb_runs = [str(run.name) for run in wandb_runs if "ImageNet" in run.name]
+print("wandb runs:", len(wandb_runs))
+print("searched runs:", len(run_names))
 
 # print differences between run_names and wandb_runs
 print("Not in wandb:")
