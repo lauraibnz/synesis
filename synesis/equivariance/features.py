@@ -489,8 +489,8 @@ def evaluate(
         artifact_dir = artifact.download()
         model = get_probe(
             model_type=task_config["model"]["type"],
-            in_features=feature_config["feature_dim"] * 2,
-            n_outputs=1,  # currently only predicting one parameter
+            in_features=feature_config["feature_dim"] + 1,  # 1 transform parameter
+            n_outputs=feature_config["feature_dim"],
             **task_config["model"]["params"],
         )
         model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
