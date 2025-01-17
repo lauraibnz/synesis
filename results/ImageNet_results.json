@@ -326,6 +326,9 @@
     "INFO_DOWN_regression_linear_ImageNet_brightness_ViT_MAE": {
         "MSE": 720.8814697265625
     },
+    "INFO_DOWN_regression_linear_ImageNet_brightness_CLIP": {
+        "MSE": 641.5233154296875
+    },
     "INFO_DOWN_regression_linear_ImageNet_hue_CLIP": {
         "MSE": 440.715576171875
     },
