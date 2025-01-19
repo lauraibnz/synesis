@@ -1,5 +1,6 @@
 from typing import Any
 
+import torch
 import torch.nn as nn
 
 
@@ -35,11 +36,11 @@ def get_probe(
 class Classifier(nn.Module):
     """Customizable NN classifier."""
 
-    def __init__(self, in_features, n_classes, **kwargs):
+    def __init__(self, in_features, n_outputs, **kwargs):
         super(Classifier, self).__init__()
 
         self.in_features = in_features
-        self.n_classes = n_classes
+        self.n_outputs = n_outputs
         self.hidden_units = kwargs.get("hidden_units", [])
         self.weight_decay = kwargs.get("weight_decay", 0.0)
         self.output_activation = kwargs.get("output_activation", None)
@@ -49,7 +50,7 @@ class Classifier(nn.Module):
 
     def build_layers(self):
         """Construct the layers of the neural network."""
-        layer_sizes = [self.in_features] + (self.hidden_units or []) + [self.n_classes]
+        layer_sizes = [self.in_features] + (self.hidden_units or []) + [self.n_outputs]
 
         for i in range(len(layer_sizes) - 1):
             self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
@@ -71,23 +72,39 @@ class Classifier(nn.Module):
 
 
 class Regressor(nn.Module):
-    """Customizable NN regressor."""
+    """Customizable NN regressor with optional parameter embedding."""
 
-    def __init__(self, in_features, n_outputs, **kwargs):
+    def __init__(
+        self, in_features, n_outputs, emb_param=False, emb_param_dim=32, **kwargs
+    ):
         super(Regressor, self).__init__()
-
         self.in_features = in_features
         self.n_outputs = n_outputs
+        self.emb_param = emb_param
+        self.emb_param_dim = emb_param_dim
         self.hidden_units = kwargs.get("hidden_units", [])
         self.weight_decay = kwargs.get("weight_decay", 0.0)
         self.output_activation = kwargs.get("output_activation", None)
+
+        # Add parameter embedding layer if enabled
+        if self.emb_param:
+            self.param_encoder = nn.Sequential(
+                nn.Linear(1, self.emb_param_dim), nn.ReLU()
+            )
+            # Adjust input features to account for embedded parameter
+            self.adjusted_in_features = self.in_features + self.emb_param_dim
+        else:
+            self.adjusted_in_features = self.in_features
 
         self.layers = nn.ModuleList()
         self.build_layers()
 
     def build_layers(self):
         """Construct the layers of the neural network."""
-        layer_sizes = [self.in_features] + (self.hidden_units or []) + [self.n_outputs]
+        # Use adjusted input features to account for parameter embedding
+        layer_sizes = (
+            [self.adjusted_in_features] + (self.hidden_units or []) + [self.n_outputs]
+        )
 
         for i in range(len(layer_sizes) - 1):
             self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
@@ -99,10 +116,27 @@ class Regressor(nn.Module):
         elif self.output_activation == "sigmoid":
             self.layers.append(nn.Sigmoid())
 
-    def forward(self, x):
-        """Define the forward pass of the network."""
+    def forward(self, x, param=None):
+        """Define the forward pass of the network.
+
+        Args:
+            x: Input tensor of shape (batch, channel (1), length)
+            param: Optional parameter tensor of shape (batch, 1) for embedding
+        """
         # input will be batch, channel (1), length
         x = x.squeeze(1)
+
+        if self.emb_param:
+            if param is None:
+                raise ValueError(
+                    "Parameter embedding is enabled but no parameter provided"
+                )
+            # Embed the parameter
+            param_embedding = self.param_encoder(param)
+            # Concatenate with input
+            x = torch.cat([x, param_embedding], dim=-1)
+
         for layer in self.layers:
             x = layer(x)
+
         return x

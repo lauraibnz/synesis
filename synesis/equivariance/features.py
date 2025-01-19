@@ -197,7 +197,7 @@ def train(
     )
 
     if logging:
-        run_name = f"EQUI_FEAT_{transform}_{label}_{dataset}_{feature}"
+        run_name = f"EMB_EQUI_FEAT_{task}_{transform}_{label}_{dataset}_{feature}"
         wandb.init(
             project="synesis",
             name=run_name,
@@ -270,7 +270,8 @@ def train(
 
     model = get_probe(
         model_type=task_config["model"]["type"],
-        in_features=feature_config["feature_dim"] + 1,  # 1 transform parameter
+        in_features=feature_config["feature_dim"],
+        emb_param=True,
         n_outputs=feature_config["feature_dim"],
         **task_config["model"]["params"],
     ).to(device)
@@ -306,11 +307,10 @@ def train(
                 )
             )
 
-            # add parameter to original features - currently both are (b, c, 1)
-            concat_features = torch.cat([original_features, transform_params], dim=2)
-
             optimizer.zero_grad()
-            predicted_features = model(concat_features)
+            if transform_params.dim() == 3:
+                transform_params = transform_params.squeeze(1)
+            predicted_features = model(original_features, param=transform_params)
             if predicted_features.dim() == 2 and original_features.dim() == 3:
                 predicted_features = predicted_features.unsqueeze(1)
             loss = criterion(original_features, predicted_features)
@@ -347,12 +347,9 @@ def train(
                     )
                 )
 
-                # add parameter to original features - currently both are (b, c, 1)
-                concat_features = torch.cat(
-                    [original_features, transform_params], dim=2
-                )
-
-                predicted_features = model(concat_features)
+                if transform_params.dim() == 3:
+                    transform_params = transform_params.squeeze(1)
+                predicted_features = model(original_features, param=transform_params)
                 if predicted_features.dim() == 2 and original_features.dim() == 3:
                     predicted_features = predicted_features.unsqueeze(1)
                 loss = criterion(original_features, predicted_features)
@@ -489,7 +486,8 @@ def evaluate(
         artifact_dir = artifact.download()
         model = get_probe(
             model_type=task_config["model"]["type"],
-            in_features=feature_config["feature_dim"] + 1,  # 1 transform parameter
+            in_features=feature_config["feature_dim"],
+            emb_param=True,
             n_outputs=feature_config["feature_dim"],
             **task_config["model"]["params"],
         )
@@ -550,9 +548,10 @@ def evaluate(
             )
 
             # add parameter to original features - currently both are (b, c, 1)
-            concat_features = torch.cat([original_features, transform_params], dim=2)
-
-            predicted_features = model(concat_features)
+            # concat_features = torch.cat([original_features, transform_params], dim=2)
+            if transform_params.dim() == 3:
+                transform_params = transform_params.squeeze(1)
+            predicted_features = model(original_features, param=transform_params)
             if predicted_features.dim() == 2 and original_features.dim() == 3:
                 predicted_features = predicted_features.unsqueeze(1)
             loss = criterion(original_features, predicted_features)
