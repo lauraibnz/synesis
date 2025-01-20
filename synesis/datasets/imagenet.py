@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 import torchvision.transforms.functional as TF
+from imgaug import augmenters as iaa
 from PIL import Image
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -209,6 +210,10 @@ class ImageNet(Dataset):
                 elif self.transform == "BrightnessShift":
                     tf_param = np.random.uniform(-2.0, 2.0)
                     tf_image = TF.adjust_brightness(image, tf_param)
+                elif self.transform == "JPEGCompression":
+                    tf_param = np.random.uniform(90, 100)
+                    aug = iaa.JpegCompression(compression=tf_param)
+                    tf_image = aug(image=np.array(image))
 
                 image = self.tensor_and_norm(image)
                 tf_image = self.tensor_and_norm(tf_image)

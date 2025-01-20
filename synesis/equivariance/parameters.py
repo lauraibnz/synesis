@@ -37,7 +37,12 @@ def preprocess_batch(
     """Get transformed data, extract features from both the original and
     transformed data, and concatenate them for input to the model."""
 
-    if transform in ["HueShift", "BrightnessShift", "SaturationShift"]:
+    if transform in [
+        "HueShift",
+        "BrightnessShift",
+        "SaturationShift",
+        "JPEGCompression",
+    ]:
         original_raw_data = batch_raw_data[:, 0].to(device)
         transformed_raw_data = batch_raw_data[:, 1].to(device)
         transform_params = batch_targets.to(device)
