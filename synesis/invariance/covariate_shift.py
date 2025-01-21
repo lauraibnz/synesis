@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import torch
@@ -69,12 +70,13 @@ def feature_distances(
     if dataset == "ImageNet":
         transform_obj = None
     elif dataset == "LibriSpeech":
-        sr = feature_config["sample_rate"]
-        transform_obj = get_transform(transform_config, sr)
+        transform_obj = get_transform(transform_config)
 
     loader = DataLoader(raw_dataset, shuffle=False, batch_size=batch_size)
 
-    results_file = Path(f"results/{dataset}_{transform}_feature_distances.csv")
+    results_file = Path(
+        f"results/{dataset}_{feature}_{transform}_feature_distances.csv"
+    )
     if not results_file.exists():
         pd.DataFrame(
             columns=[
@@ -97,15 +99,34 @@ def feature_distances(
                     original_raw_data = items.to(device)
                     transform_params = []
                     transformed_raw_data = []
-                    for j in range(batch_size):
-                        transformed_raw_data.append(transform_obj(items[j]))
+                    for j in range(original_raw_data.shape[0]):
                         if transform == "AddReverb":
-                            transform_params.append(
-                                transform_obj.parameters["target_rt60"]
-                            )
+                            audio_numpy = items[j].cpu().numpy().astype(np.float32)
+                            max_retries = 5
+                            for retry in range(max_retries):
+                                try:
+                                    # room might be too large for target rt60, so
+                                    # keep trying until you get a large enough value
+                                    transformed_audio = transform_obj(
+                                        audio_numpy,
+                                        sample_rate=feature_config["sample_rate"],
+                                    )
+                                    transformed_raw_data.append(
+                                        torch.from_numpy(transformed_audio)
+                                    )
+                                    transform_params.append(
+                                        transform_obj.parameters["target_rt60"]
+                                    )
+                                    break  # Success - exit retry loop
+                                except ValueError as e:
+                                    if retry == max_retries - 1:  # Last attempt
+                                        raise RuntimeError(
+                                            f"Failed after {max_retries} attempts: {e}"
+                                        )
+                                    continue  # Try again with new random parameters
                         else:
                             raise ValueError(
-                                f"Don't know what parameter to use for: {transform}"
+                                f"Transform not fully implemented: {transform}"
                             )
                     transformed_raw_data = torch.stack(transformed_raw_data).to(device)
                     transform_params = torch.tensor(transform_params).to(device)
@@ -162,6 +183,14 @@ if __name__ == "__main__":
         help="Data transform name.",
     )
     parser.add_argument(
+        "--passes",
+        "-p",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of passes of the dataset.",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         required=False,
@@ -170,7 +199,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--batch_size",
         "-b",
-        type=str,
+        type=int,
         required=False,
         default=32,
         help="Batch size.",
@@ -182,22 +211,27 @@ if __name__ == "__main__":
         feature=args.feature,
         dataset=args.dataset,
         transform=args.transform,
+        passes=args.passes,
         batch_size=args.batch_size,
         device=args.device,
     )
 
     # Load CSV
-    df = pd.read_csv(f"results/{args.dataset}_{args.feature}_feature_distances.csv")
+    df = pd.read_csv(
+        f"results/{args.dataset}_{args.feature}_{args.transform}_feature_distances.csv"
+    )
 
     # Create scatterplot
     plt.figure(figsize=(10, 6))
-    sns.scatterplot(data=df, x="transform_param", y="l2_distance")
+    sns.scatterplot(data=df, x="transform_param", y="cosine_similarity")
 
     # Add labels and title
     plt.xlabel("Transform Parameter")
-    plt.ylabel("L2 Distance")
-    plt.title("Scatterplot of Transform Parameter vs L2 Distance")
+    plt.ylabel("Cosine similarity")
+    plt.title("Scatterplot of Transform Parameter vs Cosine Similarity")
 
     # Show plot
     plt.show()
-    plt.savefig(f"./scatterplot_{args.dataset}_{args.feature}_{args.transform}.png")
+    plt.savefig(
+        f"results/{args.dataset}_{args.feature}_{args.transform}_cosine_similarity.png"
+    )

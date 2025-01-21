@@ -21,6 +21,11 @@ python -m synesis.equivariance.parameters -tf <transform_name> -l <label> -f <fe
 ```
 python -m synesis.equivariance.features -tf <transform_name> -l <label> -f <feature_name> -d <dataset_name> (-t <task_name>)
 ```
+### Invariance
+**Covariate shift** Calculate similarity between features of original and transformed data.
+```
+python -m synesis.invariance.covariate_shift -tf <transform_name> -f <feature_name> -d <dataset_name> -b <batch_size>
+```
 
 ## Extract features
 **Feature extraction** helps speed up downstream training.
