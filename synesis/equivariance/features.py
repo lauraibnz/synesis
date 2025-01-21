@@ -35,7 +35,12 @@ def preprocess_batch(
     sample_rate,
     device,
 ):
-    if transform in ["HueShift", "BrightnessShift", "SaturationShift"]:
+    if transform in [
+        "HueShift",
+        "BrightnessShift",
+        "SaturationShift",
+        "JPEGCompression",
+    ]:
         original_raw_data = batch_raw_data[:, 0].to(device)
         transformed_raw_data = batch_raw_data[:, 1].to(device)
         transform_params = batch_targets
