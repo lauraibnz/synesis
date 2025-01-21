@@ -216,22 +216,25 @@ if __name__ == "__main__":
         device=args.device,
     )
 
+    def plot_metric(df, metric, dataset, feature, transform):
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(data=df, x="transform_param", y=metric)
+        plt.xlabel("Transform Parameter")
+        plt.ylabel(metric.replace("_", " ").title())
+        plt.title(
+            f'Scatterplot of Transform Parameter vs {metric.replace("_", " ").title()}'
+        )
+        plt.savefig(f"results/{dataset}_{feature}_{transform}_{metric}.png")
+        plt.show()
+
     # Load CSV
     df = pd.read_csv(
         f"results/{args.dataset}_{args.feature}_{args.transform}_feature_distances.csv"
     )
 
-    # Create scatterplot
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(data=df, x="transform_param", y="cosine_similarity")
+    # Metrics to plot
+    metrics = ["cosine_similarity", "l2_distance", "l1_distance"]
 
-    # Add labels and title
-    plt.xlabel("Transform Parameter")
-    plt.ylabel("Cosine similarity")
-    plt.title("Scatterplot of Transform Parameter vs Cosine Similarity")
-
-    # Show plot
-    plt.show()
-    plt.savefig(
-        f"results/{args.dataset}_{args.feature}_{args.transform}_cosine_similarity.png"
-    )
+    # Generate plots
+    for metric in metrics:
+        plot_metric(df, metric, args.dataset, args.feature, args.transform)

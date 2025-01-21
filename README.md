@@ -24,7 +24,7 @@ python -m synesis.equivariance.features -tf <transform_name> -l <label> -f <feat
 ### Invariance
 **Covariate shift** Calculate similarity between features of original and transformed data.
 ```
-python -m synesis.invariance.covariate_shift -tf <transform_name> -f <feature_name> -d <dataset_name> -b <batch_size>
+python -m synesis.invariance.covariate_shift -tf <transform_name> -f <feature_name> -d <dataset_name> -b <batch_size> -p <dataset_passes>
 ```
 
 ## Extract features
