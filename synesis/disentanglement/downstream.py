@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional, Union
 
+import pandas as pd
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -179,7 +180,40 @@ def evaluate_disentanglement(
     mse = nn.MSELoss()(all_predictions, all_targets).item()
     print(f"MSE: {mse}")
 
-    return {"avg_loss": mean_loss, "mse": mse}
+    results = {"avg_loss": mean_loss, "mse": mse}
+
+    # Get original metrics from wandb run
+    run = wandb.Api().run(f"{entity}/{project}/{run_id}")
+    original_metrics = run.summary.get("evaluation_metrics", {})
+
+    # Calculate differences
+    diff_metrics = {
+        f"diff_{k}": original_metrics.get(k, 0) - v for k, v in results.items()
+    }
+
+    # Combine all results
+    all_results = {
+        "run_name": run_name,
+        "dataset": args.dataset,
+        "transform": args.transform,
+        "label": args.label,
+        "original_mse": original_metrics.get("mse", 0),
+        "transformed_mse": results["mse"],
+        "diff_mse": diff_metrics["diff_mse"],
+    }
+
+    # Save/append to CSV
+    results_dir = Path("results")
+    results_dir.mkdir(exist_ok=True)
+    results_file = results_dir / "disentanglement_results.csv"
+
+    df = pd.DataFrame([all_results])
+    if not results_file.exists():
+        df.to_csv(results_file, index=False)
+    else:
+        df.to_csv(results_file, mode="a", header=False, index=False)
+
+    return results
 
 
 if __name__ == "__main__":
@@ -255,5 +289,3 @@ if __name__ == "__main__":
         task=args.task,
         device=args.device,
     )
-
-    print(results)
