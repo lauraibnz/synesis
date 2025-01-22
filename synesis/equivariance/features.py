@@ -35,12 +35,10 @@ def preprocess_batch(
     sample_rate,
     device,
 ):
-    if transform in [
-        "HueShift",
-        "BrightnessShift",
-        "SaturationShift",
-        "JPEGCompression",
-    ]:
+    if any(
+        tf in transform
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression"]
+    ):
         original_raw_data = batch_raw_data[:, 0].to(device)
         transformed_raw_data = batch_raw_data[:, 1].to(device)
         transform_params = batch_targets
@@ -50,7 +48,7 @@ def preprocess_batch(
             transform_params = transform_params.unsqueeze(2)
         transform_params = transform_params.to(device)
 
-    elif transform == "TimeStretch":
+    elif "TimeStretch" in transform:
         # need to perform on gpu, item by item
         original_raw_data = batch_raw_data.to("cpu").numpy()
         transformed_raw_data = []
@@ -124,7 +122,7 @@ def preprocess_batch(
         # assert shape is the same after transformation
         assert original_raw_data.shape == transformed_raw_data.shape
         # get transformation parameters that were actually applied to batch
-        if transform == "PitchShift":
+        if "PitchShift" in transform:
             transform_params = [
                 float(t_param)
                 for t_param in transform_obj.transform_parameters["transpositions"]
@@ -136,7 +134,7 @@ def preprocess_batch(
             transform_params = (
                 torch.tensor(transform_params).unsqueeze(1).unsqueeze(1).to(device)
             )
-        elif transform == "AddWhiteNoise":
+        elif "AddWhiteNoise" in transform:
             transform_params = transform_obj.transform_parameters["snr_in_db"]
             # map [-30, 50] to [1, 0]
             transform_params = 1 - (transform_params + 30) / 80
@@ -256,7 +254,7 @@ def train(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    if transform == "PitchShift" or transform == "AddWhiteNoise":
+    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
         transform_obj = get_transform(
             transform_config,
             sample_rate=feature_config["sample_rate"],
@@ -516,7 +514,7 @@ def evaluate(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    if transform == "PitchShift" or transform == "AddWhiteNoise":
+    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
         transform_obj = get_transform(
             transform_config,
             sample_rate=feature_config["sample_rate"],
