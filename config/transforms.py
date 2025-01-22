@@ -61,4 +61,20 @@ configs = {
             "p": 1,
         },
     },
+    "HueShift": {
+        "min": -0.5,
+        "max": 0.5,
+    },
+    "SaturationShift": {
+        "min": -2.0,
+        "max": 2.0,
+    },
+    "BrightnessShift": {
+        "min": -2.0,
+        "max": 2.0,
+    },
+    "JPEGCompression": {
+        "min": 50,
+        "max": 100,
+    },
 }

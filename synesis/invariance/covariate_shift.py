@@ -100,7 +100,7 @@ def feature_distances(
                     transform_params = []
                     transformed_raw_data = []
                     for j in range(original_raw_data.shape[0]):
-                        if transform == "AddReverb":
+                        if "AddReverb" in transform:
                             audio_numpy = items[j].cpu().numpy().astype(np.float32)
                             max_retries = 5
                             for retry in range(max_retries):

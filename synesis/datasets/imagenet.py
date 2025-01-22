@@ -13,6 +13,7 @@ from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import Dataset
 
 from config.features import configs as feature_configs
+from config.transforms import configs as transform_configs
 
 
 class ImageNet(Dataset):
@@ -201,17 +202,27 @@ class ImageNet(Dataset):
             image = self.resize_and_crop(image)
 
             if self.transform:
-                if self.transform == "HueShift":
-                    tf_param = np.random.uniform(-0.5, 0.5)
+                # get transform config
+                transform_config = transform_configs.get(self.transform)
+                if "HueShift" in self.transform:
+                    tf_param = np.random.uniform(
+                        transform_config["min"], transform_config["max"]
+                    )
                     tf_image = TF.adjust_hue(image, tf_param)
-                elif self.transform == "SaturationShift":
-                    tf_param = np.random.uniform(-2.0, 2.0)
+                elif "SaturationShift" in self.transform:
+                    tf_param = np.random.uniform(
+                        transform_config["min"], transform_config["max"]
+                    )
                     tf_image = TF.adjust_saturation(image, tf_param)
-                elif self.transform == "BrightnessShift":
-                    tf_param = np.random.uniform(-2.0, 2.0)
+                elif "BrightnessShift" in self.transform:
+                    tf_param = np.random.uniform(
+                        transform_config["min"], transform_config["max"]
+                    )
                     tf_image = TF.adjust_brightness(image, tf_param)
-                elif self.transform == "JPEGCompression":
-                    tf_param = np.random.uniform(90, 100)
+                elif "JPEGCompression" in self.transform:
+                    tf_param = np.random.uniform(
+                        transform_config["min"], transform_config["max"]
+                    )
                     aug = iaa.JpegCompression(compression=tf_param)
                     tf_image = aug(image=np.array(image))
 
