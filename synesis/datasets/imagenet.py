@@ -225,6 +225,10 @@ class ImageNet(Dataset):
                     )
                     aug = iaa.JpegCompression(compression=tf_param)
                     tf_image = aug(image=np.array(image))
+                # scale param to [0, 1] given range
+                tf_param = (tf_param - transform_config["min"]) / (
+                    transform_config["max"] - transform_config["min"]
+                )
 
                 image = self.tensor_and_norm(image)
                 tf_image = self.tensor_and_norm(tf_image)

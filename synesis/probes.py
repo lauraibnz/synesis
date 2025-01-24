@@ -75,7 +75,13 @@ class Regressor(nn.Module):
     """Customizable NN regressor with optional parameter embedding."""
 
     def __init__(
-        self, in_features, n_outputs, emb_param=False, emb_param_dim=32, **kwargs
+        self,
+        in_features,
+        n_outputs,
+        emb_param=False,
+        emb_param_dim=32,
+        use_batch_norm=False,
+        **kwargs,
     ):
         super(Regressor, self).__init__()
         self.in_features = in_features
@@ -85,6 +91,7 @@ class Regressor(nn.Module):
         self.hidden_units = kwargs.get("hidden_units", [])
         self.weight_decay = kwargs.get("weight_decay", 0.0)
         self.output_activation = kwargs.get("output_activation", None)
+        self.use_batch_norm = use_batch_norm
 
         # Add parameter embedding layer if enabled
         if self.emb_param:
@@ -98,6 +105,9 @@ class Regressor(nn.Module):
 
         self.layers = nn.ModuleList()
         self.build_layers()
+
+        if self.use_batch_norm:
+            self.input_batch_norm = nn.BatchNorm1d(self.in_features)
 
     def build_layers(self):
         """Construct the layers of the neural network."""

@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional, Union
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -175,6 +176,7 @@ def train(
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
     logging: bool = True,
+    debug: bool = False,
 ):
     """Train a model to predict the transformed feature given
     an original feature and a transformation parameter. Does
@@ -199,8 +201,10 @@ def train(
         deep_update(task_configs["default"], task_configs.get(task, None)), task_config
     )
 
-    if logging:
+    if logging or debug:
         run_name = f"EMB_EQUI_FEAT_{task}_{transform}_{label}_{dataset}_{feature}"
+        if debug:
+            run_name = f"DEBUG_{run_name}"
         wandb.init(
             project="synesis",
             name=run_name,
@@ -265,10 +269,16 @@ def train(
         transform_obj = get_transform(transform_config)
 
     train_loader = DataLoader(
-        train_dataset, shuffle=True, batch_size=task_config["training"]["batch_size"]
+        train_dataset,
+        shuffle=True,
+        batch_size=task_config["training"]["batch_size"],
+        drop_last=True,  # batch norm
     )
     val_loader = DataLoader(
-        val_dataset, shuffle=False, batch_size=task_config["training"]["batch_size"]
+        val_dataset,
+        shuffle=False,
+        batch_size=task_config["training"]["batch_size"],
+        drop_last=True,  # batch norm
     )
 
     model = get_probe(
@@ -276,6 +286,7 @@ def train(
         in_features=feature_config["feature_dim"],
         emb_param=True,
         n_outputs=feature_config["feature_dim"],
+        use_batch_norm=task_config["model"]["batch_norm"],
         **task_config["model"]["params"],
     ).to(device)
 
@@ -291,11 +302,14 @@ def train(
     best_model_state = None
 
     num_epochs = task_config["training"]["num_epochs"]
+    mini_val_interval = 0.0
+    mini_val_step = int(len(train_loader) * mini_val_interval)
+
     for epoch in range(num_epochs):
         model.train()
         total_train_loss = 0
-        for batch_raw_data, batch_targets in tqdm(
-            train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training"
+        for batch_idx, (batch_raw_data, batch_targets) in enumerate(
+            tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Training")
         ):
             # prepare data for equivariance training
             original_features, transformed_features, transform_params = (
@@ -313,18 +327,97 @@ def train(
             optimizer.zero_grad()
             if transform_params.dim() == 3:
                 transform_params = transform_params.squeeze(1)
+
+            # Apply batch normalization to original features
+            if task_config["model"]["batch_norm"]:
+                original_features = model.input_batch_norm(original_features.squeeze(1))
+                transformed_features = model.input_batch_norm(
+                    transformed_features.squeeze(1)
+                )
+
             predicted_features = model(original_features, param=transform_params)
             if predicted_features.dim() == 2 and original_features.dim() == 3:
                 predicted_features = predicted_features.unsqueeze(1)
             loss = criterion(original_features, predicted_features)
 
             loss.backward()
+
+            if debug:
+                # Log gradient stats to wandb
+                for name, param in model.named_parameters():
+                    if param.grad is not None:
+                        wandb.log(
+                            {
+                                f"grad/{name}.mean": param.grad.mean().item(),
+                                f"grad/{name}.std": param.grad.std().item(),
+                            }
+                        )
+                # Log plot with original, transformed, and predicted features
+                for i in range(original_features.shape[0]):
+                    fig, ax = plt.subplots()
+                    ax.plot(
+                        original_features[i][0].detach().cpu().numpy(), label="Original"
+                    )
+                    ax.plot(
+                        transformed_features[i][0].detach().cpu().numpy(),
+                        label="Transformed",
+                    )
+                    ax.plot(
+                        predicted_features[i][0].detach().cpu().numpy(),
+                        label="Predicted",
+                    )
+                    ax.set_title(f"Transform Param: {transform_params[i].item():.4f}")
+                    ax.legend()
+                    wandb.log({f"feature_plots/plot_{i}": wandb.Image(fig)})
+                    plt.close(fig)
+
             optimizer.step()
 
             total_train_loss += loss.item()
 
-            if logging:
+            if logging or debug:
                 wandb.log({"train/loss": loss.item()})
+
+            # Mini validation step every x% of an epoch, if specified
+            if mini_val_step and (batch_idx + 1) % mini_val_step == 0:
+                model.eval()
+                mini_val_loss = 0
+                with torch.no_grad():
+                    for val_batch_raw_data, val_batch_targets in val_loader:
+                        (
+                            val_original_features,
+                            val_transformed_features,
+                            val_transform_params,
+                        ) = preprocess_batch(
+                            batch_raw_data=val_batch_raw_data,
+                            batch_targets=val_batch_targets,
+                            transform_obj=transform_obj,
+                            transform=transform,
+                            feature_extractor=feature_extractor,
+                            sample_rate=feature_config.get("sample_rate", None),
+                            device=device,
+                        )
+
+                        if val_transform_params.dim() == 3:
+                            val_transform_params = val_transform_params.squeeze(1)
+
+                        val_predicted_features = model(
+                            val_original_features, param=val_transform_params
+                        )
+                        if (
+                            val_predicted_features.dim() == 2
+                            and val_original_features.dim() == 3
+                        ):
+                            val_predicted_features = val_predicted_features.unsqueeze(1)
+                        val_loss = criterion(
+                            val_predicted_features, val_transformed_features
+                        )
+                        mini_val_loss += val_loss.item()
+
+                avg_mini_val_loss = mini_val_loss / len(val_loader)
+                if logging or debug:
+                    wandb.log({"mini_val/loss": avg_mini_val_loss})
+                model.train()
 
         avg_train_loss = total_train_loss / len(train_loader)
 
@@ -332,7 +425,7 @@ def train(
         model.eval()
         total_val_loss = 0
         total_l2_distance = 0
-        total_cosine_distance = 0
+        total_cosine_similarity = 0
         with torch.no_grad():
             for batch_raw_data, batch_targets in tqdm(
                 val_loader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
@@ -352,6 +445,16 @@ def train(
 
                 if transform_params.dim() == 3:
                     transform_params = transform_params.squeeze(1)
+
+                # Apply batch normalization to original features
+                if model.use_batch_norm:
+                    original_features = model.input_batch_norm(
+                        original_features.squeeze(1)
+                    )
+                    transformed_features = model.input_batch_norm(
+                        transformed_features.squeeze(1)
+                    )
+
                 predicted_features = model(original_features, param=transform_params)
                 if predicted_features.dim() == 2 and original_features.dim() == 3:
                     predicted_features = predicted_features.unsqueeze(1)
@@ -361,38 +464,35 @@ def train(
 
                 # Compute L2 distance
                 l2_distance = F.mse_loss(
-                    predicted_features, transformed_features, reduction="sum"
+                    predicted_features, transformed_features, reduction="mean"
                 )
                 total_l2_distance += l2_distance.item()
 
                 # Compute cosine distance
-                cosine_distance = (
-                    1
-                    - F.cosine_similarity(
-                        predicted_features, transformed_features, dim=1
-                    )
-                    .sum()
+                cosine_similarity = (
+                    F.cosine_similarity(predicted_features, transformed_features, dim=1)
+                    .mean()
                     .item()
                 )
-                total_cosine_distance += cosine_distance
+                total_cosine_similarity += cosine_similarity
 
             avg_val_loss = total_val_loss / len(val_loader)
-            avg_l2_distance = total_l2_distance / len(val_loader.dataset)
-            avg_cosine_distance = total_cosine_distance / len(val_loader.dataset)
+            avg_l2_distance = total_l2_distance / len(val_loader)
+            avg_cosine_similarity = total_cosine_similarity / len(val_loader)
 
         print(
             f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f} - "
             + f"Val Loss: {avg_val_loss:.4f}"
             + f" - L2 Distance: {avg_l2_distance:.4f}"
-            + f" - Cosine Distance: {avg_cosine_distance:.4f}"
+            + f" - Cosine Distance: {avg_cosine_similarity:.4f}"
         )
 
-        if logging:
+        if logging or debug:
             wandb.log(
                 {
                     "val/loss": avg_val_loss,
                     "l2_distance": avg_l2_distance,
-                    "cosine_distance": avg_cosine_distance,
+                    "cosine_similarity": avg_cosine_similarity,
                 }
             )
 
@@ -415,7 +515,7 @@ def train(
     save_path = Path("ckpt") / "EQUI" / "FEAT" / transform / dataset / f"{feature}.pt"
     save_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), save_path)
-    if logging:
+    if logging or debug:
         artifact.add_file(save_path)
         wandb.log_artifact(artifact)
         wandb_path = wandb.run.path + "/" + artifact.name
@@ -435,6 +535,7 @@ def evaluate(
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
     logging: bool = True,
+    debug: bool = False,
 ):
     """Evaluate a model to predict the transformed feature given
     an original feature and a transformation parameter. Does
@@ -457,7 +558,7 @@ def evaluate(
     if isinstance(model, str):
         # resume wandb run
         entity, project, run_id, model_name = model.split("/")
-        if logging:
+        if logging or debug:
             wandb.init(project=project, entity=entity, id=run_id, resume="allow")
 
     feature_config = feature_configs.get(feature)
@@ -479,18 +580,19 @@ def evaluate(
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    if isinstance(model, str) and logging:
+    if isinstance(model, str):
         # Load model from wandb artifact
         model_wandb_path = f"{entity}/{project}/{model_name}"
         artifact_name = (
             f"{model_wandb_path}:latest" if ":" not in model_name else model_name
         )
-        artifact = wandb.Api().artifact(f"{entity}/{project}/{artifact_name}")
+        artifact = wandb.Api().artifact(artifact_name)
         artifact_dir = artifact.download()
         model = get_probe(
             model_type=task_config["model"]["type"],
             in_features=feature_config["feature_dim"],
             emb_param=True,
+            use_batch_norm=task_config["model"]["batch_norm"],
             n_outputs=feature_config["feature_dim"],
             **task_config["model"]["params"],
         )
@@ -525,13 +627,16 @@ def evaluate(
         transform_obj = get_transform(transform_config)
 
     test_loader = DataLoader(
-        test_dataset, shuffle=False, batch_size=task_config["evaluation"]["batch_size"]
+        test_dataset,
+        shuffle=False,
+        batch_size=task_config["evaluation"]["batch_size"],
+        drop_last=True,  # to avoid batch norm issues
     )
 
     model.eval()
     total_loss = 0
     total_l2_distance = 0
-    total_cosine_distance = 0
+    total_cosine_similarity = 0
 
     criterion = task_configs[task]["training"]["criterion"]()
 
@@ -554,6 +659,14 @@ def evaluate(
             # concat_features = torch.cat([original_features, transform_params], dim=2)
             if transform_params.dim() == 3:
                 transform_params = transform_params.squeeze(1)
+
+            # Apply batch normalization to original features
+            if task_config["model"]["batch_norm"]:
+                original_features = model.input_batch_norm(original_features.squeeze(1))
+                transformed_features = model.input_batch_norm(
+                    transformed_features.squeeze(1)
+                )
+
             predicted_features = model(original_features, param=transform_params)
             if predicted_features.dim() == 2 and original_features.dim() == 3:
                 predicted_features = predicted_features.unsqueeze(1)
@@ -563,33 +676,32 @@ def evaluate(
 
             # Compute L2 distance
             l2_distance = F.mse_loss(
-                predicted_features, transformed_features, reduction="sum"
+                predicted_features, transformed_features, reduction="mean"
             )
             total_l2_distance += l2_distance.item()
 
             # Compute cosine distance
-            cosine_distance = (
-                1
-                - F.cosine_similarity(predicted_features, transformed_features, dim=1)
-                .sum()
+            cosine_similarity = (
+                F.cosine_similarity(predicted_features, transformed_features, dim=1)
+                .mean()
                 .item()
             )
-            total_cosine_distance += cosine_distance
+            total_cosine_similarity += cosine_similarity
 
     avg_loss = total_loss / len(test_loader)
-    avg_l2_distance = total_l2_distance / len(test_loader.dataset)
-    avg_cosine_distance = total_cosine_distance / len(test_loader.dataset)
+    avg_l2_distance = total_l2_distance / len(test_loader)
+    avg_cosine_similarity = total_cosine_similarity / len(test_loader)
 
     print(f"Average test loss: {avg_loss:.4f}")
     print(f"Average L2 distance: {avg_l2_distance:.4f}")
-    print(f"Average cosine distance: {avg_cosine_distance:.4f}")
+    print(f"Average cosine distance: {avg_cosine_similarity:.4f}")
 
-    if logging:
+    if logging or debug:
         # Create a table for the evaluation metrics
         metrics_table = wandb.Table(columns=["Metric", "Value"])
         metrics_table.add_data("Average Loss", avg_loss)
         metrics_table.add_data("Average L2 Distance", avg_l2_distance)
-        metrics_table.add_data("Average Cosine Distance", avg_cosine_distance)
+        metrics_table.add_data("Average Cosine Similarity", avg_cosine_similarity)
 
         wandb.log({"evaluation_metrics": metrics_table})
         wandb.finish()
@@ -597,7 +709,7 @@ def evaluate(
     return {
         "avg_loss": avg_loss,
         "avg_l2_distance": avg_l2_distance,
-        "avg_cosine_distance": avg_cosine_distance,
+        "avg_cosine_similarity": avg_cosine_similarity,
     }
 
 
@@ -652,6 +764,10 @@ if __name__ == "__main__":
         action="store_true",
         help="Do not log to wandb.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+    )
 
     args = parser.parse_args()
 
@@ -663,6 +779,7 @@ if __name__ == "__main__":
         task=args.task,
         device=args.device,
         logging=not args.nolog,
+        debug=args.debug,
     )
 
     results = evaluate(
@@ -674,4 +791,5 @@ if __name__ == "__main__":
         task=args.task,
         device=args.device,
         logging=not args.nolog,
+        debug=args.debug,
     )
