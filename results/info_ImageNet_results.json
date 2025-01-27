@@ -1,0 +1,107 @@
+{
+    "INFO_DOWN_regression_ImageNet_brightness_CLIP": {
+        "MSE": 355.88019021596574
+    },
+    "INFO_DOWN_regression_ImageNet_brightness_DINO": {
+        "MSE": 238.5947320728954
+    },
+    "INFO_DOWN_regression_ImageNet_brightness_IJEPA": {
+        "MSE": 147.85359420224955
+    },
+    "INFO_DOWN_regression_ImageNet_brightness_ResNet50_ImageNet": {
+        "MSE": 528.4212227653265
+    },
+    "INFO_DOWN_regression_ImageNet_brightness_SimCLR": {
+        "MSE": 96.26798208732158
+    },
+    "INFO_DOWN_regression_ImageNet_brightness_ViT_ImageNet": {
+        "MSE": 418.3959592884183
+    },
+    "INFO_DOWN_regression_ImageNet_brightness_ViT_MAE": {
+        "MSE": 405.79852075412964
+    },
+    "INFO_DOWN_regression_ImageNet_hue_CLIP": {
+        "MSE": 419.92799743167774
+    },
+    "INFO_DOWN_regression_ImageNet_hue_DINO": {
+        "MSE": 226.44322744058817
+    },
+    "INFO_DOWN_regression_ImageNet_hue_IJEPA": {
+        "MSE": 169.09040382755268
+    },
+    "INFO_DOWN_regression_ImageNet_hue_ResNet50_ImageNet": {
+        "MSE": 341.8557565689795
+    },
+    "INFO_DOWN_regression_ImageNet_hue_SimCLR": {
+        "MSE": 623.221889194305
+    },
+    "INFO_DOWN_regression_ImageNet_hue_ViT_ImageNet": {
+        "MSE": 325.619968843007
+    },
+    "INFO_DOWN_regression_ImageNet_hue_ViT_MAE": {
+        "MSE": 297.6507834066823
+    },
+    "INFO_DOWN_regression_ImageNet_saturation_CLIP": {
+        "MSE": 514.7734304949948
+    },
+    "INFO_DOWN_regression_ImageNet_saturation_DINO": {
+        "MSE": 255.90502065998524
+    },
+    "INFO_DOWN_regression_ImageNet_saturation_ResNet50_ImageNet": {
+        "MSE": 507.79857879316796
+    },
+    "INFO_DOWN_regression_ImageNet_saturation_SimCLR": {
+        "MSE": 698.0319200642118
+    },
+    "INFO_DOWN_regression_ImageNet_saturation_ViT_ImageNet": {
+        "MSE": 536.8006209837645
+    },
+    "INFO_DOWN_regression_ImageNet_saturation_ViT_MAE": {
+        "MSE": 431.23687147931105
+    },
+    "INFO_DOWN_regression_linear_ImageNet_brightness_CLIP": {
+        "MSE": 594.7424319761693
+    },
+    "INFO_DOWN_regression_linear_ImageNet_brightness_IJEPA": {
+        "MSE": 367.9504908604417
+    },
+    "INFO_DOWN_regression_linear_ImageNet_brightness_SimCLR": {
+        "MSE": 154.96404181242735
+    },
+    "INFO_DOWN_regression_linear_ImageNet_brightness_ViT_ImageNet": {
+        "MSE": 1588.9458033417015
+    },
+    "INFO_DOWN_regression_linear_ImageNet_brightness_ViT_MAE": {
+        "MSE": 730.8529185101762
+    },
+    "INFO_DOWN_regression_linear_ImageNet_hue_CLIP": {
+        "MSE": 549.0263757838756
+    },
+    "INFO_DOWN_regression_linear_ImageNet_hue_IJEPA": {
+        "MSE": 357.5635813045057
+    },
+    "INFO_DOWN_regression_linear_ImageNet_hue_SimCLR": {
+        "MSE": 691.7967592981606
+    },
+    "INFO_DOWN_regression_linear_ImageNet_hue_ViT_ImageNet": {
+        "MSE": 586.2879078012705
+    },
+    "INFO_DOWN_regression_linear_ImageNet_hue_ViT_MAE": {
+        "MSE": 438.916149597466
+    },
+    "INFO_DOWN_regression_linear_ImageNet_saturation_CLIP": {
+        "MSE": 812.6869276702404
+    },
+    "INFO_DOWN_regression_linear_ImageNet_saturation_IJEPA": {
+        "MSE": 591.7599502756298
+    },
+    "INFO_DOWN_regression_linear_ImageNet_saturation_SimCLR": {
+        "MSE": 1146.3019061350226
+    },
+    "INFO_DOWN_regression_linear_ImageNet_saturation_ViT_ImageNet": {
+        "MSE": 1356.1172785854899
+    },
+    "INFO_DOWN_regression_linear_ImageNet_saturation_ViT_MAE": {
+        "MSE": 865.2456125230277
+    }
+}

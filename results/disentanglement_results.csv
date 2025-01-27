@@ -1,0 +1,2 @@
+run_name,dataset,transform,label,original_mse,transformed_mse,diff_mse
+INFO_DOWN_regression_linear_ImageNet_brightness_ViT_MAE,ImageNet,SaturationShift,brightness,0,17460.392578125,-17460.392578125
