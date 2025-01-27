@@ -516,26 +516,14 @@ def evaluate(
                 test_metric_results["mae"] = 0
             test_metric_results["mae"] += mae
 
-            # Corrected R-squared calculation
-            ss_res = torch.sum((transform_params - predicted_params) ** 2)  # SS_res
-            ss_tot = torch.sum(
-                (transform_params - transform_params.mean()) ** 2
-            )  # SS_tot
-            r_squared = (1 - (ss_res / ss_tot)).item()  # R-squared
-            if "r_squared" not in test_metric_results:
-                test_metric_results["r_squared"] = 0
-            test_metric_results["r_squared"] += r_squared
-
     # Average metrics
     avg_loss = total_loss / len(test_loader)
     mse = test_metric_results["mse"] / len(test_loader)
     mae = test_metric_results["mae"] / len(test_loader)
-    r_squared = test_metric_results["r_squared"] / len(test_loader)
 
     print(f"Average test loss: {avg_loss:.4f}")
     print(f"Mean Squared Error: {mse:.4f}")
     print(f"Mean Absolute Error: {mae:.4f}")
-    print(f"R-squared: {r_squared:.4f}")
 
     if logging:
         # Create a table for the evaluation metrics
@@ -543,13 +531,12 @@ def evaluate(
         metrics_table.add_data("Average Loss", avg_loss)
         metrics_table.add_data("Mean Squared Error", mse)
         metrics_table.add_data("Mean Absolute Error", mae)
-        metrics_table.add_data("R-squared", r_squared)
 
         # Log the table to wandb
         wandb.log({"evaluation_metrics": metrics_table})
         wandb.finish()
 
-    return {"avg_loss": avg_loss, "mse": mse, "mae": mae, "r_squared": r_squared}
+    return {"avg_loss": avg_loss, "mse": mse, "mae": mae}
 
 
 if __name__ == "__main__":
