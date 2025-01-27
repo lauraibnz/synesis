@@ -22,7 +22,7 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
-from synesis.utils import deep_update
+from synesis.utils import deep_update, get_artifact
 
 
 def preprocess_batch(
@@ -88,12 +88,8 @@ def evaluate_disentanglement(
     )
 
     if isinstance(model, str):
-        entity, project, run_id, model_name = model.split("/")
-        model_wandb_path = f"{entity}/{project}/{model_name}"
-        artifact_name = (
-            f"{model_wandb_path}:latest" if ":" not in model_name else model_name
-        )
-        artifact = wandb.Api().artifact(f"{entity}/{project}/{artifact_name}")
+        # Load model from wandb artifact
+        artifact = get_artifact(model)
         artifact_dir = artifact.download()
         n_outputs = (
             1
@@ -277,11 +273,9 @@ if __name__ == "__main__":
             break
     if run_id is None:
         raise ValueError(f"Run {run_name} not matched.")
-    artifact_base_name = run.logged_artifacts()[0].name
-    artifact_path = f"{entity}/{project}/{run_id}/{artifact_base_name}"
 
     results = evaluate_disentanglement(
-        model=artifact_path,
+        model=f"{entity}/{project}/{run_id}/{run_name}",
         feature=args.feature,
         dataset=args.dataset,
         transform=args.transform,
