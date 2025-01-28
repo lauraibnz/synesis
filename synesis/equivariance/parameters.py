@@ -22,7 +22,7 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
-from synesis.utils import deep_update
+from synesis.utils import deep_update, get_artifact
 
 
 def preprocess_batch(
@@ -437,11 +437,7 @@ def evaluate(
 
     if isinstance(model, str):
         # Load model from wandb artifact
-        model_wandb_path = f"{entity}/{project}/{model_name}"
-        artifact_name = (
-            f"{model_wandb_path}:latest" if ":" not in model_name else model_name
-        )
-        artifact = wandb.Api().artifact(f"{entity}/{project}/{artifact_name}")
+        artifact = get_artifact(model)
         artifact_dir = artifact.download()
         model = get_probe(
             model_type=task_config["model"]["type"],
@@ -486,9 +482,7 @@ def evaluate(
 
     model.eval()
     total_loss = 0
-    all_predicted_params = []
-    all_true_params = []
-
+    test_metric_results = {}
     criterion = task_configs[task]["training"]["criterion"]()
 
     with torch.no_grad():
@@ -511,28 +505,25 @@ def evaluate(
 
             total_loss += loss.item()
 
-            all_predicted_params.append(predicted_params.cpu())
-            all_true_params.append(transform_params.cpu())
+            # calculate additional metrics
+            mse = nn.MSELoss()(predicted_params, transform_params).item()
+            if "mse" not in test_metric_results:
+                test_metric_results["mse"] = 0
+            test_metric_results["mse"] += mse
 
+            mae = nn.L1Loss()(predicted_params, transform_params).item()
+            if "mae" not in test_metric_results:
+                test_metric_results["mae"] = 0
+            test_metric_results["mae"] += mae
+
+    # Average metrics
     avg_loss = total_loss / len(test_loader)
+    mse = test_metric_results["mse"] / len(test_loader)
+    mae = test_metric_results["mae"] / len(test_loader)
+
     print(f"Average test loss: {avg_loss:.4f}")
-
-    # Concatenate all predictions and true parameters
-    all_predicted_params = torch.cat(all_predicted_params, dim=0)
-    all_true_params = torch.cat(all_true_params, dim=0)
-
-    # Calculate additional metrics
-    mse = nn.MSELoss()(all_predicted_params, all_true_params).item()
-    mae = nn.L1Loss()(all_predicted_params, all_true_params).item()
-
-    # Calculate R-squared
-    ss_tot = torch.sum((all_true_params - all_true_params.mean()) ** 2)
-    ss_res = torch.sum((all_true_params - all_predicted_params) ** 2)
-    r_squared = 1 - (ss_res / ss_tot)
-
     print(f"Mean Squared Error: {mse:.4f}")
     print(f"Mean Absolute Error: {mae:.4f}")
-    print(f"R-squared: {r_squared:.4f}")
 
     if logging:
         # Create a table for the evaluation metrics
@@ -540,13 +531,12 @@ def evaluate(
         metrics_table.add_data("Average Loss", avg_loss)
         metrics_table.add_data("Mean Squared Error", mse)
         metrics_table.add_data("Mean Absolute Error", mae)
-        metrics_table.add_data("R-squared", r_squared.item())
 
         # Log the table to wandb
         wandb.log({"evaluation_metrics": metrics_table})
         wandb.finish()
 
-    return {"avg_loss": avg_loss, "mse": mse, "mae": mae, "r_squared": r_squared.item()}
+    return {"avg_loss": avg_loss, "mse": mse, "mae": mae}
 
 
 if __name__ == "__main__":
