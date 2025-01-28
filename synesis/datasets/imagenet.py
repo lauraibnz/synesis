@@ -28,7 +28,7 @@ class ImageNet(Dataset):
         image_format: str = "JPEG",
         label: str = "class",
         transform: Optional[str] = None,
-        ratio: Optional[float] = 0.1,
+        ratio: Optional[float] = 0.005,
         itemization: Optional[str] = None,
         norm: bool = False,
         target_norm: bool = False,
