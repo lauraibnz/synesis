@@ -143,7 +143,7 @@ configs = {
         "std": [0.229, 0.224, 0.225],
     },
     "ViT_ImageNet": {
-        "__cls__": "ViT_ImageNet",
+        "__cls__": "ViT_b_16_ImageNet",
         "resize_dim": 256,
         "input_dim": 224,
         "feature_dim": 768,
@@ -151,7 +151,7 @@ configs = {
         "std": [0.229, 0.224, 0.225],
     },
     "ViT_b_16_ImageNet": {
-        "__cls__": "ViT_ImageNet",
+        "__cls__": "ViT_b_16_ImageNet",
         "resize_dim": 256,
         "input_dim": 224,
         "feature_dim": 768,

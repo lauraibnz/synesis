@@ -5,9 +5,9 @@ from torch import nn
 from torchvision.models import vit_b_16  # or another ViT model varian
 
 
-class ViT_ImageNet(nn.Module):
+class ViT_b_16_ImageNet(nn.Module):
     def __init__(self, feature_extractor=True):
-        super(ViT_ImageNet, self).__init__()
+        super(ViT_b_16_ImageNet, self).__init__()
 
         self.feature_extractor = feature_extractor
 
@@ -28,5 +28,5 @@ class ViT_ImageNet(nn.Module):
 
 # Example usage
 if __name__ == "__main__":
-    model = ViT_ImageNet()
+    model = ViT_b_16_ImageNet()
     print(model)
