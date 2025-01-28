@@ -1,563 +1,275 @@
 {
-    "EQUI_FEAT_regression_AddWhiteNoise_dummy_LibriSpeech_AudioMAE": {
-        "avg_cosine_distance": -260.528035982009,
-        "avg_l2_distance": 51.262873699640046,
-        "avg_loss": 0.012979010147261789
-    },
-    "EQUI_FEAT_regression_AddWhiteNoise_dummy_LibriSpeech_CLAP": {
-        "avg_cosine_distance": -172.0704647676162,
-        "avg_l2_distance": 0.8294740927630457,
-        "avg_loss": 0.0015280429576488696
-    },
-    "EQUI_FEAT_regression_AddWhiteNoise_dummy_LibriSpeech_HuBERT": {
-        "avg_cosine_distance": -112.72155098321734,
-        "avg_l2_distance": 46.79165921461457,
-        "avg_loss": 0.014922788626314706
-    },
-    "EQUI_FEAT_regression_AddWhiteNoise_dummy_LibriSpeech_UniSpeech": {
-        "avg_cosine_distance": -544.5220389805097,
-        "avg_l2_distance": 12.776408837724482,
-        "avg_loss": 0.006705266054694553
-    },
-    "EQUI_FEAT_regression_AddWhiteNoise_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_cosine_distance": -476.935832083958,
-        "avg_l2_distance": 16.06056301552674,
-        "avg_loss": 0.004385876240148705
-    },
-    "EQUI_FEAT_regression_AddWhiteNoise_dummy_LibriSpeech_Whisper": {
-        "avg_cosine_distance": -238.66416791604198,
-        "avg_l2_distance": 93.15815998889516,
-        "avg_loss": 0.020634820492103183
-    },
-    "EQUI_FEAT_regression_AddWhiteNoise_dummy_LibriSpeech_XVector": {
-        "avg_cosine_distance": -415.17391304347825,
-        "avg_l2_distance": 23169.433817072786,
-        "avg_loss": 1.6720995534842518
-    },
-    "EQUI_FEAT_regression_PitchShift_dummy_LibriSpeech_AudioMAE": {
-        "avg_cosine_distance": -497.3262574706299,
-        "avg_l2_distance": 12.845423911322003,
-        "avg_loss": 0.013170061934379109
-    },
-    "EQUI_FEAT_regression_PitchShift_dummy_LibriSpeech_CLAP": {
-        "avg_cosine_distance": -171.31064467766117,
-        "avg_l2_distance": 0.8354429502001052,
-        "avg_loss": 0.0015317758009803929
-    },
-    "EQUI_FEAT_regression_PitchShift_dummy_LibriSpeech_HuBERT": {
-        "avg_cosine_distance": -415.15472263868065,
-        "avg_l2_distance": 12.466187659482369,
-        "avg_loss": 0.014308045596035122
-    },
-    "EQUI_FEAT_regression_PitchShift_dummy_LibriSpeech_UniSpeech": {
-        "avg_cosine_distance": -626.8465088805694,
-        "avg_l2_distance": 6.021908056217691,
-        "avg_loss": 0.006529404333167091
-    },
-    "EQUI_FEAT_regression_PitchShift_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_cosine_distance": -550.7067466266867,
-        "avg_l2_distance": 6.424151216150224,
-        "avg_loss": 0.004785776900223874
-    },
-    "EQUI_FEAT_regression_PitchShift_dummy_LibriSpeech_Whisper": {
-        "avg_cosine_distance": -453.4221889055472,
-        "avg_l2_distance": 20.694920509544268,
-        "avg_loss": 0.018757750011416434
-    },
-    "EQUI_FEAT_regression_PitchShift_dummy_LibriSpeech_XVector": {
-        "avg_cosine_distance": -442.44107946026986,
-        "avg_l2_distance": 9945.386090996097,
-        "avg_loss": 1.5753923269092054
-    },
-    "EQUI_FEAT_regression_TimeStretch_dummy_LibriSpeech_AudioMAE": {
-        "avg_cosine_distance": -497.3400299850075,
-        "avg_l2_distance": 20.368706547552677,
-        "avg_loss": 0.012937829612420572
-    },
-    "EQUI_FEAT_regression_TimeStretch_dummy_LibriSpeech_CLAP": {
-        "avg_cosine_distance": -205.80059970014992,
-        "avg_l2_distance": 0.8072771946887026,
-        "avg_loss": 0.0015275354419640827
-    },
-    "EQUI_FEAT_regression_TimeStretch_dummy_LibriSpeech_HuBERT": {
-        "avg_cosine_distance": -401.9511244377811,
-        "avg_l2_distance": 13.756113882079116,
-        "avg_loss": 0.014005483006932835
-    },
-    "EQUI_FEAT_regression_TimeStretch_dummy_LibriSpeech_UniSpeech": {
-        "avg_cosine_distance": -624.6145637020358,
-        "avg_l2_distance": 6.510742716453243,
-        "avg_loss": 0.00649403036429618
-    },
-    "EQUI_FEAT_regression_TimeStretch_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_cosine_distance": -530.288155922039,
-        "avg_l2_distance": 8.126950477392063,
-        "avg_loss": 0.004423235167925158
-    },
-    "EQUI_FEAT_regression_TimeStretch_dummy_LibriSpeech_Whisper": {
-        "avg_cosine_distance": -366.3295352323838,
-        "avg_l2_distance": 38.09700280351081,
-        "avg_loss": 0.01866321243733905
-    },
-    "EQUI_FEAT_regression_TimeStretch_dummy_LibriSpeech_XVector": {
-        "avg_cosine_distance": -462.7895052473763,
-        "avg_l2_distance": 7602.725722895998,
-        "avg_loss": 1.6007793765866953
-    },
-    "EQUI_FEAT_regression_linear_AddWhiteNoise_dummy_LibriSpeech_AudioMAE": {
-        "avg_cosine_distance": -255.79340329835082,
-        "avg_l2_distance": 53.699910223358934,
-        "avg_loss": 0.009399586951575134
-    },
-    "EQUI_FEAT_regression_linear_AddWhiteNoise_dummy_LibriSpeech_CLAP": {
-        "avg_cosine_distance": -189.1985007496252,
-        "avg_l2_distance": 0.7752294739325722,
-        "avg_loss": 0.001378237656380484
-    },
-    "EQUI_FEAT_regression_linear_AddWhiteNoise_dummy_LibriSpeech_HuBERT": {
-        "avg_cosine_distance": -147.60730810437067,
-        "avg_l2_distance": 46.92160341850464,
-        "avg_loss": 0.007371802356392927
-    },
-    "EQUI_FEAT_regression_linear_AddWhiteNoise_dummy_LibriSpeech_UniSpeech": {
-        "avg_cosine_distance": -551.1289355322339,
-        "avg_l2_distance": 11.96581796148549,
-        "avg_loss": 0.004421650248822634
-    },
-    "EQUI_FEAT_regression_linear_AddWhiteNoise_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_cosine_distance": -461.50854572713644,
-        "avg_l2_distance": 16.45466886880337,
-        "avg_loss": 0.004457240366178664
-    },
-    "EQUI_FEAT_regression_linear_AddWhiteNoise_dummy_LibriSpeech_Whisper": {
-        "avg_cosine_distance": -235.47066493913687,
-        "avg_l2_distance": 97.730924755594,
-        "avg_loss": 0.01767442351768444
-    },
-    "EQUI_FEAT_regression_linear_AddWhiteNoise_dummy_LibriSpeech_XVector": {
-        "avg_cosine_distance": -415.6950524737631,
-        "avg_l2_distance": 22685.315292253166,
-        "avg_loss": 0.5638374921509708
-    },
-    "EQUI_FEAT_regression_linear_PitchShift_dummy_LibriSpeech_AudioMAE": {
-        "avg_cosine_distance": -504.37331334332833,
-        "avg_l2_distance": 12.176836073130504,
-        "avg_loss": 0.00995897686491529
-    },
-    "EQUI_FEAT_regression_linear_PitchShift_dummy_LibriSpeech_CLAP": {
-        "avg_cosine_distance": -175.4036104170815,
-        "avg_l2_distance": 0.7806758744069662,
-        "avg_loss": 0.0013909237880282094
-    },
-    "EQUI_FEAT_regression_linear_PitchShift_dummy_LibriSpeech_HuBERT": {
-        "avg_cosine_distance": -461.03418290854574,
-        "avg_l2_distance": 8.428557941187982,
-        "avg_loss": 0.00781350651570223
-    },
-    "EQUI_FEAT_regression_linear_PitchShift_dummy_LibriSpeech_UniSpeech": {
-        "avg_cosine_distance": -623.1541229385307,
-        "avg_l2_distance": 5.844601329834922,
-        "avg_loss": 0.00517118612270819
-    },
-    "EQUI_FEAT_regression_linear_PitchShift_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_cosine_distance": -529.8749625187406,
-        "avg_l2_distance": 6.88208385125093,
-        "avg_loss": 0.0044768184794858655
-    },
-    "EQUI_FEAT_regression_linear_PitchShift_dummy_LibriSpeech_Whisper": {
-        "avg_cosine_distance": -455.9913043478261,
-        "avg_l2_distance": 19.55663990280975,
-        "avg_loss": 0.01732497498716997
-    },
-    "EQUI_FEAT_regression_linear_PitchShift_dummy_LibriSpeech_XVector": {
-        "avg_cosine_distance": -441.77901049475264,
-        "avg_l2_distance": 10222.853183026864,
-        "avg_loss": 0.4870550257378611
-    },
-    "EQUI_FEAT_regression_linear_TimeStretch_dummy_LibriSpeech_AudioMAE": {
-        "avg_cosine_distance": -511.8197901049475,
-        "avg_l2_distance": 19.442488963457418,
-        "avg_loss": 0.009266051926721317
-    },
-    "EQUI_FEAT_regression_linear_TimeStretch_dummy_LibriSpeech_CLAP": {
-        "avg_cosine_distance": -209.02348552286358,
-        "avg_l2_distance": 0.7430783477680257,
-        "avg_loss": 0.0013831782703130119
-    },
-    "EQUI_FEAT_regression_linear_TimeStretch_dummy_LibriSpeech_HuBERT": {
-        "avg_cosine_distance": -444.29585158135046,
-        "avg_l2_distance": 9.944783092224258,
-        "avg_loss": 0.0073301111371012065
-    },
-    "EQUI_FEAT_regression_linear_TimeStretch_dummy_LibriSpeech_UniSpeech": {
-        "avg_cosine_distance": -637.9961019490255,
-        "avg_l2_distance": 4.964751637142816,
-        "avg_loss": 0.004507977726682183
-    },
-    "EQUI_FEAT_regression_linear_TimeStretch_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_cosine_distance": -537.0461869132572,
-        "avg_l2_distance": 8.133851451852331,
-        "avg_loss": 0.004224215055406764
-    },
-    "EQUI_FEAT_regression_linear_TimeStretch_dummy_LibriSpeech_Whisper": {
-        "avg_cosine_distance": -347.78245182523483,
-        "avg_l2_distance": 40.38477399245552,
-        "avg_loss": 0.018531791953512396
-    },
-    "EQUI_FEAT_regression_linear_TimeStretch_dummy_LibriSpeech_XVector": {
-        "avg_cosine_distance": -462.75232383808094,
-        "avg_l2_distance": 7493.576009136697,
-        "avg_loss": 0.4283358184517413
-    },
     "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_AudioMAE": {
-        "avg_loss": 0.014777408834284703,
-        "mae": 0.1053079292178154,
-        "mse": 0.014777409844100475,
-        "r_squared": 0.8252602815628052
+        "avg_loss": 0.014398935803704242,
+        "mae": 0.10432520512731626,
+        "mse": 0.014398935803704242
     },
     "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_CLAP": {
-        "avg_loss": 0.004381658463648086,
-        "mae": 0.044705282896757126,
-        "mse": 0.004381658509373665,
-        "r_squared": 0.9471352696418762
+        "avg_loss": 0.005077065527071988,
+        "mae": 0.04637264482889218,
+        "mse": 0.005077065527071988
     },
     "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_HuBERT": {
-        "avg_loss": 0.003718581676573212,
-        "mae": 0.04437456279993057,
-        "mse": 0.0037185815162956715,
-        "r_squared": 0.9551856517791748
-    },
-    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_UniSpeech": {
-        "avg_loss": 0.01031767799232309,
-        "mae": 0.08330638706684113,
-        "mse": 0.010317678563296795,
-        "r_squared": 0.877478301525116
-    },
-    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_loss": 0.013152375098319818,
-        "mae": 0.08873353153467178,
-        "mse": 0.013152374885976315,
-        "r_squared": 0.8400205969810486
-    },
-    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_Whisper": {
-        "avg_loss": 0.0026478355669948446,
-        "mae": 0.0363578200340271,
-        "mse": 0.00264783576130867,
-        "r_squared": 0.9683942198753357
-    },
-    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_XVector": {
-        "avg_loss": 0.004303066170673882,
-        "mae": 0.047565557062625885,
-        "mse": 0.004303066525608301,
-        "r_squared": 0.9488224983215332
-    },
-    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_AudioMAE": {
-        "avg_loss": 0.029840063332598987,
-        "mae": 0.14133433997631073,
-        "mse": 0.02984006516635418,
-        "r_squared": 0.7232125401496887
-    },
-    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_CLAP": {
-        "avg_loss": 0.015602079830407067,
-        "mae": 0.1025465875864029,
-        "mse": 0.015602078288793564,
-        "r_squared": 0.8311741352081299
-    },
-    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_HuBERT": {
-        "avg_loss": 0.010803331726771788,
-        "mae": 0.0661667063832283,
-        "mse": 0.010803332552313805,
-        "r_squared": 0.9023168087005615
-    },
-    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_UniSpeech": {
-        "avg_loss": 0.07091396280908152,
-        "mae": 0.20769236981868744,
-        "mse": 0.07091396301984787,
-        "r_squared": 0.3395002484321594
-    },
-    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_loss": 0.07914261579901098,
-        "mae": 0.21767300367355347,
-        "mse": 0.07914261519908905,
-        "r_squared": 0.2803032398223877
-    },
-    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_Whisper": {
-        "avg_loss": 0.005965140945663785,
-        "mae": 0.046671368181705475,
-        "mse": 0.005965141579508781,
-        "r_squared": 0.9456753730773926
-    },
-    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_XVector": {
-        "avg_loss": 0.010432850582804876,
-        "mae": 0.07571309059858322,
-        "mse": 0.010432850569486618,
-        "r_squared": 0.904391348361969
-    },
-    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_AudioMAE": {
-        "avg_loss": 0.015342864540710578,
-        "mae": 0.09566380083560944,
-        "mse": 0.015342863276600838,
-        "r_squared": 0.8131755590438843
-    },
-    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_CLAP": {
-        "avg_loss": 0.014597201447491517,
-        "mae": 0.08942101150751114,
-        "mse": 0.01459720078855753,
-        "r_squared": 0.8289127349853516
-    },
-    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_HuBERT": {
-        "avg_loss": 0.015878466956926726,
-        "mae": 0.08424986153841019,
-        "mse": 0.0158784668892622,
-        "r_squared": 0.8121051788330078
-    },
-    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_UniSpeech": {
-        "avg_loss": 0.0169186036440383,
-        "mae": 0.09581047296524048,
-        "mse": 0.0169186033308506,
-        "r_squared": 0.7965530157089233
-    },
-    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_loss": 0.024215515478887242,
-        "mae": 0.12004078924655914,
-        "mse": 0.024215515702962875,
-        "r_squared": 0.7060134410858154
-    },
-    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_Whisper": {
-        "avg_loss": 0.006020913753870411,
-        "mae": 0.0542675144970417,
-        "mse": 0.006020913831889629,
-        "r_squared": 0.9275062680244446
-    },
-    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_XVector": {
-        "avg_loss": 0.10330499722460068,
-        "mae": 0.2910851240158081,
-        "mse": 0.10330500453710556,
-        "r_squared": -0.23233723640441895
-    },
-    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_AudioMAE": {
-        "avg_loss": 0.0020196646152214784,
-        "mae": 0.029600031673908234,
-        "mse": 0.002019664738327265,
-        "r_squared": 0.9764766693115234
-    },
-    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_CLAP": {
-        "avg_loss": 0.0038287635809338377,
-        "mae": 0.043256502598524094,
-        "mse": 0.003828763961791992,
-        "r_squared": 0.953874945640564
-    },
-    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_HuBERT": {
-        "avg_loss": 0.002395688536582003,
-        "mae": 0.036209944635629654,
-        "mse": 0.0023956885561347008,
-        "r_squared": 0.9707399606704712
-    },
-    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_UniSpeech": {
-        "avg_loss": 0.0032805641101138934,
-        "mae": 0.043861184269189835,
-        "mse": 0.003280564211308956,
-        "r_squared": 0.9607164263725281
-    },
-    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_loss": 0.011176133464874461,
-        "mae": 0.08159281313419342,
-        "mse": 0.01117613259702921,
-        "r_squared": 0.8665564656257629
-    },
-    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_Whisper": {
-        "avg_loss": 0.002849725499934229,
-        "mae": 0.041288651525974274,
-        "mse": 0.002849725540727377,
-        "r_squared": 0.9661749601364136
-    },
-    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_XVector": {
-        "avg_loss": 0.02232188492929375,
-        "mae": 0.12251592427492142,
-        "mse": 0.022321883589029312,
-        "r_squared": 0.7334911823272705
-    },
-    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_AudioMAE": {
-        "avg_loss": 0.0112341008608623,
-        "mae": 0.08215056359767914,
-        "mse": 0.011234099976718426,
-        "r_squared": 0.8978182673454285
-    },
-    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_CLAP": {
-        "avg_loss": 0.008934312681332922,
-        "mae": 0.06980283558368683,
-        "mse": 0.008934312500059605,
-        "r_squared": 0.9028157591819763
-    },
-    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_HuBERT": {
-        "avg_loss": 0.012346215265849765,
-        "mae": 0.08072605729103088,
-        "mse": 0.01234621461480856,
-        "r_squared": 0.8883184790611267
-    },
-    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_UniSpeech": {
-        "avg_loss": 0.026601824965517207,
-        "mae": 0.12415701895952225,
-        "mse": 0.026601824909448624,
-        "r_squared": 0.7552831172943115
-    },
-    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_loss": 0.06811801503804965,
-        "mae": 0.21893709897994995,
-        "mse": 0.06811802089214325,
-        "r_squared": 0.3723210096359253
-    },
-    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_Whisper": {
-        "avg_loss": 0.0068228475663141535,
-        "mae": 0.05834595486521721,
-        "mse": 0.006822847295552492,
-        "r_squared": 0.9363608360290527
-    },
-    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_XVector": {
-        "avg_loss": 0.029739181343132772,
-        "mae": 0.13985654711723328,
-        "mse": 0.029739180579781532,
-        "r_squared": 0.714496910572052
-    },
-    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_AudioMAE": {
-        "avg_loss": 0.013564818888057543,
-        "mae": 0.08709254860877991,
-        "mse": 0.01356481947004795,
-        "r_squared": 0.8420677185058594
-    },
-    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_CLAP": {
-        "avg_loss": 0.015677184136489816,
-        "mae": 0.0964486300945282,
-        "mse": 0.015677183866500854,
-        "r_squared": 0.8084983825683594
-    },
-    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_HuBERT": {
-        "avg_loss": 0.013206121928709185,
-        "mae": 0.08377880603075027,
-        "mse": 0.013206121511757374,
-        "r_squared": 0.8441920876502991
-    },
-    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_UniSpeech": {
-        "avg_loss": 0.017320550967676512,
-        "mae": 0.09667523205280304,
-        "mse": 0.017320550978183746,
-        "r_squared": 0.7844197750091553
-    },
-    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_Wav2Vec2": {
-        "avg_loss": 0.026355106732099752,
-        "mae": 0.12266619503498077,
-        "mse": 0.026355106383562088,
-        "r_squared": 0.6758901476860046
-    },
-    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_Whisper": {
-        "avg_loss": 0.005745586728563662,
-        "mae": 0.05472053959965706,
-        "mse": 0.005745586007833481,
-        "r_squared": 0.9323352575302124
-    },
-    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_XVector": {
-        "avg_loss": 0.7578082794412533,
-        "mae": 0.8417280912399292,
-        "mse": 0.757808268070221,
-        "r_squared": -8.357535362243652
-    },
-    "INFO_DOWN_regression_LibriSpeech_wps_UniSpeech": {
-        "MSE": 0.1741640269756317
-    },
-    "INFO_DOWN_regression_LibriSpeech_wps_Wav2Vec2": {
-        "MSE": 0.19799137115478516
-    },
-    "INFO_DOWN_regression_linear_LibriSpeech_wps_AudioMAE": {
-        "MSE": 0.23121944069862366
-    },
-    "INFO_DOWN_regression_linear_LibriSpeech_wps_CLAP": {
-        "MSE": 0.25204935669898987
-    },
-    "INFO_DOWN_regression_linear_LibriSpeech_wps_HuBERT": {
-        "MSE": 0.18391504883766174
-    },
-    "INFO_DOWN_regression_linear_LibriSpeech_wps_UniSpeech": {
-        "MSE": 0.18949617445468903
-    },
-    "INFO_DOWN_regression_linear_LibriSpeech_wps_Wav2Vec2": {
-        "MSE": 0.2138577401638031
-    },
-    "INFO_DOWN_regression_linear_LibriSpeech_wps_Whisper": {
-        "MSE": 0.11588066816329956
-    },
-    "INFO_DOWN_regression_linear_LibriSpeech_wps_XVector": {
-        "MSE": 0.6004154086112976
-    },
-    "EQUI_FEAT_regression_AddWhiteNoise_dummy_LibriSpeech_MDuo": {
-        "avg_cosine_distance": -1605.8200672612913,
-        "avg_l2_distance": 1074.7446051956474,
-        "avg_loss": 0.022651903108432552
-    },
-    "EQUI_FEAT_regression_PitchShift_dummy_LibriSpeech_MDuo": {
-        "avg_cosine_distance": -2443.504347826087,
-        "avg_l2_distance": 184.18517693229344,
-        "avg_loss": 0.022073850826802906
-    },
-    "EQUI_FEAT_regression_TimeStretch_dummy_LibriSpeech_MDuo": {
-        "avg_cosine_distance": -2307.919940029985,
-        "avg_l2_distance": 256.120759255954,
-        "avg_loss": 0.023854792194868225
-    },
-    "EQUI_FEAT_regression_linear_AddWhiteNoise_dummy_LibriSpeech_MDuo": {
-        "avg_cosine_distance": -1352.6003921257145,
-        "avg_l2_distance": 1120.0420011025676,
-        "avg_loss": 0.02569922111800005
-    },
-    "EQUI_FEAT_regression_linear_PitchShift_dummy_LibriSpeech_MDuo": {
-        "avg_cosine_distance": -2158.262968515742,
-        "avg_l2_distance": 199.70791289345257,
-        "avg_loss": 0.02420662362826639
-    },
-    "EQUI_FEAT_regression_linear_TimeStretch_dummy_LibriSpeech_MDuo": {
-        "avg_cosine_distance": -2128.0014992503748,
-        "avg_l2_distance": 249.7663752703116,
-        "avg_loss": 0.021869391280001607
+        "avg_loss": 0.0034379791015747376,
+        "mae": 0.04319760353266746,
+        "mse": 0.0034379791015747376
     },
     "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_MDuo": {
-        "avg_loss": 0.002736096658862653,
-        "mae": 0.02778339572250843,
-        "mse": 0.002736096503213048,
-        "r_squared": 0.9673981666564941
+        "avg_loss": 0.00235059069450033,
+        "mae": 0.027117906032741695,
+        "mse": 0.00235059069450033
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.010383148939972525,
+        "mae": 0.08419423339472361,
+        "mse": 0.010383148939972525
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.013454093762015111,
+        "mae": 0.0899414516460413,
+        "mse": 0.013454093762015111
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.002537139571670445,
+        "mae": 0.03571649426552488,
+        "mse": 0.002537139571670445
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.004484804532235961,
+        "mae": 0.04926576762609575,
+        "mse": 0.004484804532235961
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.029628795840834398,
+        "mae": 0.14025801378686253,
+        "mse": 0.029628795840834398
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.015034096814472231,
+        "mae": 0.10020238081219493,
+        "mse": 0.015034096814472231
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.010800700585485162,
+        "mae": 0.0683201940998301,
+        "mse": 0.010800700585485162
     },
     "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_MDuo": {
-        "avg_loss": 0.008021601591473472,
-        "mae": 0.051261056214571,
-        "mse": 0.008021602407097816,
-        "r_squared": 0.9244358539581299
+        "avg_loss": 0.007490531022797438,
+        "mae": 0.05173940201146134,
+        "mse": 0.007490531022797438
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.07554672344808747,
+        "mae": 0.21789241747405644,
+        "mse": 0.07554672344808747
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.07441698765812467,
+        "mae": 0.2088943066128503,
+        "mse": 0.07441698765812467
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.005596462006088269,
+        "mae": 0.04704288679665175,
+        "mse": 0.005596462006088269
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.010174116014183774,
+        "mae": 0.07612265153764293,
+        "mse": 0.010174116014183774
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.0150128620902488,
+        "mae": 0.09499365616829945,
+        "mse": 0.0150128620902488
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.014266109675704826,
+        "mae": 0.08859692413410147,
+        "mse": 0.014266109675704826
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.016425316329355524,
+        "mae": 0.08583979632264224,
+        "mse": 0.016425316329355524
     },
     "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_MDuo": {
-        "avg_loss": 0.027279199065277593,
-        "mae": 0.12726685404777527,
-        "mse": 0.027279198169708252,
-        "r_squared": 0.673338770866394
+        "avg_loss": 0.026849825899273774,
+        "mae": 0.12636708089721568,
+        "mse": 0.026849825899273774
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.01809163823115249,
+        "mae": 0.09925361273773964,
+        "mse": 0.01809163823115249
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.02488929370347276,
+        "mae": 0.12233422813431613,
+        "mse": 0.02488929370347276
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.006325489643019274,
+        "mae": 0.055360359577894924,
+        "mse": 0.006325489643019274
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.1038029681896576,
+        "mae": 0.292560743641058,
+        "mse": 0.1038029681896576
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.0017866233712295438,
+        "mae": 0.02891252180282166,
+        "mse": 0.0017866233712295438
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.00418043065340518,
+        "mae": 0.043871621872442236,
+        "mse": 0.00418043065340518
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.0023676599339858212,
+        "mae": 0.03585789389461502,
+        "mse": 0.0023676599339858212
     },
     "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_MDuo": {
-        "avg_loss": 0.020537944233756527,
-        "mae": 0.12415846437215805,
-        "mse": 0.02053794264793396,
-        "r_squared": 0.7535427808761597
+        "avg_loss": 0.020660348596048626,
+        "mae": 0.1244001502631933,
+        "mse": 0.020660348596048626
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.003348943932886241,
+        "mae": 0.04330116822321465,
+        "mse": 0.003348943932886241
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.011477564351639815,
+        "mae": 0.08220095272319786,
+        "mse": 0.011477564351639815
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.0028779829931201597,
+        "mae": 0.04093539974745782,
+        "mse": 0.0028779829931201597
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.02251603910577037,
+        "mae": 0.12282012684502523,
+        "mse": 0.02251603910577037
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.011635714789589482,
+        "mae": 0.08365600747398395,
+        "mse": 0.011635714789589482
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.009063143157721327,
+        "mae": 0.068520089285518,
+        "mse": 0.009063143157721327
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.01182008345698694,
+        "mae": 0.0794417009723821,
+        "mse": 0.01182008345698694
     },
     "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_MDuo": {
-        "avg_loss": 0.027244676843882005,
-        "mae": 0.1471322476863861,
-        "mse": 0.027244677767157555,
-        "r_squared": 0.7483359575271606
+        "avg_loss": 0.0275799663466351,
+        "mae": 0.1476180337916786,
+        "mse": 0.0275799663466351
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.027920112475193132,
+        "mae": 0.1258250857992419,
+        "mse": 0.027920112475193132
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.07070707331257946,
+        "mae": 0.22270105573805288,
+        "mse": 0.07070707331257946
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.00643575043453706,
+        "mae": 0.05701554625070301,
+        "mse": 0.00643575043453706
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.030781102719575893,
+        "mae": 0.14335513573357728,
+        "mse": 0.030781102719575893
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.013321100392594274,
+        "mae": 0.08628274655120372,
+        "mse": 0.013321100392594274
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.016739217217539792,
+        "mae": 0.09849682306414233,
+        "mse": 0.016739217217539792
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.013400677449063063,
+        "mae": 0.08336458710200995,
+        "mse": 0.013400677449063063
     },
     "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_MDuo": {
-        "avg_loss": 0.010272624115146092,
-        "mae": 0.08386426419019699,
-        "mse": 0.010272623971104622,
-        "r_squared": 0.8757798671722412
+        "avg_loss": 0.011451956019587593,
+        "mae": 0.08675014271248674,
+        "mse": 0.011451956019587593
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.01831087137385352,
+        "mae": 0.09839376481291817,
+        "mse": 0.01831087137385352
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.025300496154683532,
+        "mae": 0.11951736903273273,
+        "mse": 0.025300496154683532
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.005641231470877261,
+        "mae": 0.05457046596428332,
+        "mse": 0.005641231470877261
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.7507733165559209,
+        "mae": 0.8373971705717305,
+        "mse": 0.7507733165559209
     },
     "INFO_DOWN_regression_LibriSpeech_wps_MDuo": {
-        "MSE": 0.3209192752838135
+        "MSE": 0.3209192597846077
+    },
+    "INFO_DOWN_regression_LibriSpeech_wps_UniSpeech": {
+        "MSE": 0.17416401865366396
+    },
+    "INFO_DOWN_regression_LibriSpeech_wps_Wav2Vec2": {
+        "MSE": 0.19799136650629248
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_AudioMAE": {
+        "MSE": 0.2312194408282655
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_CLAP": {
+        "MSE": 0.2520493582253048
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_HuBERT": {
+        "MSE": 0.18391505333212488
     },
     "INFO_DOWN_regression_linear_LibriSpeech_wps_MDuo": {
-        "MSE": 0.22931022942066193
+        "MSE": 0.22931025071994135
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_UniSpeech": {
+        "MSE": 0.18949617754291395
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_Wav2Vec2": {
+        "MSE": 0.2138577298490394
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_Whisper": {
+        "MSE": 0.11588066612943411
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_XVector": {
+        "MSE": 0.6004155635589752
     }
 }
