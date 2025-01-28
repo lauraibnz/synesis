@@ -3,8 +3,9 @@
 import os
 
 import requests
-
 from tqdm import tqdm
+
+import wandb
 
 
 def deep_update(d, u):
@@ -102,3 +103,13 @@ def download_github_file(owner, repo, file_path, save_dir):
             print(f"The specified path is not a file: {file_path}")
     else:
         print(f"Failed to fetch file. Status code: {response.status_code}")
+
+
+def get_artifact(wandb_path):
+    """Get the artifact given a "path" in the form
+    entity/project/run_id/run_name."""
+    entity, project, run_id, run_name = wandb_path.split("/")
+    run = wandb.Api().run(f"{entity}/{project}/{run_id}")
+    artifact_base_name = run.logged_artifacts()[0].name
+    artifact = wandb.Api().artifact(f"{entity}/{project}/{artifact_base_name}")
+    return artifact
