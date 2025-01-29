@@ -24,7 +24,7 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
-from synesis.utils import deep_update
+from synesis.utils import deep_update, get_artifact
 
 
 def preprocess_batch(
@@ -582,11 +582,7 @@ def evaluate(
 
     if isinstance(model, str):
         # Load model from wandb artifact
-        model_wandb_path = f"{entity}/{project}/{model_name}"
-        artifact_name = (
-            f"{model_wandb_path}:latest" if ":" not in model_name else model_name
-        )
-        artifact = wandb.Api().artifact(artifact_name)
+        artifact = get_artifact(model)
         artifact_dir = artifact.download()
         model = get_probe(
             model_type=task_config["model"]["type"],

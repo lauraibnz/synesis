@@ -1,0 +1,275 @@
+{
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.014398935803704242,
+        "mae": 0.10432520512731626,
+        "mse": 0.014398935803704242
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.005077065527071988,
+        "mae": 0.04637264482889218,
+        "mse": 0.005077065527071988
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.0034379791015747376,
+        "mae": 0.04319760353266746,
+        "mse": 0.0034379791015747376
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_MDuo": {
+        "avg_loss": 0.00235059069450033,
+        "mae": 0.027117906032741695,
+        "mse": 0.00235059069450033
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.010383148939972525,
+        "mae": 0.08419423339472361,
+        "mse": 0.010383148939972525
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.013454093762015111,
+        "mae": 0.0899414516460413,
+        "mse": 0.013454093762015111
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.002537139571670445,
+        "mae": 0.03571649426552488,
+        "mse": 0.002537139571670445
+    },
+    "EQUI_PARA_regression_AddWhiteNoise_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.004484804532235961,
+        "mae": 0.04926576762609575,
+        "mse": 0.004484804532235961
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.029628795840834398,
+        "mae": 0.14025801378686253,
+        "mse": 0.029628795840834398
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.015034096814472231,
+        "mae": 0.10020238081219493,
+        "mse": 0.015034096814472231
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.010800700585485162,
+        "mae": 0.0683201940998301,
+        "mse": 0.010800700585485162
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_MDuo": {
+        "avg_loss": 0.007490531022797438,
+        "mae": 0.05173940201146134,
+        "mse": 0.007490531022797438
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.07554672344808747,
+        "mae": 0.21789241747405644,
+        "mse": 0.07554672344808747
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.07441698765812467,
+        "mae": 0.2088943066128503,
+        "mse": 0.07441698765812467
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.005596462006088269,
+        "mae": 0.04704288679665175,
+        "mse": 0.005596462006088269
+    },
+    "EQUI_PARA_regression_PitchShift_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.010174116014183774,
+        "mae": 0.07612265153764293,
+        "mse": 0.010174116014183774
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.0150128620902488,
+        "mae": 0.09499365616829945,
+        "mse": 0.0150128620902488
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.014266109675704826,
+        "mae": 0.08859692413410147,
+        "mse": 0.014266109675704826
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.016425316329355524,
+        "mae": 0.08583979632264224,
+        "mse": 0.016425316329355524
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_MDuo": {
+        "avg_loss": 0.026849825899273774,
+        "mae": 0.12636708089721568,
+        "mse": 0.026849825899273774
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.01809163823115249,
+        "mae": 0.09925361273773964,
+        "mse": 0.01809163823115249
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.02488929370347276,
+        "mae": 0.12233422813431613,
+        "mse": 0.02488929370347276
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.006325489643019274,
+        "mae": 0.055360359577894924,
+        "mse": 0.006325489643019274
+    },
+    "EQUI_PARA_regression_TimeStretch_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.1038029681896576,
+        "mae": 0.292560743641058,
+        "mse": 0.1038029681896576
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.0017866233712295438,
+        "mae": 0.02891252180282166,
+        "mse": 0.0017866233712295438
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.00418043065340518,
+        "mae": 0.043871621872442236,
+        "mse": 0.00418043065340518
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.0023676599339858212,
+        "mae": 0.03585789389461502,
+        "mse": 0.0023676599339858212
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_MDuo": {
+        "avg_loss": 0.020660348596048626,
+        "mae": 0.1244001502631933,
+        "mse": 0.020660348596048626
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.003348943932886241,
+        "mae": 0.04330116822321465,
+        "mse": 0.003348943932886241
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.011477564351639815,
+        "mae": 0.08220095272319786,
+        "mse": 0.011477564351639815
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.0028779829931201597,
+        "mae": 0.04093539974745782,
+        "mse": 0.0028779829931201597
+    },
+    "EQUI_PARA_regression_linear_AddWhiteNoise_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.02251603910577037,
+        "mae": 0.12282012684502523,
+        "mse": 0.02251603910577037
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.011635714789589482,
+        "mae": 0.08365600747398395,
+        "mse": 0.011635714789589482
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.009063143157721327,
+        "mae": 0.068520089285518,
+        "mse": 0.009063143157721327
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.01182008345698694,
+        "mae": 0.0794417009723821,
+        "mse": 0.01182008345698694
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_MDuo": {
+        "avg_loss": 0.0275799663466351,
+        "mae": 0.1476180337916786,
+        "mse": 0.0275799663466351
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.027920112475193132,
+        "mae": 0.1258250857992419,
+        "mse": 0.027920112475193132
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.07070707331257946,
+        "mae": 0.22270105573805288,
+        "mse": 0.07070707331257946
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.00643575043453706,
+        "mae": 0.05701554625070301,
+        "mse": 0.00643575043453706
+    },
+    "EQUI_PARA_regression_linear_PitchShift_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.030781102719575893,
+        "mae": 0.14335513573357728,
+        "mse": 0.030781102719575893
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_AudioMAE": {
+        "avg_loss": 0.013321100392594274,
+        "mae": 0.08628274655120372,
+        "mse": 0.013321100392594274
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_CLAP": {
+        "avg_loss": 0.016739217217539792,
+        "mae": 0.09849682306414233,
+        "mse": 0.016739217217539792
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_HuBERT": {
+        "avg_loss": 0.013400677449063063,
+        "mae": 0.08336458710200995,
+        "mse": 0.013400677449063063
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_MDuo": {
+        "avg_loss": 0.011451956019587593,
+        "mae": 0.08675014271248674,
+        "mse": 0.011451956019587593
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_UniSpeech": {
+        "avg_loss": 0.01831087137385352,
+        "mae": 0.09839376481291817,
+        "mse": 0.01831087137385352
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_Wav2Vec2": {
+        "avg_loss": 0.025300496154683532,
+        "mae": 0.11951736903273273,
+        "mse": 0.025300496154683532
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_Whisper": {
+        "avg_loss": 0.005641231470877261,
+        "mae": 0.05457046596428332,
+        "mse": 0.005641231470877261
+    },
+    "EQUI_PARA_regression_linear_TimeStretch_dummy_LibriSpeech_XVector": {
+        "avg_loss": 0.7507733165559209,
+        "mae": 0.8373971705717305,
+        "mse": 0.7507733165559209
+    },
+    "INFO_DOWN_regression_LibriSpeech_wps_MDuo": {
+        "MSE": 0.3209192597846077
+    },
+    "INFO_DOWN_regression_LibriSpeech_wps_UniSpeech": {
+        "MSE": 0.17416401865366396
+    },
+    "INFO_DOWN_regression_LibriSpeech_wps_Wav2Vec2": {
+        "MSE": 0.19799136650629248
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_AudioMAE": {
+        "MSE": 0.2312194408282655
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_CLAP": {
+        "MSE": 0.2520493582253048
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_HuBERT": {
+        "MSE": 0.18391505333212488
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_MDuo": {
+        "MSE": 0.22931025071994135
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_UniSpeech": {
+        "MSE": 0.18949617754291395
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_Wav2Vec2": {
+        "MSE": 0.2138577298490394
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_Whisper": {
+        "MSE": 0.11588066612943411
+    },
+    "INFO_DOWN_regression_linear_LibriSpeech_wps_XVector": {
+        "MSE": 0.6004155635589752
+    }
+}

@@ -17,7 +17,7 @@ from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
-from synesis.utils import deep_update
+from synesis.utils import deep_update, get_artifact
 
 
 def train(
@@ -202,8 +202,7 @@ def train(
 
         model.eval()
         val_loss = 0
-        val_outputs = []
-        val_targets = []
+        val_metric_results = {}
         with torch.no_grad():
             for item, target in tqdm(
                 val_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
@@ -228,23 +227,20 @@ def train(
                     val_output = val_output.squeeze(1)
                 val_loss += criterion(val_output, target).item()
 
-                # Store outputs and targets for metric calculation
-                val_outputs.append(val_output)
-                val_targets.append(target)
-
-        # Concatenate all outputs and targets
-        val_outputs = torch.cat(val_outputs, dim=0)
-        val_targets = torch.cat(val_targets, dim=0)
+                for metric_cfg, metric in zip(
+                    task_config["evaluation"]["metrics"], val_metrics
+                ):
+                    metric = metric.to(device)
+                    if metric_cfg["name"] not in val_metric_results:
+                        val_metric_results[metric_cfg["name"]] = 0
+                    val_metric_results[metric_cfg["name"]] = metric(
+                        val_output, target
+                    ).item()
 
         # Calculate metrics
-        val_metric_results = {}
-        for metric_cfg, metric in zip(
-            task_config["evaluation"]["metrics"], val_metrics
-        ):
-            metric = metric.to(device)
-            val_metric_results[metric_cfg["name"]] = metric(val_outputs, val_targets)
-
         avg_val_loss = val_loss / len(val_dataloader)
+        for metric_cfg in task_config["evaluation"]["metrics"]:
+            val_metric_results[metric_cfg["name"]] /= len(val_dataloader)
         print(
             f"Epoch {epoch+1}/{num_epochs} -",
             f"Avg train loss: {avg_loss:.4f},",
@@ -351,11 +347,7 @@ def evaluate(
 
     if isinstance(model, str):
         # Load model from wandb artifact
-        model_wandb_path = f"{entity}/{project}/{model_name}"
-        artifact_name = (
-            f"{model_wandb_path}:latest" if ":" not in model_name else model_name
-        )
-        artifact = wandb.Api().artifact(f"{entity}/{project}/{artifact_name}")
+        artifact = get_artifact(model)
         artifact_dir = artifact.download()
         n_outputs = (
             1
@@ -416,8 +408,7 @@ def evaluate(
 
     model.eval()
     total_loss = 0
-    test_outputs = []
-    test_targets = []
+    test_metric_results = {}
     criterion = task_config["evaluation"]["criterion"]()
 
     with torch.no_grad():
@@ -442,23 +433,17 @@ def evaluate(
                 output = output.squeeze(1)
             total_loss += criterion(output, target).item()
 
-            # Store outputs and targets for metric calculation
-            test_outputs.append(output)
-            test_targets.append(target)
-
-    # Concatenate all outputs and targets
-    test_outputs = torch.cat(test_outputs, dim=0)
-    test_targets = torch.cat(test_targets, dim=0)
-
-    # Calculate metrics
-    test_metric_results = {}
-    for metric_cfg, metric in zip(task_config["evaluation"]["metrics"], metrics):
-        metric = metric.to(device)
-        test_metric_results[metric_cfg["name"]] = metric(
-            test_outputs, test_targets
-        ).item()
+            for metric_cfg, metric in zip(
+                task_config["evaluation"]["metrics"], metrics
+            ):
+                metric = metric.to(device)
+                if metric_cfg["name"] not in test_metric_results:
+                    test_metric_results[metric_cfg["name"]] = 0
+                test_metric_results[metric_cfg["name"]] += metric(output, target).item()
 
     avg_loss = total_loss / len(dataloader)
+    for metric_cfg in task_config["evaluation"]["metrics"]:
+        test_metric_results[metric_cfg["name"]] /= len(dataloader)
     print(f"Avg test loss: {avg_loss:.4f}")
 
     for name, value in test_metric_results.items():
@@ -467,7 +452,7 @@ def evaluate(
     if logging:
         # Create a table for the evaluation metrics
         metrics_table = wandb.Table(columns=["Metric", "Value"])
-        metrics_table.add_data("Average Loss", avg_loss)
+        metrics_table.add_data("Average Test Loss", avg_loss)
         for name, value in test_metric_results.items():
             metrics_table.add_data(name, value)
 
