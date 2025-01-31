@@ -22,7 +22,7 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
-from synesis.utils import deep_update, get_artifact
+from synesis.utils import deep_update, get_artifact, get_metric_from_wandb
 
 
 def preprocess_batch(
@@ -180,7 +180,7 @@ def evaluate_disentanglement(
 
     # Get original metrics from wandb run
     run = wandb.Api().run(f"{entity}/{project}/{run_id}")
-    original_metrics = run.summary.get("evaluation_metrics", {})
+    original_metrics = {"mse": get_metric_from_wandb(run, "MSE")}
 
     # Calculate differences
     diff_metrics = {
@@ -201,7 +201,7 @@ def evaluate_disentanglement(
     # Save/append to CSV
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
-    results_file = results_dir / "disentanglement_results.csv"
+    results_file = results_dir / f"{dataset}_disentanglement_{task}.csv"
 
     df = pd.DataFrame([all_results])
     if not results_file.exists():
@@ -265,7 +265,7 @@ if __name__ == "__main__":
     entity = "cplachouras"
     project = "synesis"
     wandb_runs = wandb.Api().runs(f"{entity}/{project}")
-    run_name = f"INFO_DOWN_{args.task}_{args.dataset}_{args.label}_{args.feature}"
+    run_name = f"2_INFO_DOWN_{args.task}_{args.dataset}_{args.label}_{args.feature}"
     run_id = None
     for run in wandb_runs:
         if run.name == run_name:

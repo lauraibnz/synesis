@@ -3,8 +3,9 @@
 import os
 
 import requests
+import pandas as pd
 from tqdm import tqdm
-
+import json
 import wandb
 
 
@@ -113,3 +114,18 @@ def get_artifact(wandb_path):
     artifact_base_name = run.logged_artifacts()[0].name
     artifact = wandb.Api().artifact(f"{entity}/{project}/{artifact_base_name}")
     return artifact
+
+
+def get_metric_from_wandb(run, metric_name):
+    """Get a metric from a run's evaluation metrics."""
+    for art in run.logged_artifacts():
+        if art.type == "run_table" and "evaluation_metrics" in art.name:
+            art_name = art.name
+    artifact = wandb.Api().artifact(f"{run.entity}/{run.project}/{art_name}")
+    artifact_dir = artifact.download()
+    with open(f"{artifact_dir}/evaluation_metrics.table.json") as f:
+        data = json.load(f)["data"]
+    for row in data:
+        if row[0] == metric_name:
+            return row[1]
+    return None
