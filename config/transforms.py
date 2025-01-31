@@ -65,16 +65,64 @@ configs = {
         "min": -0.5,
         "max": 0.5,
     },
+    "HueShift25": {
+        "min": -0.5,
+        "max": -0.25,
+    },
+    "HueShift50": {
+        "min": -0.25,
+        "max": 0.,
+    },
+    "HueShift75": {
+        "min": 0.,
+        "max": 0.25,
+    },
+    "HueShift100": {
+        "min": 0.25,
+        "max": 0.5,
+    },
     "SaturationShift": {
         "min": -2.0,
+        "max": 2.0,
+    },
+    "SaturationShift25": {
+        "min": -2.0,
+        "max": -1.0,
+    },
+    "SaturationShift50": {
+        "min": -1.0,
+        "max": 0.0,
+    },
+    "SaturationShift75": {
+        "min": 0.0,
+        "max": 1.0,
+    },
+    "SaturationShift100": {
+        "min": 1.0,
         "max": 2.0,
     },
     "BrightnessShift": {
         "min": -2.0,
         "max": 2.0,
     },
+    "BrightnessShift25": {
+        "min": -2.0,
+        "max": -1.0,
+    },
+    "BrightnessShift50": {
+        "min": -1.0,
+        "max": 0.0,
+    },
+    "BrightnessShift75": {
+        "min": 0.0,
+        "max": 1.0,
+    },
+    "BrightnessShift100": {
+        "min": 1.0,
+        "max": 2.0,
+    },
     "JPEGCompression": {
-        "min": 50,
+        "min": 0,
         "max": 100,
     },
 }
