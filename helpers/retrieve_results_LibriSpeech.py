@@ -14,9 +14,9 @@ from synesis.utils import get_metric_from_wandb
 
 def get_equi_run_names():
     return [
-        f"3_{eval_type}_{task}_{transforms_map[label]}_{label}_{ds}_{feature}"
-        for eval_type, task, label, ds, feature in product(
-            equi_types, equi_tasks, equi_labels, dataset, features
+        f"3_{eval_type}_{task}_{transform}_{label}_{ds}_{feature}"
+        for eval_type, task, transform, label, ds, feature in product(
+            equi_types, equi_tasks, transforms, equi_labels, dataset, features
         )
     ]
 
@@ -35,39 +35,27 @@ all_results = {}
 entity = "cplachouras"
 project = "synesis"
 
-dataset = ["ImageNet"]
-equi_types = ["EQUI_PARA"]
+dataset = ["LibriSpeech"]
+equi_types = ["EQUI_PARA", "EQUI_FEAT"]
 info_types = ["INFO_DOWN"]
 features = [
-    "ResNet18_ImageNet",
-    "ResNet34_ImageNet",
-    "ResNet50_ImageNet",
-    "ResNet101_ImageNet",
-    "ViT_b_16_ImageNet",
-    "ViT_l_16_ImageNet",
-    "ViT_b_32_ImageNet",
-    "ViT_l_32_ImageNet",
-    "DINOv2_small",
-    "DINOv2_base",
-    "DINOv2_large",
-    "DINO",
-    "SimCLR",
-    "ViT_MAE",
-    "CLIP",
-    "IJEPA",
+    "MDUO",
+    "AudioMAE",
+    "Wav2Vec2",
+    "HuBERT",
+    "CLAP",
+    "Whisper",
+    "UniSpeech",
+    "XVector",
 ]
 info_tasks = ["regression", "regression_linear"]
 equi_tasks = ["regression", "regression_linear"]
-equi_labels = ["hue", "saturation", "brightness"]
-info_labels = ["hue", "saturation", "brightness"]
-transforms_map = {
-    "hue": "HueShift",
-    "saturation": "SaturationShift",
-    "brightness": "BrightnessShift",
-}
+equi_labels = ["dummy"]
+info_labels = ["wps"]
+transforms = ["PitchShift", "AddWhiteNoise", "TimeStretch"]
 
 wandb_runs = wandb.Api().runs(f"{entity}/{project}")
-run_names = get_equi_run_names() + get_info_run_names()
+run_names = get_info_run_names() + get_equi_run_names()
 
 # retrieve run_id from each run that matches local and wandb
 run_ids = {}
@@ -87,6 +75,7 @@ for run_name, run_id in run_ids.items():
 successful_runs = []
 failed_runs = []
 
+# evaluate
 for i, wandb_path in enumerate(wandb_paths):
     # try:
     entity, project, run_id, model_name = wandb_path.split("/")
@@ -119,6 +108,6 @@ results_dir = Path("results")
 if not results_dir.exists():
     results_dir.mkdir()
 # Save json
-results_json = results_dir / "ImageNet_v3.json"
+results_json = results_dir / "LibriSpeech_v3.json"
 with open(results_json, "w") as f:
     json.dump(all_results, f, indent=4, sort_keys=True)
