@@ -11,6 +11,42 @@ configs = {
             "mode": "per_example",
         },
     },
+    "PitchShift25": {
+        "class": PitchShift,
+        "params": {
+            "min_transpose_semitones": -12,
+            "max_transpose_semitones": -6,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
+    "PitchShift50": {
+        "class": PitchShift,
+        "params": {
+            "min_transpose_semitones": -6,
+            "max_transpose_semitones": 0,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
+    "PitchShift75": {
+        "class": PitchShift,
+        "params": {
+            "min_transpose_semitones": 0,
+            "max_transpose_semitones": 6,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
+    "PitchShift100": {
+        "class": PitchShift,
+        "params": {
+            "min_transpose_semitones": 6,
+            "max_transpose_semitones": 12,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
     "AddWhiteNoise": {
         "class": AddColoredNoise,
         "params": {
@@ -22,11 +58,91 @@ configs = {
             "mode": "per_example",
         },
     },
+    "AddWhiteNoise25": {
+        "class": AddColoredNoise,
+        "params": {
+            "min_f_decay": 0,
+            "max_f_decay": 0,
+            "min_snr_in_db": -30,
+            "max_snr_in_db": -10,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
+    "AddWhiteNoise50": {
+        "class": AddColoredNoise,
+        "params": {
+            "min_f_decay": 0,
+            "max_f_decay": 0,
+            "min_snr_in_db": -10,
+            "max_snr_in_db": 10,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
+    "AddWhiteNoise75": {
+        "class": AddColoredNoise,
+        "params": {
+            "min_f_decay": 0,
+            "max_f_decay": 0,
+            "min_snr_in_db": 10,
+            "max_snr_in_db": 30,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
+    "AddWhiteNoise100": {
+        "class": AddColoredNoise,
+        "params": {
+            "min_f_decay": 0,
+            "max_f_decay": 0,
+            "min_snr_in_db": 30,
+            "max_snr_in_db": 50,
+            "p": 1,
+            "mode": "per_example",
+        },
+    },
     "TimeStretch": {
         "class": TimeStretch,
         "params": {
             "min_rate": 0.5,
             "max_rate": 2,
+            "leave_length_unchanged": False,
+            "p": 1,
+        },
+    },
+    "TimeStretch25": {
+        "class": TimeStretch,
+        "params": {
+            "min_rate": 0.5,
+            "max_rate": 0.875,
+            "leave_length_unchanged": False,
+            "p": 1,
+        },
+    },
+    "TimeStretch50": {
+        "class": TimeStretch,
+        "params": {
+            "min_rate": 0.875,
+            "max_rate": 1.25,
+            "leave_length_unchanged": False,
+            "p": 1,
+        },
+    },
+    "TimeStretch75": {
+        "class": TimeStretch,
+        "params": {
+            "min_rate": 1.25,
+            "max_rate": 1.625,
+            "leave_length_unchanged": False,
+            "p": 1,
+        },
+    },
+    "TimeStretch100": {
+        "class": TimeStretch,
+        "params": {
+            "min_rate": 1.625,
+            "max_rate": 2.0,
             "leave_length_unchanged": False,
             "p": 1,
         },
