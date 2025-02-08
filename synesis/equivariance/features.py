@@ -12,11 +12,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
-import wandb
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+import wandb
 from config.equivariance.features import configs as task_configs
 from config.features import configs as feature_configs
 from config.transforms import configs as transform_configs
@@ -212,7 +212,7 @@ def train(
     )
 
     if logging or debug:
-        run_name = f"EMB_EQUI_FEAT_{task}_{transform}_{label}_{dataset}_{feature}"
+        run_name = f"2_EQUI_FEAT_{task}_{transform}_{label}_{dataset}_{feature}"
         if debug:
             run_name = f"DEBUG_{run_name}"
         wandb.init(
@@ -284,19 +284,20 @@ def train(
         train_dataset,
         shuffle=True,
         batch_size=task_config["training"]["batch_size"],
-        drop_last=True,  # batch norm
+        drop_last=True if task_config["model"]["batch_norm"] else False,
     )
     val_loader = DataLoader(
         val_dataset,
         shuffle=False,
         batch_size=task_config["training"]["batch_size"],
-        drop_last=True,  # batch norm
+        drop_last=True if task_config["model"]["batch_norm"] else False,
     )
 
     model = get_probe(
         model_type=task_config["model"]["type"],
         in_features=feature_config["feature_dim"],
-        emb_param=True,
+        emb_param=task_config["model"]["emb_param"],
+        emb_param_dim=task_config["model"]["emb_param_dim"],
         n_outputs=feature_config["feature_dim"],
         use_batch_norm=task_config["model"]["batch_norm"],
         **task_config["model"]["params"],
@@ -340,7 +341,7 @@ def train(
             if transform_params.dim() == 3:
                 transform_params = transform_params.squeeze(1)
 
-            if task_config["model"]["feature_norm"]:
+            if task_config["model"]["feature_norm"] or feature == "XVector":
                 original_features = (original_features - feature_mean) / feature_std
                 transformed_features = (
                     transformed_features - feature_mean
@@ -354,7 +355,7 @@ def train(
             predicted_features = model(original_features, param=transform_params)
             if predicted_features.dim() == 2 and original_features.dim() == 3:
                 predicted_features = predicted_features.unsqueeze(1)
-            loss = criterion(original_features, predicted_features)
+            loss = criterion(predicted_features, transformed_features)
 
             loss.backward()
 
@@ -398,6 +399,8 @@ def train(
             if mini_val_step and (batch_idx + 1) % mini_val_step == 0:
                 model.eval()
                 mini_val_loss = 0
+                mini_val_cosine_similarity = 0
+                num_mini_val_items = 0
                 with torch.no_grad():
                     for val_batch_raw_data, val_batch_targets in val_loader:
                         (
@@ -417,6 +420,21 @@ def train(
                         if val_transform_params.dim() == 3:
                             val_transform_params = val_transform_params.squeeze(1)
 
+                        if task_config["model"]["feature_norm"] or feature == "XVector":
+                            val_original_features = (
+                                val_original_features - feature_mean
+                            ) / feature_std
+                            val_transformed_features = (
+                                val_transformed_features - feature_mean
+                            ) / feature_std
+                        if model.use_batch_norm:
+                            val_original_features = model.input_batch_norm(
+                                val_original_features.squeeze(1)
+                            )
+                            val_transformed_features = model.input_batch_norm(
+                                val_transformed_features.squeeze(1)
+                            )
+
                         val_predicted_features = model(
                             val_original_features, param=val_transform_params
                         )
@@ -430,9 +448,33 @@ def train(
                         )
                         mini_val_loss += val_loss.item()
 
-                avg_mini_val_loss = mini_val_loss / len(val_loader)
+                        # Compute cosine similarity
+                        cosine_similarity = (
+                            F.cosine_similarity(
+                                val_predicted_features, val_transformed_features, dim=1
+                            )
+                            .mean()
+                            .item()
+                        )
+                        mini_val_cosine_similarity += cosine_similarity
+
+                        num_mini_val_items += val_batch_raw_data.size(0)
+                        if num_mini_val_items >= 1000:
+                            break
+
+                avg_mini_val_loss = mini_val_loss / (
+                    num_mini_val_items / val_loader.batch_size
+                )
+                avg_mini_val_cosine_similarity = mini_val_cosine_similarity / (
+                    num_mini_val_items / val_loader.batch_size
+                )
                 if logging or debug:
-                    wandb.log({"mini_val/loss": avg_mini_val_loss})
+                    wandb.log(
+                        {
+                            "mini_val/loss": avg_mini_val_loss,
+                            "mini_val/cosine_similarity": avg_mini_val_cosine_similarity,
+                        }
+                    )
                 model.train()
 
         avg_train_loss = total_train_loss / len(train_loader)
@@ -462,7 +504,7 @@ def train(
                 if transform_params.dim() == 3:
                     transform_params = transform_params.squeeze(1)
 
-                if task_config["model"]["feature_norm"]:
+                if task_config["model"]["feature_norm"] or feature == "XVector":
                     original_features = (original_features - feature_mean) / feature_std
                     transformed_features = (
                         transformed_features - feature_mean
@@ -478,7 +520,7 @@ def train(
                 predicted_features = model(original_features, param=transform_params)
                 if predicted_features.dim() == 2 and original_features.dim() == 3:
                     predicted_features = predicted_features.unsqueeze(1)
-                loss = criterion(original_features, predicted_features)
+                loss = criterion(predicted_features, transformed_features)
 
                 total_val_loss += loss.item()
 
@@ -607,7 +649,8 @@ def evaluate(
         model = get_probe(
             model_type=task_config["model"]["type"],
             in_features=feature_config["feature_dim"],
-            emb_param=True,
+            emb_param=task_config["model"]["emb_param"],
+            emb_param_dim=task_config["model"]["emb_param_dim"],
             use_batch_norm=task_config["model"]["batch_norm"],
             n_outputs=feature_config["feature_dim"],
             **task_config["model"]["params"],
@@ -648,7 +691,7 @@ def evaluate(
         test_dataset,
         shuffle=False,
         batch_size=task_config["evaluation"]["batch_size"],
-        drop_last=True,  # to avoid batch norm issues
+        drop_last=True if task_config["model"]["batch_norm"] else False,
     )
 
     model.eval()
@@ -678,7 +721,7 @@ def evaluate(
             if transform_params.dim() == 3:
                 transform_params = transform_params.squeeze(1)
 
-            if task_config["model"]["feature_norm"]:
+            if task_config["model"]["feature_norm"] or feature == "XVector":
                 original_features = (original_features - feature_mean) / feature_std
                 transformed_features = (
                     transformed_features - feature_mean
@@ -692,7 +735,7 @@ def evaluate(
             predicted_features = model(original_features, param=transform_params)
             if predicted_features.dim() == 2 and original_features.dim() == 3:
                 predicted_features = predicted_features.unsqueeze(1)
-            loss = criterion(original_features, predicted_features)
+            loss = criterion(predicted_features, transformed_features)
 
             total_loss += loss.item()
 
