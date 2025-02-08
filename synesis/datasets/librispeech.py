@@ -155,17 +155,20 @@ class LibriSpeech(Dataset):
         return len(self.paths)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
-        y = load_track(
-            path=self.paths[idx],
-            item_format=self.item_format,
-            itemization=self.itemization,
-            item_len_sec=self.feature_config["item_len_sec"],
-            sample_rate=self.feature_config["sample_rate"],
-        )
+        if self.item_format == "raw":
+            y = load_track(
+                path=self.paths[idx],
+                item_format=self.item_format,
+                itemization=self.itemization,
+                item_len_sec=self.feature_config["item_len_sec"],
+                sample_rate=self.feature_config["sample_rate"],
+            )
+        else:
+            y = torch.load(self.paths[idx])
 
         if self.label == "wps":
             # Use pathlib for cleaner path handling
-            path = Path(self.paths[idx])
+            path = Path(self.raw_data_paths[idx])
             file_id = path.stem  # Get filename without extension
             transcript_file_name = "-".join(file_id.split("-")[:-1]) + ".trans.txt"
             transcript_path = path.parent / transcript_file_name
@@ -184,7 +187,9 @@ class LibriSpeech(Dataset):
             words = len(transcript.split())
             wps = (
                 words
-                / self.audio_durations[self.paths[idx].replace(str(self.root), "")]
+                / self.audio_durations[
+                    self.raw_data_paths[idx].replace(str(self.root), "")
+                ]
             )
             target = torch.tensor(wps, dtype=torch.float32)
         else:
