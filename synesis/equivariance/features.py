@@ -12,11 +12,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
+import wandb
 from torch import nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-import wandb
 from config.equivariance.features import configs as task_configs
 from config.features import configs as feature_configs
 from config.transforms import configs as transform_configs
@@ -25,6 +25,16 @@ from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update, get_artifact
+
+
+def load_feature_stats(feature: str):
+    """Load pre-computed mean and std for feature normalization."""
+    stats_path = Path("stats") / f"mean_std_{feature}.txt"
+    with open(stats_path) as f:
+        lines = f.readlines()
+        mean = float(lines[0].split(": ")[1])
+        std = float(lines[1].split(": ")[1])
+    return mean, std
 
 
 def preprocess_batch(
@@ -258,6 +268,8 @@ def train(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
+    feature_mean, feature_std = load_feature_stats(feature)
+
     if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
         transform_obj = get_transform(
             transform_config,
@@ -328,7 +340,11 @@ def train(
             if transform_params.dim() == 3:
                 transform_params = transform_params.squeeze(1)
 
-            # Apply batch normalization to original features
+            if task_config["model"]["feature_norm"]:
+                original_features = (original_features - feature_mean) / feature_std
+                transformed_features = (
+                    transformed_features - feature_mean
+                ) / feature_std
             if task_config["model"]["batch_norm"]:
                 original_features = model.input_batch_norm(original_features.squeeze(1))
                 transformed_features = model.input_batch_norm(
@@ -446,7 +462,11 @@ def train(
                 if transform_params.dim() == 3:
                     transform_params = transform_params.squeeze(1)
 
-                # Apply batch normalization to original features
+                if task_config["model"]["feature_norm"]:
+                    original_features = (original_features - feature_mean) / feature_std
+                    transformed_features = (
+                        transformed_features - feature_mean
+                    ) / feature_std
                 if model.use_batch_norm:
                     original_features = model.input_batch_norm(
                         original_features.squeeze(1)
@@ -612,6 +632,8 @@ def evaluate(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
+    feature_mean, feature_std = load_feature_stats(feature)
+
     if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
         transform_obj = get_transform(
             transform_config,
@@ -656,7 +678,11 @@ def evaluate(
             if transform_params.dim() == 3:
                 transform_params = transform_params.squeeze(1)
 
-            # Apply batch normalization to original features
+            if task_config["model"]["feature_norm"]:
+                original_features = (original_features - feature_mean) / feature_std
+                transformed_features = (
+                    transformed_features - feature_mean
+                ) / feature_std
             if task_config["model"]["batch_norm"]:
                 original_features = model.input_batch_norm(original_features.squeeze(1))
                 transformed_features = model.input_batch_norm(

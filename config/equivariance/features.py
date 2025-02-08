@@ -6,7 +6,8 @@ configs = {
         "model": {
             "type": "regressor",
             "params": {"hidden_units": [512, 512]},
-            "batch_norm": True,
+            "batch_norm": False,
+            "feature_norm": True,
         },
         "training": {
             "criterion": nn.MSELoss,
@@ -26,7 +27,8 @@ configs = {
         "model": {
             "type": "regressor",
             "params": {"hidden_units": [512, 512]},
-            "batch_norm": True,
+            "batch_norm": False,
+            "feature_norm": True,
         },
         "training": {
             "criterion": nn.MSELoss,
@@ -46,7 +48,8 @@ configs = {
         "model": {
             "type": "regressor",
             "params": {"hidden_units": [512, 512]},
-            "batch_norm": True,
+            "batch_norm": False,
+            "feature_norm": True,
         },
         "training": {
             "criterion": nn.MSELoss,
@@ -66,7 +69,8 @@ configs = {
         "model": {
             "type": "regressor",
             "params": {"hidden_units": []},
-            "batch_norm": True,
+            "batch_norm": False,
+            "feature_norm": True,
         },
         "training": {
             "criterion": nn.MSELoss,
@@ -86,7 +90,8 @@ configs = {
         "model": {
             "type": "regressor",
             "params": {"hidden_units": []},
-            "batch_norm": True,
+            "batch_norm": False,
+            "feature_norm": True,
         },
         "training": {
             "criterion": nn.MSELoss,
@@ -106,7 +111,8 @@ configs = {
         "model": {
             "type": "regressor",
             "params": {"hidden_units": []},
-            "batch_norm": True,
+            "batch_norm": False,
+            "feature_norm": True,
         },
         "training": {
             "criterion": nn.MSELoss,
