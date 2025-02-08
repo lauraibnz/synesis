@@ -88,23 +88,28 @@ successful_runs = []
 failed_runs = []
 
 for i, wandb_path in enumerate(wandb_paths):
-    # try:
+
     entity, project, run_id, model_name = wandb_path.split("/")
     run = wandb.Api().run(f"{entity}/{project}/{run_id}")
 
-    results = get_metric_from_wandb(run, "MSE")
-    if not results:
-        results = get_metric_from_wandb(run, "mse")
-    if not results:
-        results = get_metric_from_wandb(run, "Mean Squared Error")
-    if not results:
-        failed_runs.append((run.name, "No MSE metric found"))
+    try:
+        results = get_metric_from_wandb(run, "MSE")
+        if not results:
+            results = get_metric_from_wandb(run, "mse")
+        if not results:
+            results = get_metric_from_wandb(run, "Mean Squared Error")
+        if not results:
+            failed_runs.append((run.name, "No MSE metric found"))
+            print(f"✗ Failed: {run.name}")
+            print(f"  > Error: No MSE metric found")
+        else:
+            successful_runs.append(run.name)
+            print(f"✓ Success: {run.name}")
+            all_results[run.name] = {"mse": results}
+    except Exception as e:
+        failed_runs.append((run.name, str(e)))
         print(f"✗ Failed: {run.name}")
-        print(f"  > Error: No MSE metric found")
-    else:
-        successful_runs.append(run.name)
-        print(f"✓ Success: {run.name}")
-        all_results[run.name] = {"mse": results}
+        print(f"  > Error: {str(e)}")
 
     print("> PROGRESS: {}/{}".format(i + 1, len(wandb_paths)))
 

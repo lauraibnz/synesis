@@ -39,7 +39,7 @@ dataset = ["LibriSpeech"]
 equi_types = ["EQUI_PARA", "EQUI_FEAT"]
 info_types = ["INFO_DOWN"]
 features = [
-    "MDUO",
+    "MDuo",
     "AudioMAE",
     "Wav2Vec2",
     "HuBERT",
