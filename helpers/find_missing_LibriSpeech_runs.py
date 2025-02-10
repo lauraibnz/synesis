@@ -46,6 +46,19 @@ transforms = ["PitchShift", "AddWhiteNoise", "TimeStretch"]
 
 wandb_runs = wandb.Api().runs(f"{entity}/{project}")
 run_names = get_equi_run_names() + get_info_run_names()
+
+wandb_runs = wandb.Api().runs(f"{entity}/{project}")
+
+# check if there's a run.name - config mismatch in downstream model architecture
+for wandb_run in wandb_runs:
+    if "linear" in wandb_run.name:
+        if wandb_run.config["task_config"]["model"]["params"]["hidden_units"] != []:
+            print("Not actually linear:", wandb_run.name)
+    if "linear" not in wandb_run.name:
+        if wandb_run.config["task_config"]["model"]["params"]["hidden_units"] == []:
+            print("Not actually MLP:", wandb_run.name)
+
+run_names = get_equi_run_names() + get_info_run_names()
 wandb_runs = [str(run.name) for run in wandb_runs if "LibriSpeech" in run.name]
 print("wandb runs:", len(wandb_runs))
 print("searched runs:", len(run_names))

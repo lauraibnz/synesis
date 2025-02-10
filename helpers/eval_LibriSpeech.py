@@ -1,4 +1,6 @@
+import json
 from itertools import product
+from pathlib import Path
 
 import wandb
 from synesis.equivariance.features import evaluate as EQUI_FEAT_eval
@@ -23,6 +25,8 @@ def get_info_run_names():
         )
     ]
 
+
+all_results = {}
 
 entity = "cplachouras"
 project = "synesis"
@@ -70,76 +74,88 @@ failed_runs = []
 # evaluate
 for i, wandb_path in enumerate(wandb_paths):
     try:
-        # resume wandb run
         entity, project, run_id, model_name = wandb_path.split("/")
-        wandb.init(project=project, entity=entity, id=run_id, resume="allow")
-
-        # retrieve run from api
         run = wandb.Api().run(f"{entity}/{project}/{run_id}")
 
-        # if runs.summary["evaluation_metrics"] exists, the run has already been evaluated
-        try:
-            if "evaluation_metrics" in run.summary:
-                print(f"✓ Already evaluated: {run.name}")
-                successful_runs.append(run.name)
-                continue
-        except:
-            pass
+        # if run.summary["evaluation_metrics"] exists, the run has already been evaluated
+        # try:
+        #     if "evaluation_metrics" in run.summary:
+        #         print(f"✓ Already evaluated: {run.name}")
+        #         successful_runs.append(run.name)
+        #         continue
+        # except:
+        #     pass
 
         artifact_base_name = run.logged_artifacts()[0].name
 
         print(f"\nEvaluating run: {run.name}")
 
         if "INFO_DOWN" in run.name:
+            if "hue" in wandb_path:
+                label = "hue"
+            elif "saturation" in wandb_path:
+                label = "saturation"
+            else:
+                label = "brightness"
             results = INFO_DOWN_eval(
                 model=f"{entity}/{project}/{run_id}/{artifact_base_name}",
                 feature=run.config["feature"],
                 dataset=run.config["dataset"],
                 task=run.config["task"],
                 task_config={"evaluation": {"batch_size": 1}},
-                label="wps",
+                label=label,
                 item_format="raw",
                 device="cuda",
+                logging=True,
             )
 
         if "EQUI_PARA" in run.name:
-            if "PitchShift" in wandb_path:
-                transform = "PitchShift"
-            elif "AddWhiteNoise" in wandb_path:
-                transform = "AddWhiteNoise"
+            if "HueShift" in wandb_path:
+                transform = "HueShift"
+                label = "hue"
+            elif "BrightnessShift" in wandb_path:
+                transform = "BrightnessShift"
+                label = "brightness"
             else:
-                transform = "TimeStretch"
+                transform = "SaturationShift"
+                label = "saturation"
             results = EQUI_PARA_eval(
                 model=f"{entity}/{project}/{run_id}/{artifact_base_name}",
                 feature=run.config["feature"],
                 dataset=run.config["dataset"],
                 transform=transform,
-                label=run.config["label"],
-                task=run.config["task"],
                 task_config={"evaluation": {"batch_size": 1}},
+                label=label,
+                task=run.config["task"],
                 device="cuda",
+                logging=True,
             )
 
         if "EQUI_FEAT" in run.name:
-            if "PitchShift" in wandb_path:
-                transform = "PitchShift"
-            elif "AddWhiteNoise" in wandb_path:
-                transform = "AddWhiteNoise"
+            if "HueShift" in wandb_path:
+                transform = "HueShift"
+                label = "hue"
+            elif "BrightnessShift" in wandb_path:
+                transform = "BrightnessShift"
+                label = "brightness"
             else:
-                transform = "TimeStretch"
+                transform = "SaturationShift"
+                label = "saturation"
             results = EQUI_FEAT_eval(
                 model=f"{entity}/{project}/{run_id}/{artifact_base_name}",
                 feature=run.config["feature"],
                 dataset=run.config["dataset"],
                 transform=transform,
-                label=run.config["label"],
+                label=label,
                 task=run.config["task"],
                 task_config={"evaluation": {"batch_size": 1}},
                 device="cuda",
+                logging=True,
             )
 
         successful_runs.append(run.name)
         print(f"✓ Success: {run.name}")
+        all_results[run.name] = results
 
     except Exception as e:
         failed_runs.append((run.name, str(e)))
@@ -147,7 +163,7 @@ for i, wandb_path in enumerate(wandb_paths):
         print(f"  > Error: {str(e)}")
         continue
 
-    print("> > > > > Progress: {}/{}".format(i + 1, len(wandb_paths)))
+    print("> PROGRESS: {}/{}".format(i + 1, len(wandb_paths)))
 
 # Print summary
 print("\n=== Evaluation Summary ===")
@@ -155,7 +171,11 @@ print(f"Total runs: {len(wandb_paths)}")
 print(f"Successful: {len(successful_runs)}")
 print(f"Failed: {len(failed_runs)}")
 
-if failed_runs:
-    print("\nFailed runs details:")
-    for name, error in failed_runs:
-        print(f"- {name}: {error}")
+# Save results
+results_dir = Path("results")
+if not results_dir.exists():
+    results_dir.mkdir()
+# Save json
+results_json = results_dir / "LibriSpeech_results.json"
+with open(results_json, "w") as f:
+    json.dump(all_results, f, indent=4, sort_keys=True)

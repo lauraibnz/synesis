@@ -1,9 +1,9 @@
 import json
+import sys
 from itertools import product
 from pathlib import Path
 
 import wandb
-import sys
 
 # set cwd as the root of the project
 project_root = Path(__file__).parent.parent
@@ -88,7 +88,6 @@ successful_runs = []
 failed_runs = []
 
 for i, wandb_path in enumerate(wandb_paths):
-
     entity, project, run_id, model_name = wandb_path.split("/")
     run = wandb.Api().run(f"{entity}/{project}/{run_id}")
 
@@ -101,7 +100,7 @@ for i, wandb_path in enumerate(wandb_paths):
         if not results:
             failed_runs.append((run.name, "No MSE metric found"))
             print(f"✗ Failed: {run.name}")
-            print(f"  > Error: No MSE metric found")
+            print("  > Error: No MSE metric found")
         else:
             successful_runs.append(run.name)
             print(f"✓ Success: {run.name}")
