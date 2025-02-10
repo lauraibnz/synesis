@@ -86,17 +86,19 @@ for run_name, run_id in run_ids.items():
 # Track success/failure
 successful_runs = []
 failed_runs = []
+metric_keys = ["MSE", "mse", "Mean Squared Error", "Average L2 Distance", "L2 Distance"]
 
+# evaluate
 for i, wandb_path in enumerate(wandb_paths):
-    entity, project, run_id, model_name = wandb_path.split("/")
-    run = wandb.Api().run(f"{entity}/{project}/{run_id}")
-
     try:
-        results = get_metric_from_wandb(run, "MSE")
-        if not results:
-            results = get_metric_from_wandb(run, "mse")
-        if not results:
-            results = get_metric_from_wandb(run, "Mean Squared Error")
+        entity, project, run_id, model_name = wandb_path.split("/")
+        run = wandb.Api().run(f"{entity}/{project}/{run_id}")
+
+        results = None
+        for key in metric_keys:
+            results = get_metric_from_wandb(run, key)
+            if results:
+                break
         if not results:
             failed_runs.append((run.name, "No MSE metric found"))
             print(f"✗ Failed: {run.name}")

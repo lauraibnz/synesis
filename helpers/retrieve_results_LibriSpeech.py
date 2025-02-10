@@ -14,7 +14,7 @@ from synesis.utils import get_metric_from_wandb
 
 def get_equi_run_names():
     return [
-        f"2_{eval_type}_{task}_{transform}_{label}_{ds}_{feature}"
+        f"{eval_type}_{task}_{transform}_{label}_{ds}_{feature}"
         for eval_type, task, transform, label, ds, feature in product(
             equi_types, equi_tasks, transforms, equi_labels, dataset, features
         )
@@ -23,7 +23,7 @@ def get_equi_run_names():
 
 def get_info_run_names():
     return [
-        f"2_{eval_type}_{task}_{ds}_{label}_{feature}"
+        f"{eval_type}_{task}_{ds}_{label}_{feature}"
         for eval_type, task, ds, label, feature in product(
             info_types, info_tasks, dataset, info_labels, features
         )
@@ -74,6 +74,7 @@ for run_name, run_id in run_ids.items():
 # Track success/failure
 successful_runs = []
 failed_runs = []
+metric_keys = ["MSE", "mse", "Mean Squared Error", "Average L2 Distance", "L2 Distance"]
 
 # evaluate
 for i, wandb_path in enumerate(wandb_paths):
@@ -81,11 +82,11 @@ for i, wandb_path in enumerate(wandb_paths):
         entity, project, run_id, model_name = wandb_path.split("/")
         run = wandb.Api().run(f"{entity}/{project}/{run_id}")
 
-        results = get_metric_from_wandb(run, "MSE")
-        if not results:
-            results = get_metric_from_wandb(run, "mse")
-        if not results:
-            results = get_metric_from_wandb(run, "Mean Squared Error")
+        results = None
+        for key in metric_keys:
+            results = get_metric_from_wandb(run, key)
+            if results:
+                break
         if not results:
             failed_runs.append((run.name, "No MSE metric found"))
             print(f"✗ Failed: {run.name}")
@@ -112,6 +113,6 @@ results_dir = Path("results")
 if not results_dir.exists():
     results_dir.mkdir()
 # Save json
-results_json = results_dir / "LibriSpeech_results_v2.json"
+results_json = results_dir / "LibriSpeech_results_v1.json"
 with open(results_json, "w") as f:
     json.dump(all_results, f, indent=4, sort_keys=True)
