@@ -15,34 +15,32 @@ wandb_runs = [
     if "LibriSpeech" in run.name and "2_" in run.name
 ]
 
-# Regular expression for EQUI run names.
+# Regular expression for EQUI_PARA run names.
 # This expects the run name structure: "2_<EVAL_TYPE>_<task>_<...>"
 equi_pattern = re.compile(r"^(2_)(EQUI_PARA_)(?P<task>[^_]+(?:_[^_]+)?)(_.+)$")
 
 for run in wandb_runs:
     try:
-        # Infer task: if run.config already has "task", use it.
-        # Otherwise, determine by checking hidden_units in the model config.
+        # Infer task using the config.
         if "task" in run.config:
             inferred_task = run.config["task"]
         else:
             hidden_units = run.config["task_config"]["model"]["params"]["hidden_units"]
             inferred_task = "regression_linear" if not hidden_units else "regression"
 
-        corrected_name = run.name
         match = None
         if "EQUI_PARA_" in run.name:
             match = equi_pattern.match(run.name)
 
-        # If pattern matched then check the extracted task.
+        # If pattern matched then check if the task needs updating.
         if match:
             current_task = match.group("task")
             if current_task != inferred_task:
-                # Replace only the task portion with the inferred task.
-                corrected_name = (
+                new_name = (
                     f"{match.group(1)}{match.group(2)}{inferred_task}{match.group(4)}"
                 )
-                print(f"Renaming run {run.name} -> {corrected_name}")
-                api.update_run(run.id, {"name": corrected_name})
+                print(f"Renaming run {run.name} -> {new_name}")
+                run.name = new_name
+                run.update()
     except Exception as e:
         print(f"✗ Failed to update run {run.name}: {str(e)}")
