@@ -6,18 +6,20 @@ entity = "cplachouras"
 project = "synesis"
 
 # Increase API timeout if needed.
-api = wandb.Api(timeout=39)
+api = wandb.Api()
 
 # Get all LibriSpeech runs that have the "2_" prefix in their name.
 wandb_runs = [
     run
     for run in api.runs(f"{entity}/{project}")
-    if "LibriSpeech" in run.name and "2_" in run.name
+    if "ImageNet" in run.name and "2_" in run.name
 ]
 
 # Regular expression for EQUI_PARA run names.
-# This expects the run name structure: "2_<EVAL_TYPE>_<task>_<...>"
-equi_pattern = re.compile(r"^(2_)(EQUI_PARA_)(?P<task>[^_]+(?:_[^_]+)?)(_.+)$")
+# This expects the run name structure: "2_EQUI_PARA_<transform>_<label><suffix>"
+equi_pattern = re.compile(
+    r"^(2_)(EQUI_PARA_)(?P<transform>[^_]+)_(?P<label>[^_]+)(?P<suffix>_.+)$"
+)
 
 for run in wandb_runs:
     try:
@@ -32,12 +34,13 @@ for run in wandb_runs:
         if "EQUI_PARA_" in run.name:
             match = equi_pattern.match(run.name)
 
-        # If pattern matched then check if the task needs updating.
+        # If pattern matched then check if the inferred task is already present.
         if match:
-            current_task = match.group("task")
-            if current_task != inferred_task:
+            # Check if inferred task is not already in the name.
+            if inferred_task not in run.name:
                 new_name = (
-                    f"{match.group(1)}{match.group(2)}{inferred_task}{match.group(4)}"
+                    f"{match.group(1)}{match.group(2)}{inferred_task}_"
+                    f"{match.group('transform')}_{match.group('label')}{match.group('suffix')}"
                 )
                 print(f"Renaming run {run.name} -> {new_name}")
                 run.name = new_name

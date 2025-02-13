@@ -14,7 +14,7 @@ from synesis.utils import get_metric_from_wandb
 
 def get_equi_run_names():
     return [
-        f"3_{eval_type}_{task}_{transforms_map[label]}_{label}_{ds}_{feature}"
+        f"2_{eval_type}_{task}_{transforms_map[label]}_{label}_{ds}_{feature}"
         for eval_type, task, label, ds, feature in product(
             equi_types, equi_tasks, equi_labels, dataset, features
         )
@@ -23,7 +23,7 @@ def get_equi_run_names():
 
 def get_info_run_names():
     return [
-        f"3_{eval_type}_{task}_{ds}_{label}_{feature}"
+        f"2_{eval_type}_{task}_{ds}_{label}_{feature}"
         for eval_type, task, ds, label, feature in product(
             info_types, info_tasks, dataset, info_labels, features
         )
@@ -36,7 +36,7 @@ entity = "cplachouras"
 project = "synesis"
 
 dataset = ["ImageNet"]
-equi_types = ["EQUI_PARA"]
+equi_types = ["EQUI_FEAT"]
 info_types = ["INFO_DOWN"]
 features = [
     "ResNet18_ImageNet",
@@ -67,7 +67,7 @@ transforms_map = {
 }
 
 wandb_runs = wandb.Api().runs(f"{entity}/{project}")
-run_names = get_equi_run_names() + get_info_run_names()
+run_names = get_equi_run_names()
 
 # retrieve run_id from each run that matches local and wandb
 run_ids = {}
@@ -86,27 +86,32 @@ for run_name, run_id in run_ids.items():
 # Track success/failure
 successful_runs = []
 failed_runs = []
-metric_keys = ["MSE", "mse", "Mean Squared Error", "Average L2 Distance", "L2 Distance"]
-
+mse_keys = ["MSE", "mse", "Mean Squared Error", "Average L2 Distance", "L2 Distance"]
+cosine_keys = ["cosine", "Cosine Similarity", "Average Cosine Similarity"]
 # evaluate
 for i, wandb_path in enumerate(wandb_paths):
     try:
         entity, project, run_id, model_name = wandb_path.split("/")
         run = wandb.Api().run(f"{entity}/{project}/{run_id}")
 
-        results = None
-        for key in metric_keys:
-            results = get_metric_from_wandb(run, key)
-            if results:
+        mse = None
+        cosine = None
+        for key in mse_keys:
+            mse = get_metric_from_wandb(run, key)
+            if mse:
                 break
-        if not results:
+        for key in cosine_keys:
+            cosine = get_metric_from_wandb(run, key)
+            if cosine:
+                break
+        if not mse:
             failed_runs.append((run.name, "No MSE metric found"))
             print(f"✗ Failed: {run.name}")
             print("  > Error: No MSE metric found")
         else:
             successful_runs.append(run.name)
             print(f"✓ Success: {run.name}")
-            all_results[run.name] = {"mse": results}
+            all_results[run.name] = {"mse": mse, "cosine": cosine}
     except Exception as e:
         failed_runs.append((run.name, str(e)))
         print(f"✗ Failed: {run.name}")
@@ -125,6 +130,6 @@ results_dir = Path("results")
 if not results_dir.exists():
     results_dir.mkdir()
 # Save json
-results_json = results_dir / "ImageNet_v3.json"
+results_json = results_dir / "ImageNet_EQUI_FEAT_results.json"
 with open(results_json, "w") as f:
     json.dump(all_results, f, indent=4, sort_keys=True)

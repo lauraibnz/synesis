@@ -1,0 +1,194 @@
+{
+    "1_EQUI_PARA_regression_BrightnessShift_brightness_ImageNet_CLIP": {
+        "mse": 0.19681811866028148
+    },
+    "1_EQUI_PARA_regression_BrightnessShift_brightness_ImageNet_DINO": {
+        "mse": 0.24994667619672417
+    },
+    "1_EQUI_PARA_regression_BrightnessShift_brightness_ImageNet_IJEPA": {
+        "mse": 0.1868383543044838
+    },
+    "1_EQUI_PARA_regression_BrightnessShift_brightness_ImageNet_ResNet50_ImageNet": {
+        "mse": 0.3143207283889151
+    },
+    "1_EQUI_PARA_regression_BrightnessShift_brightness_ImageNet_SimCLR": {
+        "mse": 0.2096714813778799
+    },
+    "1_EQUI_PARA_regression_BrightnessShift_brightness_ImageNet_ViT_MAE": {
+        "mse": 0.22392856600673963
+    },
+    "1_EQUI_PARA_regression_HueShift_hue_ImageNet_CLIP": {
+        "mse": 0.04835437798620387
+    },
+    "1_EQUI_PARA_regression_HueShift_hue_ImageNet_DINO": {
+        "mse": 0.08364572514339261
+    },
+    "1_EQUI_PARA_regression_HueShift_hue_ImageNet_IJEPA": {
+        "mse": 0.5018402840168256
+    },
+    "1_EQUI_PARA_regression_HueShift_hue_ImageNet_ResNet50_ImageNet": {
+        "mse": 0.05721139192958981
+    },
+    "1_EQUI_PARA_regression_HueShift_hue_ImageNet_SimCLR": {
+        "mse": 0.08364415853306537
+    },
+    "1_EQUI_PARA_regression_HueShift_hue_ImageNet_ViT_MAE": {
+        "mse": 0.04936984773409964
+    },
+    "1_EQUI_PARA_regression_SaturationShift_saturation_ImageNet_CLIP": {
+        "mse": 0.12021829921861354
+    },
+    "1_EQUI_PARA_regression_SaturationShift_saturation_ImageNet_DINO": {
+        "mse": 0.24968086187368851
+    },
+    "1_EQUI_PARA_regression_SaturationShift_saturation_ImageNet_IJEPA": {
+        "mse": 0.09465250394879927
+    },
+    "1_EQUI_PARA_regression_SaturationShift_saturation_ImageNet_SimCLR": {
+        "mse": 0.8843347283212352
+    },
+    "1_EQUI_PARA_regression_SaturationShift_saturation_ImageNet_ViT_MAE": {
+        "mse": 0.26088555284802717
+    },
+    "1_EQUI_PARA_regression_linear_BrightnessShift_brightness_ImageNet_CLIP": {
+        "mse": 0.21398127366587708
+    },
+    "1_EQUI_PARA_regression_linear_BrightnessShift_brightness_ImageNet_DINO": {
+        "mse": 0.2607263355609294
+    },
+    "1_EQUI_PARA_regression_linear_BrightnessShift_brightness_ImageNet_IJEPA": {
+        "mse": 0.2194212538937718
+    },
+    "1_EQUI_PARA_regression_linear_BrightnessShift_brightness_ImageNet_ResNet50_ImageNet": {
+        "mse": 0.3268263553129509
+    },
+    "1_EQUI_PARA_regression_linear_BrightnessShift_brightness_ImageNet_SimCLR": {
+        "mse": 0.2706040055351732
+    },
+    "1_EQUI_PARA_regression_linear_BrightnessShift_brightness_ImageNet_ViT_MAE": {
+        "mse": 0.2891914288252201
+    },
+    "1_EQUI_PARA_regression_linear_HueShift_hue_ImageNet_CLIP": {
+        "mse": 0.05242679256159511
+    },
+    "1_EQUI_PARA_regression_linear_HueShift_hue_ImageNet_DINO": {
+        "mse": 0.07950301799188332
+    },
+    "1_EQUI_PARA_regression_linear_HueShift_hue_ImageNet_IJEPA": {
+        "mse": 0.049870382789542415
+    },
+    "1_EQUI_PARA_regression_linear_HueShift_hue_ImageNet_ResNet50_ImageNet": {
+        "mse": 0.07246164903106546
+    },
+    "1_EQUI_PARA_regression_linear_HueShift_hue_ImageNet_SimCLR": {
+        "mse": 0.14859848306337153
+    },
+    "1_EQUI_PARA_regression_linear_HueShift_hue_ImageNet_ViT_MAE": {
+        "mse": 0.09158586373596427
+    },
+    "1_EQUI_PARA_regression_linear_SaturationShift_saturation_ImageNet_CLIP": {
+        "mse": 0.41079028699575426
+    },
+    "1_EQUI_PARA_regression_linear_SaturationShift_saturation_ImageNet_DINO": {
+        "mse": 0.49336041742379894
+    },
+    "1_EQUI_PARA_regression_linear_SaturationShift_saturation_ImageNet_IJEPA": {
+        "mse": 0.447564523299603
+    },
+    "1_EQUI_PARA_regression_linear_SaturationShift_saturation_ImageNet_ResNet50_ImageNet": {
+        "mse": 0.9185885624541915
+    },
+    "1_EQUI_PARA_regression_linear_SaturationShift_saturation_ImageNet_SimCLR": {
+        "mse": 1.0264157362543047
+    },
+    "1_EQUI_PARA_regression_linear_SaturationShift_saturation_ImageNet_ViT_MAE": {
+        "mse": 0.6420661058832166
+    },
+    "1_INFO_DOWN_regression_ImageNet_brightness_CLIP": {
+        "mse": 355.88019021596574
+    },
+    "1_INFO_DOWN_regression_ImageNet_brightness_DINO": {
+        "mse": 238.5947320728954
+    },
+    "1_INFO_DOWN_regression_ImageNet_brightness_IJEPA": {
+        "mse": 147.85359420224955
+    },
+    "1_INFO_DOWN_regression_ImageNet_brightness_SimCLR": {
+        "mse": 96.26798208732158
+    },
+    "1_INFO_DOWN_regression_ImageNet_brightness_ViT_MAE": {
+        "mse": 405.79852075412964
+    },
+    "1_INFO_DOWN_regression_ImageNet_hue_CLIP": {
+        "mse": 419.92799743167774
+    },
+    "1_INFO_DOWN_regression_ImageNet_hue_DINO": {
+        "mse": 226.44322744058817
+    },
+    "1_INFO_DOWN_regression_ImageNet_hue_IJEPA": {
+        "mse": 169.09040382755268
+    },
+    "1_INFO_DOWN_regression_ImageNet_hue_ResNet50_ImageNet": {
+        "mse": 341.8557565689795
+    },
+    "1_INFO_DOWN_regression_ImageNet_hue_SimCLR": {
+        "mse": 623.221889194305
+    },
+    "1_INFO_DOWN_regression_ImageNet_hue_ViT_MAE": {
+        "mse": 297.6507834066823
+    },
+    "1_INFO_DOWN_regression_ImageNet_saturation_CLIP": {
+        "mse": 514.7734304949948
+    },
+    "1_INFO_DOWN_regression_ImageNet_saturation_DINO": {
+        "mse": 255.90502065998524
+    },
+    "1_INFO_DOWN_regression_ImageNet_saturation_IJEPA": {
+        "mse": 528.4212227653265
+    },
+    "1_INFO_DOWN_regression_ImageNet_saturation_ResNet50_ImageNet": {
+        "mse": 507.79857879316796
+    },
+    "1_INFO_DOWN_regression_ImageNet_saturation_SimCLR": {
+        "mse": 698.0319200642118
+    },
+    "1_INFO_DOWN_regression_ImageNet_saturation_ViT_MAE": {
+        "mse": 431.23687147931105
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_brightness_CLIP": {
+        "mse": 594.7424319761693
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_brightness_IJEPA": {
+        "mse": 367.9504908604417
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_brightness_SimCLR": {
+        "mse": 154.96404181242735
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_brightness_ViT_MAE": {
+        "mse": 730.8529185101762
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_hue_CLIP": {
+        "mse": 549.0263757838756
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_hue_IJEPA": {
+        "mse": 357.5635813045057
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_hue_SimCLR": {
+        "mse": 691.7967592981606
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_hue_ViT_MAE": {
+        "mse": 438.916149597466
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_saturation_CLIP": {
+        "mse": 812.6869276702404
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_saturation_IJEPA": {
+        "mse": 591.7599502756298
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_saturation_SimCLR": {
+        "mse": 1146.3019061350226
+    },
+    "1_INFO_DOWN_regression_linear_ImageNet_saturation_ViT_MAE": {
+        "mse": 865.2456125230277
+    }
+}
