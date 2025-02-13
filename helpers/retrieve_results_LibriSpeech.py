@@ -14,7 +14,7 @@ from synesis.utils import get_metric_from_wandb
 
 def get_equi_run_names():
     return [
-        f"{eval_type}_{task}_{transform}_{label}_{ds}_{feature}"
+        f"2_{eval_type}_{task}_{transform}_{label}_{ds}_{feature}"
         for eval_type, task, transform, label, ds, feature in product(
             equi_types, equi_tasks, transforms, equi_labels, dataset, features
         )
@@ -23,7 +23,7 @@ def get_equi_run_names():
 
 def get_info_run_names():
     return [
-        f"{eval_type}_{task}_{ds}_{label}_{feature}"
+        f"2_{eval_type}_{task}_{ds}_{label}_{feature}"
         for eval_type, task, ds, label, feature in product(
             info_types, info_tasks, dataset, info_labels, features
         )
@@ -36,7 +36,7 @@ entity = "cplachouras"
 project = "synesis"
 
 dataset = ["LibriSpeech"]
-equi_types = ["EQUI_PARA"]
+equi_types = ["EQUI_FEAT"]
 info_types = ["INFO_DOWN"]
 features = [
     "MDuo",
@@ -55,7 +55,7 @@ info_labels = ["wps"]
 transforms = ["PitchShift", "AddWhiteNoise", "TimeStretch"]
 
 wandb_runs = wandb.Api().runs(f"{entity}/{project}")
-run_names = get_info_run_names() + get_equi_run_names()
+run_names = get_equi_run_names()
 
 # retrieve run_id from each run that matches local and wandb
 run_ids = {}
@@ -74,7 +74,8 @@ for run_name, run_id in run_ids.items():
 # Track success/failure
 successful_runs = []
 failed_runs = []
-metric_keys = ["MSE", "mse", "Mean Squared Error", "Average L2 Distance", "L2 Distance"]
+mse_keys = ["MSE", "mse", "Mean Squared Error", "Average L2 Distance", "L2 Distance"]
+cosine_keys = ["cosine", "Cosine Similarity", "Average Cosine Similarity"]
 
 # evaluate
 for i, wandb_path in enumerate(wandb_paths):
@@ -82,25 +83,28 @@ for i, wandb_path in enumerate(wandb_paths):
         entity, project, run_id, model_name = wandb_path.split("/")
         run = wandb.Api().run(f"{entity}/{project}/{run_id}")
 
-        results = None
-        for key in metric_keys:
-            results = get_metric_from_wandb(run, key)
-            if results:
+        mse = None
+        cosine = None
+        for key in mse_keys:
+            mse = get_metric_from_wandb(run, key)
+            if mse:
                 break
-        if not results:
+        for key in cosine_keys:
+            cosine = get_metric_from_wandb(run, key)
+            if cosine:
+                break
+        if not mse:
             failed_runs.append((run.name, "No MSE metric found"))
             print(f"✗ Failed: {run.name}")
             print("  > Error: No MSE metric found")
         else:
             successful_runs.append(run.name)
             print(f"✓ Success: {run.name}")
-            all_results[run.name] = {"mse": results}
+            all_results[run.name] = {"mse": mse, "cosine": cosine}
     except Exception as e:
         failed_runs.append((run.name, str(e)))
         print(f"✗ Failed: {run.name}")
         print(f"  > Error: {str(e)}")
-
-    print("> PROGRESS: {}/{}".format(i + 1, len(wandb_paths)))
 
 # Print summary
 print("\n=== Evaluation Summary ===")
@@ -113,6 +117,6 @@ results_dir = Path("results")
 if not results_dir.exists():
     results_dir.mkdir()
 # Save json
-results_json = results_dir / "LibriSpeech_results_v1.json"
+results_json = results_dir / "LibriSpeech_EQUI_FEAT_results.json"
 with open(results_json, "w") as f:
     json.dump(all_results, f, indent=4, sort_keys=True)

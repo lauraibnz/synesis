@@ -58,7 +58,7 @@ for base, mse_values in grouped_results.items():
             n_deviations += 1
 
 # Optionally, write out the mean results to a new JSON file.
-output_file = "mean_results.json"
+output_file = "results/ImageNet_results_mean.json"
 with open(output_file, "w") as f:
     json.dump(mean_results, f, indent=4)
 
