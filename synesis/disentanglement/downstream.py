@@ -201,7 +201,7 @@ def evaluate_disentanglement(
     # Save/append to CSV
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
-    results_file = results_dir / f"{dataset}_disentanglement_{task}.csv"
+    results_file = results_dir / f"v3_{dataset}_disentanglement_{task}.csv"
 
     df = pd.DataFrame([all_results])
     if not results_file.exists():
@@ -265,7 +265,7 @@ if __name__ == "__main__":
     entity = "cplachouras"
     project = "synesis"
     wandb_runs = wandb.Api().runs(f"{entity}/{project}")
-    run_name = f"2_INFO_DOWN_{args.task}_{args.dataset}_{args.label}_{args.feature}"
+    run_name = f"3_INFO_DOWN_{args.task}_{args.dataset}_{args.label}_{args.feature}"
     run_id = None
     for run in wandb_runs:
         if run.name == run_name:

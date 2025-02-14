@@ -50,7 +50,7 @@ for model in "${MODELS[@]}"; do
                     -l "$label" \
                     -f "$model" \
                     -d ImageNet \
-                    -t regression
+                    -t regression_linear
 
                 # Check if command was successful
                 if [ $? -eq 0 ]; then

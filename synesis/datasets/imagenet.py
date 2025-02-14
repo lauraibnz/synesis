@@ -196,6 +196,27 @@ class ImageNet(Dataset):
     def __len__(self) -> int:
         return len(self.paths)
 
+    def get_label(self, image, label):
+        image_np = np.array(image)
+        hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
+        hue, saturation, brightness = cv2.split(hsv_image)
+        match self.label:
+            case "hue":
+                label = np.mean(hue)
+            case "saturation":
+                label = np.mean(saturation)
+            case "brightness":
+                label = np.mean(brightness)
+            case "value":
+                label = np.mean(brightness)
+            case "class":
+                label = label
+            case "dummy":
+                label = torch.tensor(0, dtype=torch.float32)
+            case _:
+                raise ValueError(f"Invalid label type: {self.label}")
+        return label
+
     def __getitem__(self, idx: int):
         if self.item_format == "raw":
             image = Image.open(self.paths[idx]).convert("RGB")
@@ -230,33 +251,20 @@ class ImageNet(Dataset):
                     transform_config["max"] - transform_config["min"]
                 )
 
+                if self.label:
+                    # used in disentanglement
+                    label = self.get_label(image, self.labels[idx])
+                else:
+                    # used in equivariance
+                    label = torch.tensor(tf_param, dtype=torch.float32)
                 image = self.tensor_and_norm(image)
                 tf_image = self.tensor_and_norm(tf_image)
                 image = torch.stack([image, tf_image])
-                label = torch.tensor(tf_param, dtype=torch.float32)
 
                 return image, label
 
             elif self.label:
-                image_np = np.array(image)
-                hsv_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2HSV)
-                hue, saturation, brightness = cv2.split(hsv_image)
-                match self.label:
-                    case "hue":
-                        label = np.mean(hue)
-                    case "saturation":
-                        label = np.mean(saturation)
-                    case "brightness":
-                        label = np.mean(brightness)
-                    case "value":
-                        label = np.mean(brightness)
-                    case "class":
-                        label = self.labels[idx]
-                    case "dummy":
-                        label = torch.tensor(0, dtype=torch.float32)
-                    case _:
-                        raise ValueError(f"Invalid label type: {self.label}")
-
+                label = self.get_label(image, self.labels[idx])
                 image = self.tensor_and_norm(image)
 
             else:
