@@ -136,9 +136,9 @@ class Regressor(nn.Module):
         # input will be batch, channel (1), length
         x = x.squeeze(1)
 
-        if param is None:
-            raise ValueError("No transform parameter provided")
         if self.emb_param:
+            if param is None:
+                raise ValueError("No transform parameter provided")
             # Embed the parameter
             param_embedding = self.param_encoder(param)
             # Concatenate with input
