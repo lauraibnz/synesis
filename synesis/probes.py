@@ -101,7 +101,7 @@ class Regressor(nn.Module):
             # Adjust input features to account for embedded parameter
             self.adjusted_in_features = self.in_features + self.emb_param_dim
         else:
-            self.adjusted_in_features = self.in_features + 1
+            self.adjusted_in_features = self.in_features
 
         self.layers = nn.ModuleList()
         self.build_layers()
@@ -143,8 +143,6 @@ class Regressor(nn.Module):
             param_embedding = self.param_encoder(param)
             # Concatenate with input
             x = torch.cat([x, param_embedding], dim=-1)
-        else:
-            x = torch.cat([x, param], dim=-1)
 
         for layer in self.layers:
             x = layer(x)
