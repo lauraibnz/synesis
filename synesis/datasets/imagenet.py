@@ -92,6 +92,13 @@ class ImageNet(Dataset):
             ]
         )
 
+        self.label_transform_map = {
+            "hue": "HueShift",
+            "saturation": "SaturationShift",
+            "brightness": "BrightnessShift",
+            "value": "BrightnessShift",
+        }
+
         self._load_metadata()
 
     def _load_metadata(self):
@@ -251,7 +258,7 @@ class ImageNet(Dataset):
                     transform_config["max"] - transform_config["min"]
                 )
 
-                if self.label:
+                if self.label_transform_map[self.label] != self.transform:
                     # used in disentanglement
                     label = self.get_label(image, self.labels[idx])
                 else:
