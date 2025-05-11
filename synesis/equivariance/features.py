@@ -315,7 +315,7 @@ def train(
     best_model_state = None
 
     num_epochs = task_config["training"]["num_epochs"]
-    mini_val_interval = 0.0
+    mini_val_interval = 0.05
     mini_val_step = int(len(train_loader) * mini_val_interval)
 
     for epoch in range(num_epochs):
@@ -459,7 +459,7 @@ def train(
                         mini_val_cosine_similarity += cosine_similarity
 
                         num_mini_val_items += val_batch_raw_data.size(0)
-                        if num_mini_val_items >= 1000:
+                        if num_mini_val_items >= 500:
                             break
 
                 avg_mini_val_loss = mini_val_loss / (

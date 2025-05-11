@@ -56,7 +56,9 @@ class FeatureExtractorFactory:
             except AttributeError as e:
                 warnings.warn(f"Weights might not be loaded! Error: {e}", UserWarning)
         except FileNotFoundError:
-            print(f"No pretrained weights found for {name}.")
+            # print(f"No pretrained weights found for {name}.")
+            # !TODO: streamline ckeckpoint loading
+            pass
         try:
             model.eval()
         except AttributeError as e:

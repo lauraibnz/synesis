@@ -10,7 +10,7 @@ configs = {
         },
         "training": {
             "criterion": nn.CrossEntropyLoss,
-            "optimizer": {"class": Adam, "params": {"lr": 0.001, "weight_decay": 0.01}},
+            "optimizer": {"class": Adam, "params": {"lr": 0.001, "weight_decay": 0.001}},
             "batch_size": 32,
             "num_epochs": 100,
             "patience": 10,
@@ -38,6 +38,36 @@ configs = {
             ],
         },
     },
+    "regression_MLP": {
+        "model": {
+            "type": "regressor",
+        },
+        "training": {
+            "criterion": nn.MSELoss,
+        },
+        "evaluation": {
+            "criterion": nn.MSELoss,
+            "metrics": [
+                {"name": "MSE", "class": nn.MSELoss, "params": {}},
+            ],
+        },
+    },
+    "regression_SLP": {
+        "model": {
+            "type": "regressor",
+            "params": {"hidden_units": []},
+        },
+        "training": {
+            "criterion": nn.MSELoss,
+            "feature_aggregation": False,
+        },
+        "evaluation": {
+            "criterion": nn.MSELoss,
+            "metrics": [
+                {"name": "MSE", "class": nn.MSELoss, "params": {}},
+            ],
+        },
+    },
     "tagging": {
         "training": {
             "criterion": nn.BCEWithLogitsLoss,
@@ -52,48 +82,6 @@ configs = {
                     "params": {"task": "multilabel"},
                 },
             ],
-        },
-    },
-    "regression": {
-        "model": {
-            "type": "regressor",
-            "params": {"hidden_units": [512, 256]},
-        },
-        "training": {
-            "criterion": nn.MSELoss,
-            "feature_aggregation": False,
-            "num_epochs": 10,
-            "patience": 3,
-            "batch_size": 16,
-        },
-        "evaluation": {
-            "criterion": nn.MSELoss,
-            "metrics": [
-                {"name": "MSE", "class": nn.MSELoss, "params": {}},
-            ],
-            "feature_aggregation": False,
-            "batch_size": 16,
-        },
-    },
-    "regression_linear": {
-        "model": {
-            "type": "regressor",
-            "params": {"hidden_units": []},
-        },
-        "training": {
-            "criterion": nn.MSELoss,
-            "feature_aggregation": False,
-            "num_epochs": 10,
-            "patience": 3,
-            "batch_size": 16,
-        },
-        "evaluation": {
-            "criterion": nn.MSELoss,
-            "metrics": [
-                {"name": "MSE", "class": nn.MSELoss, "params": {}},
-            ],
-            "feature_aggregation": False,
-            "batch_size": 16,
         },
     },
 }
