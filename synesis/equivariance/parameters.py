@@ -22,7 +22,7 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
-from synesis.utils import deep_update, get_artifact
+from synesis.utils import deep_update, get_artifact, get_wandb_config
 
 
 def preprocess_batch(
@@ -194,9 +194,11 @@ def train(
     )
 
     if logging:
+        wandb_config = get_wandb_config()
         run_name = f"EQUI_PARA_{transform}_{label}_{dataset}_{feature}"
         wandb.init(
-            project="synesis",
+            project=wandb_config["project"],
+            entity=wandb_config["entity"],
             name=run_name,
             config={
                 "feature": feature,

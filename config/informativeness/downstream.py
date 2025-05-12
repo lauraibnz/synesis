@@ -10,7 +10,10 @@ configs = {
         },
         "training": {
             "criterion": nn.CrossEntropyLoss,
-            "optimizer": {"class": Adam, "params": {"lr": 0.001, "weight_decay": 0.001}},
+            "optimizer": {
+                "class": Adam,
+                "params": {"lr": 0.001, "weight_decay": 0.001},
+            },
             "batch_size": 32,
             "num_epochs": 100,
             "patience": 10,

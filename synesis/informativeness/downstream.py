@@ -17,7 +17,7 @@ from synesis.datasets.dataset_utils import AggregateDataset, SubitemDataset, get
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
-from synesis.utils import deep_update, get_artifact
+from synesis.utils import deep_update, get_artifact, get_wandb_config
 
 
 def train(
@@ -56,8 +56,10 @@ def train(
     # Set up logging
     if logging:
         run_name = f"INFO_DOWN_{task}_{dataset}_{label}_{feature}"
+        wandb_config = get_wandb_config()
         wandb.init(
-            project="synesis",
+            project=wandb_config["project"],
+            entity=wandb_config["entity"],
             name=run_name,
             config={
                 "feature": feature,

@@ -129,3 +129,11 @@ def get_metric_from_wandb(run, metric_name):
         if row[0] == metric_name:
             return row[1]
     return None
+
+
+def get_wandb_config():
+    """Get WandB configuration from environment variables with defaults."""
+    return {
+        "entity": os.environ.get("WANDB_ENTITY"),  # None means use wandb default user
+        "project": os.environ.get("WANDB_PROJECT", "synesis"),
+    }
