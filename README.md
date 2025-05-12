@@ -11,7 +11,7 @@ This is the official repository for the [paper](https://arxiv.org/abs/2505.06224
 ## Run
 Install the requirements in `requirements.txt`.
 
-Create a symlink to ImagetNet under `data/ImageNet` and LibriSpeech under `data/LibriSpeech`. For example:
+Create a symlink to [ImagetNet](https://image-net.org/download.php) under `data/ImageNet` and [LibriSpeech](https://www.openslr.org/12) under `data/LibriSpeech`. For example:
 ```
 mkdir data
 cd data
