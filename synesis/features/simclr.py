@@ -1,3 +1,8 @@
+"""SimCLR.
+https://github.com/Spijkervet/SimCLR
+License: MIT (see NOTICE for full license)
+"""
+
 from pathlib import Path
 
 import torch

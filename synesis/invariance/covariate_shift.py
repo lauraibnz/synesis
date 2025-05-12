@@ -145,10 +145,10 @@ def feature_distances(
                 # Save batch results
                 batch_results = pd.DataFrame(
                     {
-                        "transform_param": transform_params.cpu().numpy(),
-                        "l1_distance": l1.cpu().numpy(),
-                        "l2_distance": l2.cpu().numpy(),
-                        "cosine_similarity": cosine.cpu().numpy(),
+                        "transform_param": transform_params.detach().cpu().numpy(),
+                        "l1_distance": l1.detach().cpu().numpy(),
+                        "l2_distance": l2.detach().cpu().numpy(),
+                        "cosine_similarity": cosine.detach().cpu().numpy(),
                     }
                 )
                 batch_results.to_csv(results_file, mode="a", header=False, index=False)

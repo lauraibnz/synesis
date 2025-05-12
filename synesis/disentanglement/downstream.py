@@ -22,7 +22,12 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
-from synesis.utils import deep_update, get_artifact, get_metric_from_wandb
+from synesis.utils import (
+    deep_update,
+    get_artifact,
+    get_metric_from_wandb,
+    get_wandb_config,
+)
 
 
 def preprocess_batch(
@@ -262,10 +267,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # need to get run_id from wandb
-    entity = "cplachouras"
-    project = "synesis"
+    wandb_config = get_wandb_config()
+    entity = wandb_config["entity"]
+    project = wandb_config["project"]
     wandb_runs = wandb.Api().runs(f"{entity}/{project}")
-    run_name = f"3_INFO_DOWN_{args.task}_{args.dataset}_{args.label}_{args.feature}"
+    run_name = f"INFO_DOWN_{args.task}_{args.dataset}_{args.label}_{args.feature}"
     run_id = None
     for run in wandb_runs:
         if run.name == run_name:

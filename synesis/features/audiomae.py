@@ -1,11 +1,13 @@
+"""AudioMAE.
+https://github.com/facebookresearch
+Original license: CC BY-NC 4.0 (see NOTICE for full license)
+"""
+
 import torch
 from einops import rearrange
 from torch import nn
 from torchaudio.compliance import kaldi
 from transformers import AutoModel
-
-# loading our model weights
-# loading the corresponding preprocessor config
 
 
 class AudioMAE(nn.Module):

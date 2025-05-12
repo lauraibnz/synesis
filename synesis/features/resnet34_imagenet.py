@@ -1,4 +1,7 @@
-"""ResNet model for feature extraction."""
+"""ResNet.
+https://docs.pytorch.org/vision/main/models/resnet.html
+License: BSD 3-Clause License (see NOTICE for full license)
+"""
 
 import torch
 from torch import nn

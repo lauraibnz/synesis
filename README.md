@@ -1,12 +1,31 @@
 # synesis
 Tools for holistic representation evaluation and understanding
 
-[Read the Docs](https://synesis.rtfd.io)
-
 *synesis*: unification, to bring (something) together that thereby gives meaning
 
+
+This is the official repository for the [paper](https://arxiv.org/abs/2505.06224) **Towards a Unified Representation Evaluation Framework Beyond Downstream Tasks**, by Christos Plachouras, Julien Guinot, George Fazekas, Elio Quinton, Emmanouil Benetos, and Johan Pauwels.
+
+![Synesis Framework Overview](assets/synesis.png)
+
 ## Run
-For all, `--nolog` disables logging to Weights & Biases.
+Install the requirements in `requirements.txt`.
+
+Create a symlink to ImagetNet under `data/ImageNet` and LibriSpeech under `data/LibriSpeech`. For example:
+```
+mkdir data
+cd data
+ln -s /my/server/datasets/ImageNet
+```
+Currently, Librispeech `train-clean-100`, `test-clean`, and `dev-clean` are used.
+
+---
+### Configuration
+* A list of models (used as feature extractors) is available in `config/features.py`. 
+* A list of transforms is available in `config/transforms.py`
+* Configurations for specific tasks (e.g. downstream setup) can be configured in `config/informativeness` and `config/equivariance`. *Disentanglement* uses the models trained on the *Informativeness* task. *Invariance* does not involve downstram models.
+
+
 ### Informativeness
 **Downstream**: Predict factor of variation directly.
 ```
@@ -22,9 +41,17 @@ python -m synesis.equivariance.parameters -tf <transform_name> -l <label> -f <fe
 python -m synesis.equivariance.features -tf <transform_name> -l <label> -f <feature_name> -d <dataset_name> (-t <task_name>)
 ```
 ### Invariance
-**Covariate shift** Calculate similarity between features of original and transformed data.
+**Covariate shift**: Calculate similarity between features of original and transformed data.
 ```
 python -m synesis.invariance.covariate_shift -tf <transform_name> -f <feature_name> -d <dataset_name> -b <batch_size> -p <dataset_passes>
+```
+---
+### Logging
+By default, each task logs artifacts, metrics, and tables to Weights & Biases (WandB). This is to more easily reuse already trained models in other tasks (e.g., a downstream model in invariance). WandB can also be run offline. ``--no-log`` disables WandB logging. However, local logging might be slightly buggy (we'll be testing and fixing this soon).
+To log runs to your WandB account, add the environment variables:
+```
+export WANDB_ENTITY="my-team"
+export WANDB_PROJECT="my-project"
 ```
 
 ## Extract features
@@ -33,11 +60,9 @@ python -m synesis.invariance.covariate_shift -tf <transform_name> -f <feature_na
 python -m synesis.extract -f <feature> -d <dataset> (-b <batch_size>)
 ```
 
-## Develop
-Before working with the repo, please install requirements (or ruff and pre-commit) and run
-```pre-commit install``` to install the pre-commit ruff formatting hook.
 
-Before committing new pretrained models/feature extractors, run `pytest tests/test_feature_extraction`. Before committing new datasets run `pytest tests/test_datasets`. For now, you might need to manually add the feature/dataset name in the test file's pytest fixture.
+## Develop
+We're looking into ways to make contribution simpler, including making it easier to implement new datasets and features. Feel free to raise issues and contact us in the meantime. The process is currently documented below:
 
 ### Adding datasets
 **Follow the structure of one of the existing datasets.**
@@ -83,3 +108,13 @@ self.feature_config = feature_config
 4. the extractor should have a forward method that deals with batched and channeled data (b, c, feature_dims)
 5. ideally, it should return unchanneled data (b, feature_dim)
 6. add an entry to `config/features` with the feature name (same as class name) that contains at least `feature_dim`. For now, some adjustments might need to be made for other parameters...
+
+## Cite
+```bibtex
+@inproceedings{synesis,
+    author = {Christos Plachouras and Julien Guinot and George Fazekas and Elio Quinton and Emmanouil Benetos and Johan Pauwels},
+    title = {Towards a Unified Representation Evaluation Framework Beyond Downstream Tasks},
+    booktitle = {International Joint Conference on Neural Networks (IJCNN)},
+    address = {Rome, Italy},
+    year = 2025,
+}

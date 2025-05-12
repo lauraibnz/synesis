@@ -1,6 +1,7 @@
 """
-VGGish model for audio/music. Implementation from:
+VGGish model for audio/music.
 https://github.com/minzwon/sota-music-tagging-models/blob/master/training/model.py
+License: MIT (see NOTICE for full license)
 """
 
 import torchaudio

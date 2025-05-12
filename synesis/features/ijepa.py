@@ -1,4 +1,7 @@
-"""I-JEPA feature extractor model."""
+"""I-JEPA.
+https://github.com/facebookresearch/ijepa
+License: Attribution-NonCommercial 4.0 International (see NOTICE for full license)
+"""
 
 import torch
 from torch import nn

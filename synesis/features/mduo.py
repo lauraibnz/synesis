@@ -1,9 +1,10 @@
+"""Masked Modeling Duo.
+https://github.com/nttcslab/m2d
+License: Custom license (see NOTICE for full license)
+"""
+
 import torch
 from torch import nn
-
-# loading our model weights
-# loading the corresponding preprocessor config
-
 
 import logging
 import numpy as np
@@ -304,7 +305,6 @@ class MDuo(torch.nn.Module):
             logging.info(" ** Freeze patch_embed **")
             logging.info(self.backbone.patch_embed)
 
-
         self.to_spec = get_to_melspec(self.cfg)
 
         # Create a ViT.
@@ -319,7 +319,9 @@ class MDuo(torch.nn.Module):
         # Modify the model if it should be a M2D-CLAP.
 
         # Load weights.
-        dropped = drop_non_model_weights(self.backbone, checkpoint, self.cfg.weight_file)
+        dropped = drop_non_model_weights(
+            self.backbone, checkpoint, self.cfg.weight_file
+        )
         msg = self.backbone.load_state_dict(dropped, strict=strict)
         print(msg)
         logging.info(msg)
@@ -328,8 +330,7 @@ class MDuo(torch.nn.Module):
         self.cfg.mean, self.cfg.std = (
             self.backbone.state_dict()["norm_stats"].to("cpu").numpy()
         )
-        
-        
+
         logging.info(f"Model input size: {self.cfg.input_size}")
         logging.info(f"Using weights: {self.cfg.weight_file}")
         logging.info(f"Feature dimension: {self.cfg.feature_d}")

@@ -187,10 +187,10 @@ configs = {
     },
     "HueShift50": {
         "min": -0.25,
-        "max": 0.,
+        "max": 0.0,
     },
     "HueShift75": {
-        "min": 0.,
+        "min": 0.0,
         "max": 0.25,
     },
     "HueShift100": {

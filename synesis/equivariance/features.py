@@ -24,7 +24,7 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
-from synesis.utils import deep_update, get_artifact
+from synesis.utils import deep_update, get_artifact, get_wandb_config
 
 
 def load_feature_stats(feature: str):
@@ -215,8 +215,10 @@ def train(
         run_name = f"2_EQUI_FEAT_{task}_{transform}_{label}_{dataset}_{feature}"
         if debug:
             run_name = f"DEBUG_{run_name}"
+        wandb_config = get_wandb_config()
         wandb.init(
-            project="synesis",
+            project=wandb_config["project"],
+            entity=wandb_config["entity"],
             name=run_name,
             config={
                 "feature": feature,
@@ -315,7 +317,7 @@ def train(
     best_model_state = None
 
     num_epochs = task_config["training"]["num_epochs"]
-    mini_val_interval = 0.0
+    mini_val_interval = 0.05
     mini_val_step = int(len(train_loader) * mini_val_interval)
 
     for epoch in range(num_epochs):
@@ -459,7 +461,7 @@ def train(
                         mini_val_cosine_similarity += cosine_similarity
 
                         num_mini_val_items += val_batch_raw_data.size(0)
-                        if num_mini_val_items >= 1000:
+                        if num_mini_val_items >= 500:
                             break
 
                 avg_mini_val_loss = mini_val_loss / (

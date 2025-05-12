@@ -1,3 +1,9 @@
+"""ViT MAE.
+https://github.com/facebookresearch/mae
+https://huggingface.co/timm/vit_huge_patch14_224.mae
+License: CC-BY-NC 4.0 (see NOTICE for full license)
+"""
+
 import timm
 import torch
 from torch import nn

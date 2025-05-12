@@ -1,3 +1,8 @@
+"""DINO.
+https://github.com/facebookresearch/dino
+License: Apache-2.0 (see NOTICE for full license)
+"""
+
 import torch
 from torch import nn
 from transformers import ResNetModel

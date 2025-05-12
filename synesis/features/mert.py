@@ -1,10 +1,12 @@
+"""MERT.
+https://github.com/yizhilll/MERT
+License: Apache License 2.0 (see NOTICE for full license)
+"""
+
 from transformers import Wav2Vec2FeatureExtractor
 from transformers import AutoModel
 import torch
 from torch import nn
-
-# loading our model weights
-# loading the corresponding preprocessor config
 
 
 class MERT(nn.Module):
