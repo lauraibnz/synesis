@@ -19,8 +19,7 @@ ln -s /my/server/datasets/ImageNet
 ```
 Currently, Librispeech `train-clean-100`, `test-clean`, and `dev-clean` are used.
 
----
-### Configuration
+#### Configuration
 * A list of models (used as feature extractors) is available in `config/features.py`. 
 * A list of transforms is available in `config/transforms.py`
 * Configurations for specific tasks (e.g. downstream setup) can be configured in `config/informativeness` and `config/equivariance`. *Disentanglement* uses the models trained on the *Informativeness* task. *Invariance* does not involve downstram models.
@@ -45,8 +44,8 @@ python -m synesis.equivariance.features -tf <transform_name> -l <label> -f <feat
 ```
 python -m synesis.invariance.covariate_shift -tf <transform_name> -f <feature_name> -d <dataset_name> -b <batch_size> -p <dataset_passes>
 ```
----
-### Logging
+
+#### Logging
 By default, each task logs artifacts, metrics, and tables to Weights & Biases (WandB). This is to more easily reuse already trained models in other tasks (e.g., a downstream model in invariance). WandB can also be run offline. ``--no-log`` disables WandB logging. However, local logging might be slightly buggy (we'll be testing and fixing this soon).
 To log runs to your WandB account, add the environment variables:
 ```
@@ -59,7 +58,6 @@ export WANDB_PROJECT="my-project"
 ```
 python -m synesis.extract -f <feature> -d <dataset> (-b <batch_size>)
 ```
-
 
 ## Develop
 We're looking into ways to make contribution simpler, including making it easier to implement new datasets and features. Feel free to raise issues and contact us in the meantime. The process is currently documented below:
