@@ -3,6 +3,11 @@ Tools for holistic representation evaluation and understanding
 
 *synesis*: unification, to bring (something) together that thereby gives meaning
 
+
+This is the official repository for the [paper](https://arxiv.org/pdf/2505.06224) **Towards a Unified Representation Evaluation Framework Beyond Downstream Tasks**, by Christos Plachouras, Julien Guinot, George Fazekas, Elio Quinton, Emmanouil Benetos, and Johan Pauwels.
+
+![Synesis Framework Overview](assets/synesis.png)
+
 ## Run
 Install the requirements in `requirements.txt`.
 
@@ -103,3 +108,13 @@ self.feature_config = feature_config
 4. the extractor should have a forward method that deals with batched and channeled data (b, c, feature_dims)
 5. ideally, it should return unchanneled data (b, feature_dim)
 6. add an entry to `config/features` with the feature name (same as class name) that contains at least `feature_dim`. For now, some adjustments might need to be made for other parameters...
+
+## Cite
+```bibtex
+@inproceedings{synesis,
+    author = {Christos Plachouras and Julien Guinot and George Fazekas and Elio Quinton and Emmanouil Benetos and Johan Pauwels},
+    title = {Towards a Unified Representation Evaluation Framework Beyond Downstream Tasks},
+    booktitle = {International Joint Conference on Neural Networks (IJCNN)},
+    address = {Rome, Italy},
+    year = 2025,
+}
