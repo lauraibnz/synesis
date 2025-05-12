@@ -4,7 +4,7 @@ Tools for holistic representation evaluation and understanding
 *synesis*: unification, to bring (something) together that thereby gives meaning
 
 
-This is the official repository for the [paper](https://arxiv.org/pdf/2505.06224) **Towards a Unified Representation Evaluation Framework Beyond Downstream Tasks**, by Christos Plachouras, Julien Guinot, George Fazekas, Elio Quinton, Emmanouil Benetos, and Johan Pauwels.
+This is the official repository for the [paper](https://arxiv.org/abs/2505.06224) **Towards a Unified Representation Evaluation Framework Beyond Downstream Tasks**, by Christos Plachouras, Julien Guinot, George Fazekas, Elio Quinton, Emmanouil Benetos, and Johan Pauwels.
 
 ![Synesis Framework Overview](assets/synesis.png)
 
