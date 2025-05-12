@@ -1,4 +1,7 @@
-"""ViT model for feature extraction."""
+"""ViT.
+https://docs.pytorch.org/vision/main/models/vision_transformer.html
+License: BSD-3-Clause (see NOTICE for full license)
+"""
 
 import torch
 from torch import nn

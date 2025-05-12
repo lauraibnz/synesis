@@ -1,3 +1,9 @@
+"""OpenAI CLIP.
+https://github.com/openai/CLIP
+License: MIT (see NOTICE for full license)
+"""
+
+
 import torch
 from torch import nn
 from transformers import CLIPModel

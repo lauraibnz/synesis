@@ -1,3 +1,8 @@
+"""Music2Latent.
+https://github.com/SonyCSLParis/music2latent
+License: CC Attribution-NonCommercial 4.0 International (see NOTICE for full license)
+"""
+
 from music2latent import EncoderDecoder
 from torch import nn
 import torch

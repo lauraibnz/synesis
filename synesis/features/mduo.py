@@ -1,9 +1,10 @@
+"""Masked Modeling Duo.
+https://github.com/nttcslab/m2d
+License: Custom license (see NOTICE for full license)
+"""
+
 import torch
 from torch import nn
-
-# loading our model weights
-# loading the corresponding preprocessor config
-
 
 import logging
 import numpy as np

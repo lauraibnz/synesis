@@ -1,3 +1,8 @@
+"""UniSpeech.
+https://github.com/microsoft/UniSpeech
+License: Attribution-ShareAlike 3.0 Unported (see NOTICE for full license)
+"""
+
 import torch
 from torch import nn
 from transformers import UniSpeechSatForCTC, Wav2Vec2Processor

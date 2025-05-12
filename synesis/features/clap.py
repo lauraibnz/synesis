@@ -1,3 +1,8 @@
+"""LAION-AI CLAP.
+https://github.com/LAION-AI/CLAP
+License: CC0 1.0 Public Domain Dedication (see NOTICE for full license)
+"""
+
 import os
 
 import laion_clap

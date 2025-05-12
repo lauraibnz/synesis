@@ -1,3 +1,8 @@
+"""Wav2Vec2.
+https://docs.pytorch.org/audio/main/generated/torchaudio.models.Wav2Vec2Model.html
+License: BSD-2-Clause
+"""
+
 import torch
 import torchaudio
 from torch import nn

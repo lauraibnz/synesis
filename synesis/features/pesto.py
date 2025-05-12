@@ -1,7 +1,7 @@
 """
 PESTO model for pitch estimation
 Code from: https://github.com/SonyCSLParis/pesto/
-GPLv3
+License: GPL-3.0 (see NOTICE for full license)
 """
 
 import warnings

@@ -1,3 +1,8 @@
+"""HuBERT.
+https://github.com/bshall/hubert
+License: MIT (see NOTICE for full license)
+"""
+
 import torch
 import torchaudio
 from torch import nn

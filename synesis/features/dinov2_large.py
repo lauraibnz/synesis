@@ -1,3 +1,8 @@
+"""DINOv2.
+https://github.com/facebookresearch/dinov2
+License: Apache-2.0 (see NOTICE for full license)
+"""
+
 import torch
 from torch import nn
 from transformers import AutoModel

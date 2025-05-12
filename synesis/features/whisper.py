@@ -1,3 +1,8 @@
+"""Whisper.
+https://github.com/openai/whisper
+License: MIT (see NOTICE for full license)
+"""
+
 import torch
 from torch import nn
 from transformers import WhisperModel, WhisperProcessor

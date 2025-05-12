@@ -1,3 +1,8 @@
+"""MULE.
+https://github.com/PandoraMedia/music-audio-representations
+License: GPL-3.0 (see NOTICE for full license)
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

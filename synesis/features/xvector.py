@@ -1,3 +1,8 @@
+"""XVector.
+https://huggingface.co/speechbrain/spkrec-xvect-voxceleb
+License: Apache 2.0 (see NOTICE for full license)
+"""
+
 import torch
 from speechbrain.pretrained import EncoderClassifier
 from torch import nn
