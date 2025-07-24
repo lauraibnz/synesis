@@ -252,4 +252,12 @@ configs = {
         "mean": [0.485, 0.456, 0.406],
         "std": [0.229, 0.224, 0.225],
     },
+    "AFTER_Timbre": {
+        "__cls__": "AFTER_Timbre",
+        "sample_rate": 44100,
+    },
+    "AFTER_Structure": {
+        "__cls__": "AFTER_Structure",
+        "sample_rate": 44100,
+    },
 }

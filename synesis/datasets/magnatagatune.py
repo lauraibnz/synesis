@@ -11,6 +11,7 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from torch import Tensor
 from torch.utils.data import Dataset
 from tqdm import tqdm
+import json
 
 from config.features import configs as feature_configs
 from synesis.datasets.dataset_utils import load_track
@@ -28,6 +29,8 @@ class MagnaTagATune(Dataset):
         item_format: str = "feature",
         itemization: bool = True,
         seed: int = 42,
+        label: str = "",
+        transform=None,  # !NOTE ignored, for compatability
     ) -> None:
         """MagnaTagATune dataset implementation.
 
@@ -61,6 +64,8 @@ class MagnaTagATune(Dataset):
         self.audio_format = audio_format
         self.feature = feature
         self.label_encoder = MultiLabelBinarizer()
+        self.categories = self._load_categories()
+        self.label = label
 
         if not feature_config:
             # load default feature config
@@ -140,6 +145,15 @@ class MagnaTagATune(Dataset):
                 out=os.path.join(self.root, "metadata/"),
             )
 
+    def _load_categories(self) -> dict:
+        """Load categories from a JSON file."""
+        categories_path = os.path.join(self.root, "metadata/categories.json")
+        if os.path.exists(categories_path):
+            with open(categories_path, "r") as f:
+                return json.load(f)
+        else:
+            return {}
+
     def _load_metadata(self) -> Tuple[list, torch.Tensor]:
         # load track ids
         with open(
@@ -186,6 +200,16 @@ class MagnaTagATune(Dataset):
                 # remove some corrupted files
                 if line[0] not in ["35644", "55753", "57881"]
             ]
+
+        # Filter tags and corresponding labels based on the provided label
+        if self.label in self.categories:
+            category_tags = self.categories[self.label]
+            tags = [tag for tag in tags if tag in category_tags]
+            labels = [
+                [tag for tag in label if tag in category_tags]
+                for label in labels
+            ]
+
         # encode labels
         encoded_labels = self.label_encoder.fit_transform(labels)
         encoded_labels = torch.tensor(encoded_labels, dtype=torch.long)
@@ -240,11 +264,13 @@ class MagnaTagATune(Dataset):
         )
         label = self.labels[idx]
 
+        item_len_sec = self.feature_config.get("item_len_sec", None)
+
         track = load_track(
             path=path,
             item_format=self.item_format,
             itemization=self.itemization,
-            item_len_sec=self.feature_config["item_len_sec"],
+            item_len_sec=item_len_sec,
             sample_rate=self.feature_config["sample_rate"],
         )
 

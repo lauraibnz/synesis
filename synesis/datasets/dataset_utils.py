@@ -1,6 +1,6 @@
 import importlib
 from pathlib import Path
-from typing import Type, Union
+from typing import Type, Union, Optional
 
 import torch
 import torchaudio
@@ -166,7 +166,7 @@ def load_track(
     path: Union[str, Path],
     item_format: str,
     itemization: bool,
-    item_len_sec: float,
+    item_len_sec: Optional[float],
     sample_rate: int,
 ) -> Tensor:
     """Load an audio track (or features for it) from a file.
@@ -201,6 +201,9 @@ def load_track(
         if waveform.dim() == 1:
             waveform = waveform.unsqueeze(0)
         if itemization:
+            if item_len_sec is None:
+                # Return the entire waveform if item_len_sec is not provided
+                return waveform
             # we need to split the track into fixed-length segments of
             # item_len_sec and return them as a list
             item_len_samples = int(item_len_sec * sample_rate)

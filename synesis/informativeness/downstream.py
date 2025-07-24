@@ -141,9 +141,16 @@ def train(
         if task_config["model"]["type"] == "regressor"
         else len(train_dataset.label_encoder.classes_)
     )
+
+    sample_item, _ = train_dataset[0]
+    if sample_item.dim() == 1:
+        in_features = sample_item.shape[0]
+    else:
+        in_features = sample_item.shape[-1]
+
     model = get_probe(
         model_type=task_config["model"]["type"],
-        in_features=feature_config["feature_dim"],
+        in_features=in_features,
         n_outputs=n_outputs,
         **task_config["model"]["params"],
     ).to(device)
@@ -355,9 +362,16 @@ def evaluate(
             if task_config["model"]["type"] == "regressor"
             else len(test_dataset.label_encoder.classes_)
         )
+
+        sample_item, _ = test_dataset[0]
+        if sample_item.dim() == 1:
+            in_features = sample_item.shape[0]
+        else:
+            in_features = sample_item.shape[-1]
+
         model = get_probe(
             model_type=task_config["model"]["type"],
-            in_features=feature_config["feature_dim"],
+            in_features=in_features,
             n_outputs=n_outputs,
             **task_config["model"]["params"],
         )

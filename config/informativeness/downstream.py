@@ -72,6 +72,9 @@ configs = {
         },
     },
     "tagging": {
+        "model": {
+            "params": {"hidden_units": []},
+        },
         "training": {
             "criterion": nn.BCEWithLogitsLoss,
             "feature_aggregation": True,
