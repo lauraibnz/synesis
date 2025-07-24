@@ -275,11 +275,11 @@ def train(
         **task_config["model"]["params"],
     ).to(device)
 
-    criterion = task_configs[task]["training"]["criterion"]()
-    optimizer_class = task_configs[task]["training"]["optimizer"]["class"]
+    criterion = task_config["training"]["criterion"]()
+    optimizer_class = task_config["training"]["optimizer"]["class"]
     optimizer = optimizer_class(
         model.parameters(),
-        **task_configs[task]["training"]["optimizer"]["params"],
+        **task_config["training"]["optimizer"]["params"],
     )
 
     best_val_loss = float("inf")
@@ -485,7 +485,7 @@ def evaluate(
     model.eval()
     total_loss = 0
     test_metric_results = {}
-    criterion = task_configs[task]["training"]["criterion"]()
+    criterion = task_config["training"]["criterion"]()
 
     with torch.no_grad():
         for batch_raw_data, batch_targets in tqdm(test_loader, desc="Evaluating"):

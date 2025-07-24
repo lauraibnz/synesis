@@ -19,6 +19,6 @@ def instantiate_metrics(metric_configs, num_classes=None):
         metric_params = metric_config.get("params", {})
         if metric_config["name"] != "MSE":
             # add num_classes to metric params
-            metric_params["num_classes"] = num_classes
+            metric_params["num_labels"] = num_classes
         metric_instances.append(metric_class(**metric_params))
     return metric_instances

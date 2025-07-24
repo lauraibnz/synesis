@@ -189,7 +189,7 @@ def train(
             output = model(item)
             if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
-            loss = criterion(output, target)
+            loss = criterion(output, target.float())
             loss.backward()
             optimizer.step()
 
@@ -227,22 +227,21 @@ def train(
                 val_output = model(item)
                 if len(val_output.shape) == 2:
                     val_output = val_output.squeeze(1)
-                val_loss += criterion(val_output, target).item()
+                val_loss += criterion(val_output, target.float()).item()
 
                 for metric_cfg, metric in zip(
                     task_config["evaluation"]["metrics"], val_metrics
                 ):
                     metric = metric.to(device)
-                    if metric_cfg["name"] not in val_metric_results:
-                        val_metric_results[metric_cfg["name"]] = 0
-                    val_metric_results[metric_cfg["name"]] = metric(
-                        val_output, target
-                    ).item()
+                    metric.update(val_output, target)
 
         # Calculate metrics
         avg_val_loss = val_loss / len(val_dataloader)
-        for metric_cfg in task_config["evaluation"]["metrics"]:
-            val_metric_results[metric_cfg["name"]] /= len(val_dataloader)
+        for metric_cfg, metric in zip(
+            task_config["evaluation"]["metrics"], val_metrics
+        ):
+            val_metric_results[metric_cfg["name"]] = metric.compute().item()
+            metric.reset()
         print(
             f"Epoch {epoch+1}/{num_epochs} -",
             f"Avg train loss: {avg_loss:.4f},",
@@ -255,7 +254,7 @@ def train(
             # Log validation metrics
             wandb.log(
                 {
-                    "val/loss": val_loss,
+                    "val/loss": avg_val_loss,
                     **{
                         f"val/{name}": value
                         for name, value in val_metric_results.items()
@@ -433,19 +432,20 @@ def evaluate(
             output = model(item)
             if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
-            total_loss += criterion(output, target).item()
+            total_loss += criterion(output, target.float()).item()
 
             for metric_cfg, metric in zip(
                 task_config["evaluation"]["metrics"], metrics
             ):
                 metric = metric.to(device)
-                if metric_cfg["name"] not in test_metric_results:
-                    test_metric_results[metric_cfg["name"]] = 0
-                test_metric_results[metric_cfg["name"]] += metric(output, target).item()
+                metric.update(output, target)
 
     avg_loss = total_loss / len(dataloader)
-    for metric_cfg in task_config["evaluation"]["metrics"]:
-        test_metric_results[metric_cfg["name"]] /= len(dataloader)
+    for metric_cfg, metric in zip(
+        task_config["evaluation"]["metrics"], metrics
+    ):
+        test_metric_results[metric_cfg["name"]] = metric.compute().item()
+        metric.reset()
     print(f"Avg test loss: {avg_loss:.4f}")
 
     for name, value in test_metric_results.items():
