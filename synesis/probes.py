@@ -2,6 +2,7 @@ from typing import Any
 
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 
 
 def get_probe(
@@ -29,6 +30,8 @@ def get_probe(
         return Classifier(in_features, n_outputs, **kwargs)
     elif model_type == "regressor":
         return Regressor(in_features, n_outputs, **kwargs)
+    elif model_type == "transcriber":
+        return TranscriberProbe(in_features, n_outputs, **kwargs)
     else:
         raise ValueError(f"Model type '{model_type}' not supported.")
 
@@ -70,6 +73,45 @@ class Classifier(nn.Module):
             x = layer(x)
         return x
 
+class TranscriberProbe(Classifier):
+    def __init__(self, in_features, n_outputs, **kwargs):
+        kwargs.pop("output_activation", None) # Sigmoid is hardcoded; not necessary...
+        super().__init__(in_features, n_outputs, **kwargs)
+        self.dropout_rate = kwargs.get("dropout_rate", 0)
+        self.dropout_flag = kwargs.get("dropout_flag", False)
+        self.init_weights()
+
+    def init_weights(self):
+        """Function to apply weight initialisation. Needs to be called once after the model is instantiated.
+        """
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                init.xavier_uniform_(m.weight, init.calculate_gain('relu'))
+                if m.bias is not None:
+                    m.bias.data.zero_()
+
+    def build_layers(self):
+        """
+            Construct the layers of the TranscriberProbe!
+        """
+        layer_sizes = [self.in_features] + (self.hidden_units or []) + [self.n_outputs]
+
+        for i in range(len(layer_sizes) - 1):
+            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
+            if i < len(layer_sizes) - 2:
+                self.layers.append(nn.ReLU())
+                if self.dropout_flag:
+                    self.layers.append(nn.Dropout(self.dropout_rate))
+
+    def forward(self, x):
+        """Define the forward pass of the network."""
+        # input for now is batch, channel (1), length
+        x = x.squeeze(1)
+        for i, layer in enumerate(self.layers):
+            x = layer(x)
+
+        # return the probabilities and feature as well
+        return torch.sigmoid(x), x
 
 class Regressor(nn.Module):
     """Customizable NN regressor with optional parameter embedding."""

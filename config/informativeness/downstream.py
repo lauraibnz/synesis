@@ -90,4 +90,34 @@ configs = {
             ],
         },
     },
+    "transcriber_probe": {
+        "model": {
+            "type": "transcriber",
+            "params": {"hidden_units": [512]},
+        },
+        "training": {
+            "criterion": nn.BCELoss(reduction="mean"),
+            "optimizer": {
+                "class": Adam,
+                "params": {"lr": 0.001, "weight_decay": 0.001},
+            },
+            "batch_size": 4,
+            "num_epochs": 20,
+            "feature_aggregation": False,
+        },
+        "evaluation": {
+            "criterion": nn.BCELoss(reduction="mean"),
+            "feature_aggregation": False,
+            "batch_size": 4,
+            "metrics": [
+                {
+                    "name": "F1",
+                    "class": F1Score,
+                    "params": {
+                        "task": "binary",
+                    },
+                },
+            ],
+        },
+    },
 }
