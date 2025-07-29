@@ -144,7 +144,7 @@ def preprocess_batch(
 
     with torch.no_grad():
         combined_features = feature_extractor(combined_raw_data)
-        if combined_features.dim() == 2:
+        if combined_features.dim() > 1:
             combined_features = combined_features.unsqueeze(1)
         if combined_features.device != device:
             combined_features = combined_features.to(device)
@@ -268,10 +268,26 @@ def train(
         val_dataset, shuffle=False, batch_size=task_config["training"]["batch_size"]
     )
 
+    sample_item, _ = train_dataset[0]
+
+    with torch.no_grad():
+        extracted_features = feature_extractor(sample_item)
+
+    if extracted_features.dim() == 1:
+        in_features = extracted_features.shape[0]
+    else:
+        in_features = extracted_features.shape[1]
+
+    if extracted_features.dim() == 3:
+        use_temporal_pooling = True
+    else:
+        use_temporal_pooling = False
+
     model = get_probe(
         model_type=task_config["model"]["type"],
-        in_features=feature_config["feature_dim"] * 2,
+        in_features=in_features * 2,
         n_outputs=1,  # currently only predicting one parameter
+        use_temporal_pooling=use_temporal_pooling,
         **task_config["model"]["params"],
     ).to(device)
 
@@ -437,21 +453,6 @@ def evaluate(
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    if isinstance(model, str):
-        # Load model from wandb artifact
-        artifact = get_artifact(model)
-        artifact_dir = artifact.download()
-        model = get_probe(
-            model_type=task_config["model"]["type"],
-            in_features=feature_config["feature_dim"] * 2,
-            n_outputs=1,  # currently only predicting one parameter
-            **task_config["model"]["params"],
-        )
-        model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
-        os.remove(Path(artifact_dir) / f"{feature}.pt")
-
-    model.to(device)
-
     if task_config["training"].get("feature_aggregation") or task_config[
         "evaluation"
     ].get("feature_aggregation"):
@@ -481,6 +482,37 @@ def evaluate(
     test_loader = DataLoader(
         test_dataset, shuffle=False, batch_size=task_config["evaluation"]["batch_size"]
     )
+
+    sample_item, _ = test_dataset[0]
+    with torch.no_grad():
+        extracted_features = feature_extractor(sample_item)
+
+    if extracted_features.dim() == 1:
+        in_features = extracted_features.shape[0]
+    else:
+        in_features = extracted_features.shape[1]
+
+    if extracted_features.dim() == 3:
+        use_temporal_pooling = True
+    else:
+        use_temporal_pooling = False
+
+    if isinstance(model, str):
+        # Load model from wandb artifact
+        artifact = get_artifact(model)
+        artifact_dir = artifact.download()
+
+        model = get_probe(
+            model_type=task_config["model"]["type"],
+            in_features=in_features * 2,
+            n_outputs=1,  # currently only predicting one parameter
+            use_temporal_pooling=use_temporal_pooling,
+            **task_config["model"]["params"],
+        )
+        model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
+        os.remove(Path(artifact_dir) / f"{feature}.pt")
+
+    model.to(device)
 
     model.eval()
     total_loss = 0
