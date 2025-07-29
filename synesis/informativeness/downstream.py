@@ -92,7 +92,7 @@ def train(
         item_format=item_format,
     )
 
-    if train_dataset[0][0].dim() == 3 and dataset != "ImageNet":
+    if train_dataset[0][0].dim() > 2 and dataset != "ImageNet":
         # If item is 3D, this is a dataset that returns items with subitems
         # (e.g. for audio).
         if task_config["training"]["feature_aggregation"]:
@@ -146,12 +146,18 @@ def train(
     if sample_item.dim() == 1:
         in_features = sample_item.shape[0]
     else:
-        in_features = sample_item.shape[-1]
+        in_features = sample_item.shape[1]
+
+    if sample_item.dim() == 3:
+        use_temporal_pooling = True
+    else:
+        use_temporal_pooling = False
 
     model = get_probe(
         model_type=task_config["model"]["type"],
         in_features=in_features,
         n_outputs=n_outputs,
+        use_temporal_pooling=use_temporal_pooling,
         **task_config["model"]["params"],
     ).to(device)
     criterion = task_config["training"]["criterion"]()
@@ -353,44 +359,7 @@ def evaluate(
         item_format=item_format,
     )
 
-    if isinstance(model, str):
-        # Load model from wandb artifact
-        artifact = get_artifact(model)
-        artifact_dir = artifact.download()
-        n_outputs = (
-            1
-            if task_config["model"]["type"] == "regressor"
-            else len(test_dataset.label_encoder.classes_)
-        )
-
-        sample_item, _ = test_dataset[0]
-        if sample_item.dim() == 1:
-            in_features = sample_item.shape[0]
-        else:
-            in_features = sample_item.shape[-1]
-
-        model = get_probe(
-            model_type=task_config["model"]["type"],
-            in_features=in_features,
-            n_outputs=n_outputs,
-            **task_config["model"]["params"],
-        )
-        model.load_state_dict(
-            torch.load(Path(artifact_dir) / f"{feature}.pt", weights_only=True)
-        )
-        os.remove(Path(artifact_dir) / f"{feature}.pt")
-
-    if not device:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    model.to(device)
-
-    metrics = instantiate_metrics(
-        metric_configs=task_config["evaluation"]["metrics"],
-        num_classes=n_outputs,
-    )
-
-    if test_dataset[0][0].dim() == 3 and dataset != "ImageNet":
+    if test_dataset[0][0].dim() > 2 and dataset != "ImageNet":
         # If item is 3D, this is a dataset that returns items with subitems
         # (e.g. for audio).
         if task_config["evaluation"]["feature_aggregation"]:
@@ -412,6 +381,49 @@ def evaluate(
         test_dataset,
         batch_size=task_config["evaluation"]["batch_size"],
         shuffle=False,
+    )
+
+    if isinstance(model, str):
+        # Load model from wandb artifact
+        artifact = get_artifact(model)
+        artifact_dir = artifact.download()
+        n_outputs = (
+            1
+            if task_config["model"]["type"] == "regressor"
+            else len(test_dataset.label_encoder.classes_)
+        )
+
+        sample_item, _ = test_dataset[0]
+        if sample_item.dim() == 1:
+            in_features = sample_item.shape[0]
+        else:
+            in_features = sample_item.shape[1]
+
+        if sample_item.dim() == 3:
+            use_temporal_pooling = True
+        else:
+            use_temporal_pooling = False
+
+        model = get_probe(
+            model_type=task_config["model"]["type"],
+            in_features=in_features,
+            n_outputs=n_outputs,
+            use_temporal_pooling=use_temporal_pooling,
+            **task_config["model"]["params"],
+        )
+        model.load_state_dict(
+            torch.load(Path(artifact_dir) / f"{feature}.pt", weights_only=True)
+        )
+        os.remove(Path(artifact_dir) / f"{feature}.pt")
+
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model.to(device)
+
+    metrics = instantiate_metrics(
+        metric_configs=task_config["evaluation"]["metrics"],
+        num_classes=n_outputs,
     )
 
     # if raw_data  (e.g. audio) is being returned from dataset,

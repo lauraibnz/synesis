@@ -6,7 +6,7 @@ import torch.nn.init as init
 
 
 def get_probe(
-    model_type: str, in_features: int, n_outputs: int, **kwargs: Any
+    model_type: str, in_features: int, n_outputs: int, use_temporal_pooling: bool = False, **kwargs: Any
 ) -> nn.Module:
     """
     Factory function to create and return a model based on the specified type.
@@ -27,9 +27,9 @@ def get_probe(
         ValueError: If an unsupported model type is specified.
     """
     if model_type == "classifier":
-        return Classifier(in_features, n_outputs, **kwargs)
+        return Classifier(in_features, n_outputs, use_temporal_pooling=use_temporal_pooling, **kwargs)
     elif model_type == "regressor":
-        return Regressor(in_features, n_outputs, **kwargs)
+        return Regressor(in_features, n_outputs, use_temporal_pooling=use_temporal_pooling, **kwargs)
     elif model_type == "transcriber":
         return TranscriberProbe(in_features, n_outputs, **kwargs)
     else:
@@ -39,7 +39,7 @@ def get_probe(
 class Classifier(nn.Module):
     """Customizable NN classifier."""
 
-    def __init__(self, in_features, n_outputs, **kwargs):
+    def __init__(self, in_features, n_outputs, use_temporal_pooling=False, **kwargs):
         super(Classifier, self).__init__()
 
         self.in_features = in_features
@@ -47,6 +47,10 @@ class Classifier(nn.Module):
         self.hidden_units = kwargs.get("hidden_units", [])
         self.weight_decay = kwargs.get("weight_decay", 0.0)
         self.output_activation = kwargs.get("output_activation", None)
+        self.use_temporal_pooling = use_temporal_pooling
+
+        if self.use_temporal_pooling:
+            self.temporal_pooling = nn.AdaptiveAvgPool1d(1)
 
         self.layers = nn.ModuleList()
         self.build_layers()
@@ -69,6 +73,11 @@ class Classifier(nn.Module):
         """Define the forward pass of the network."""
         # input for now is batch, channel (1), length
         x = x.squeeze(1)
+        
+        if self.use_temporal_pooling:
+            x = self.temporal_pooling(x)
+            x = x.squeeze(-1)
+
         for layer in self.layers:
             x = layer(x)
         return x
@@ -123,6 +132,7 @@ class Regressor(nn.Module):
         emb_param=False,
         emb_param_dim=32,
         use_batch_norm=False,
+        use_temporal_pooling=False,
         **kwargs,
     ):
         super(Regressor, self).__init__()
@@ -134,6 +144,10 @@ class Regressor(nn.Module):
         self.weight_decay = kwargs.get("weight_decay", 0.0)
         self.output_activation = kwargs.get("output_activation", None)
         self.use_batch_norm = use_batch_norm
+        self.use_temporal_pooling = use_temporal_pooling
+
+        if self.use_temporal_pooling:
+            self.temporal_pooling = nn.AdaptiveAvgPool1d(1)
 
         # Add parameter embedding layer if enabled
         if self.emb_param:
@@ -177,6 +191,10 @@ class Regressor(nn.Module):
         """
         # input will be batch, channel (1), length
         x = x.squeeze(1)
+
+        if self.use_temporal_pooling:
+            x = self.temporal_pooling(x)
+            x = x.squeeze(-1)
 
         if self.emb_param:
             if param is None:
