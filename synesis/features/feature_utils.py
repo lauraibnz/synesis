@@ -294,3 +294,47 @@ def collate_packed_batch(batch, dataset):
     packed_labels = torch.tensor(labels)
 
     return packed_sequences, packed_labels
+
+
+def compute_and_save_feature_stats(dataset_name, feature_name):
+    """
+    Compute and save the mean and standard deviation of features from .pt files.
+
+    Args:
+        dataset_name: Name of the dataset.
+        feature_name: Name of the feature, used for naming the stats file.
+    """
+    features_dir = Path(f"data/{dataset_name}/{feature_name}")
+    all_features = []
+
+    # Traverse the directory and load all .pt files
+    for root, _, files in os.walk(features_dir):
+        for file in files:
+            if file.endswith('.pt'):
+                file_path = os.path.join(root, file)
+                features = torch.load(file_path)
+                if isinstance(features, dict):
+                    # If the .pt file is a dictionary, extract the tensor
+                    features = features.get('features', None)
+                if features is not None:
+                    all_features.append(features)
+
+    # Concatenate all features into a single tensor
+    all_features = torch.cat(all_features, dim=0)
+
+    # Compute mean and std
+    mean = all_features.mean().item()
+    std = all_features.std().item()
+
+    # Save the stats to a file
+    stats_dir = Path("stats")
+    stats_dir.mkdir(exist_ok=True)
+    stats_path = stats_dir / f"mean_std_{feature_name}.txt"
+    with open(stats_path, 'w') as f:
+        f.write(f"mean: {mean}\n")
+        f.write(f"std: {std}\n")
+
+    print(f"Feature stats saved to {stats_path}")
+
+# Example usage
+# compute_and_save_feature_stats('dataset_name', 'feature_name')

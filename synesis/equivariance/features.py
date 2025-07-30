@@ -164,7 +164,7 @@ def preprocess_batch(
 
     with torch.no_grad():
         combined_features = feature_extractor(combined_raw_data)
-        if combined_features.dim() == 2:
+        if combined_features.dim() > 1:
             combined_features = combined_features.unsqueeze(1)
         if combined_features.device != device:
             combined_features = combined_features.to(device)
@@ -295,21 +295,36 @@ def train(
         drop_last=True if task_config["model"]["batch_norm"] else False,
     )
 
+    sample_item, _ = train_dataset[0]
+    with torch.no_grad():
+        extracted_features = feature_extractor(sample_item)
+
+    if extracted_features.dim() == 1:
+        in_features = extracted_features.shape[0]
+    else:
+        in_features = extracted_features.shape[1]
+
+    if extracted_features.dim() == 3:
+        use_temporal_pooling = True
+    else:
+        use_temporal_pooling = False
+
     model = get_probe(
         model_type=task_config["model"]["type"],
-        in_features=feature_config["feature_dim"],
+        in_features=in_features,
         emb_param=task_config["model"]["emb_param"],
         emb_param_dim=task_config["model"]["emb_param_dim"],
-        n_outputs=feature_config["feature_dim"],
+        n_outputs=in_features,
         use_batch_norm=task_config["model"]["batch_norm"],
+        use_temporal_pooling=use_temporal_pooling,
         **task_config["model"]["params"],
     ).to(device)
 
-    criterion = task_configs[task]["training"]["criterion"]()
-    optimizer_class = task_configs[task]["training"]["optimizer"]["class"]
+    criterion = task_config["training"]["criterion"]()
+    optimizer_class = task_config["training"]["optimizer"]["class"]
     optimizer = optimizer_class(
         model.parameters(),
-        **task_configs[task]["training"]["optimizer"]["params"],
+        **task_config["training"]["optimizer"]["params"],
     )
 
     best_val_loss = float("inf")
@@ -340,7 +355,7 @@ def train(
             )
 
             optimizer.zero_grad()
-            if transform_params.dim() == 3:
+            if transform_params.dim() > 2:
                 transform_params = transform_params.squeeze(1)
 
             if task_config["model"]["feature_norm"] or feature == "XVector":
@@ -357,6 +372,13 @@ def train(
             predicted_features = model(original_features, param=transform_params)
             if predicted_features.dim() == 2 and original_features.dim() == 3:
                 predicted_features = predicted_features.unsqueeze(1)
+
+            if use_temporal_pooling:
+                with torch.no_grad():
+                    transformed_features = transformed_features.squeeze(1)
+                    transformed_features = model.temporal_pool(transformed_features)
+                    transformed_features = transformed_features.unsqueeze(1)
+
             loss = criterion(predicted_features, transformed_features)
 
             loss.backward()
@@ -445,6 +467,12 @@ def train(
                             and val_original_features.dim() == 3
                         ):
                             val_predicted_features = val_predicted_features.unsqueeze(1)
+
+                        if use_temporal_pooling:
+                            val_transformed_features = val_transformed_features.squeeze(1)
+                            val_transformed_features = model.temporal_pool(val_transformed_features)
+                            val_transformed_features = val_transformed_features.unsqueeze(1)
+
                         val_loss = criterion(
                             val_predicted_features, val_transformed_features
                         )
@@ -522,6 +550,12 @@ def train(
                 predicted_features = model(original_features, param=transform_params)
                 if predicted_features.dim() == 2 and original_features.dim() == 3:
                     predicted_features = predicted_features.unsqueeze(1)
+
+                if use_temporal_pooling:
+                    transformed_features = transformed_features.squeeze(1)
+                    transformed_features = model.temporal_pool(transformed_features)
+                    transformed_features = transformed_features.unsqueeze(1)
+
                 loss = criterion(predicted_features, transformed_features)
 
                 total_val_loss += loss.item()
@@ -644,24 +678,6 @@ def evaluate(
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    if isinstance(model, str):
-        # Load model from wandb artifact
-        artifact = get_artifact(model)
-        artifact_dir = artifact.download()
-        model = get_probe(
-            model_type=task_config["model"]["type"],
-            in_features=feature_config["feature_dim"],
-            emb_param=task_config["model"]["emb_param"],
-            emb_param_dim=task_config["model"]["emb_param_dim"],
-            use_batch_norm=task_config["model"]["batch_norm"],
-            n_outputs=feature_config["feature_dim"],
-            **task_config["model"]["params"],
-        )
-        model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
-        os.remove(Path(artifact_dir) / f"{feature}.pt")
-
-    model.to(device)
-
     if task_config["training"].get("feature_aggregation") or task_config[
         "evaluation"
     ].get("feature_aggregation"):
@@ -696,12 +712,45 @@ def evaluate(
         drop_last=True if task_config["model"]["batch_norm"] else False,
     )
 
+    sample_item, _ = test_dataset[0]
+    with torch.no_grad():
+        extracted_features = feature_extractor(sample_item)
+
+    if extracted_features.dim() == 1:
+        in_features = extracted_features.shape[0]
+    else:
+        in_features = extracted_features.shape[1]
+
+    if extracted_features.dim() == 3:
+        use_temporal_pooling = True
+    else:
+        use_temporal_pooling = False
+
+    if isinstance(model, str):
+        # Load model from wandb artifact
+        artifact = get_artifact(model)
+        artifact_dir = artifact.download()
+        model = get_probe(
+            model_type=task_config["model"]["type"],
+            in_features=in_features,
+            emb_param=task_config["model"]["emb_param"],
+            emb_param_dim=task_config["model"]["emb_param_dim"],
+            n_outputs=in_features,
+            use_batch_norm=task_config["model"]["batch_norm"],
+            use_temporal_pooling=use_temporal_pooling,
+            **task_config["model"]["params"],
+        ).to(device)
+        model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
+        os.remove(Path(artifact_dir) / f"{feature}.pt")
+
+    model.to(device)
+
     model.eval()
     total_loss = 0
     total_l2_distance = 0
     total_cosine_similarity = 0
 
-    criterion = task_configs[task]["training"]["criterion"]()
+    criterion = task_config["training"]["criterion"]()
 
     with torch.no_grad():
         for batch_raw_data, batch_targets in tqdm(test_loader, desc="Evaluating"):
@@ -737,6 +786,12 @@ def evaluate(
             predicted_features = model(original_features, param=transform_params)
             if predicted_features.dim() == 2 and original_features.dim() == 3:
                 predicted_features = predicted_features.unsqueeze(1)
+
+            if use_temporal_pooling:
+                transformed_features = transformed_features.squeeze(1)
+                transformed_features = model.temporal_pool(transformed_features)
+                transformed_features = transformed_features.unsqueeze(1)
+
             loss = criterion(predicted_features, transformed_features)
 
             total_loss += loss.item()

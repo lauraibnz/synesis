@@ -55,6 +55,11 @@ class Classifier(nn.Module):
         self.layers = nn.ModuleList()
         self.build_layers()
 
+    def temporal_pool(self, x):
+        """Apply temporal pooling to the input tensor."""
+        x = self.temporal_pooling(x)
+        return x.squeeze(-1)
+
     def build_layers(self):
         """Construct the layers of the neural network."""
         layer_sizes = [self.in_features] + (self.hidden_units or []) + [self.n_outputs]
@@ -75,8 +80,7 @@ class Classifier(nn.Module):
         x = x.squeeze(1)
         
         if self.use_temporal_pooling:
-            x = self.temporal_pooling(x)
-            x = x.squeeze(-1)
+            x = self.temporal_pool(x)
 
         for layer in self.layers:
             x = layer(x)
@@ -165,6 +169,11 @@ class Regressor(nn.Module):
         if self.use_batch_norm:
             self.input_batch_norm = nn.BatchNorm1d(self.in_features)
 
+    def temporal_pool(self, x):
+        """Apply temporal pooling to the input tensor."""
+        x = self.temporal_pooling(x)
+        return x.squeeze(-1)
+
     def build_layers(self):
         """Construct the layers of the neural network."""
         # Use adjusted input features to account for parameter embedding
@@ -193,8 +202,7 @@ class Regressor(nn.Module):
         x = x.squeeze(1)
 
         if self.use_temporal_pooling:
-            x = self.temporal_pooling(x)
-            x = x.squeeze(-1)
+            x = self.temporal_pool(x)
 
         if self.emb_param:
             if param is None:
@@ -202,7 +210,7 @@ class Regressor(nn.Module):
             # Embed the parameter
             param_embedding = self.param_encoder(param)
             # Concatenate with input
-            x = torch.cat([x, param_embedding], dim=-1)
+            x = torch.cat([x, param_embedding], dim=1)
 
         for layer in self.layers:
             x = layer(x)
