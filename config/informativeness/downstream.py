@@ -1,6 +1,7 @@
 from torch import nn
 from torch.optim import Adam
 from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score
+from ...synesis.utils import NoteMetrics
 
 configs = {
     "default": {
@@ -110,13 +111,8 @@ configs = {
             "feature_aggregation": False,
             "batch_size": 4,
             "metrics": [
-                {
-                    "name": "F1",
-                    "class": F1Score,
-                    "params": {
-                        "task": "binary",
-                    },
-                },
+                {"name": "F1", "class": F1Score,"params": {"task": "binary",},},
+                {"name": "NoteMetrics", "class": NoteMetrics, "params": {"hop_secs": 0.1}},
             ],
         },
     },
