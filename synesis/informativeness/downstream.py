@@ -478,6 +478,11 @@ def evaluate(
         print(f"{name}: {value:.4f}")
 
     if logging:
+        # Log individual test metrics
+        wandb.log({
+            **{f"test/{name}": value for name, value in test_metric_results.items()},
+        })
+        
         # Create a table for the evaluation metrics
         metrics_table = wandb.Table(columns=["Metric", "Value"])
         metrics_table.add_data("Average Test Loss", avg_loss)

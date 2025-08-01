@@ -1,7 +1,7 @@
 from torch import nn
 from torch.optim import Adam
 from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score
-from ...synesis.utils import NoteMetrics
+from synesis.utils import NoteMetrics
 
 configs = {
     "default": {

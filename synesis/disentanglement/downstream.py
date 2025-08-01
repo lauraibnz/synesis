@@ -22,12 +22,7 @@ from synesis.datasets.dataset_utils import SubitemDataset, get_dataset
 from synesis.features.feature_utils import get_feature_extractor
 from synesis.probes import get_probe
 from synesis.transforms.transform_utils import get_transform
-from synesis.utils import (
-    deep_update,
-    get_artifact,
-    get_metric_from_wandb,
-    get_wandb_config,
-)
+from synesis.utils import deep_update, get_artifact, get_metric_from_wandb, get_wandb_config
 
 
 def preprocess_batch(
@@ -44,6 +39,7 @@ def preprocess_batch(
         transformed_raw_data = transform_obj(batch_raw_data.to(device))
 
     transformed_features = feature_extractor(transformed_raw_data)
+    transformed_features = transformed_features.to(device)
     return transformed_features
 
 
@@ -56,6 +52,8 @@ def evaluate_disentanglement(
     task: str = "default",
     task_config: Optional[dict] = None,
     device: Optional[str] = None,
+    batch_size: int = 32,
+    logging: bool = False,
 ):
     """Evaluate disentanglement between two factors of variation.
     Args:
@@ -69,14 +67,29 @@ def evaluate_disentanglement(
     Returns:
         A dictionary containing mean metrics.
     """
-    if dataset not in ["ImageNet", "LibriSpeech"]:
-        raise ValueError(f"Invalid dataset: {dataset}")
 
     feature_config = feature_configs.get(feature)
     transform_config = transform_configs.get(transform)
     task_config = deep_update(
         deep_update(task_configs["default"], task_configs.get(task, None)), task_config
     )
+
+    if logging:
+        wandb_config = get_wandb_config()
+        run_name = f"DISENT_{transform}_{dataset}_{feature}_{label}"
+        wandb.init(
+            project=wandb_config["project"],
+            entity=wandb_config["entity"],
+            name=run_name,
+            config={
+                "feature": feature,
+                "feature_config": feature_config,
+                "dataset": dataset,
+                "task": task,
+                "task_config": task_config,
+            },
+        )
+        artifact = wandb.Artifact(run_name, type="model")
 
     if not device:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -92,6 +105,36 @@ def evaluate_disentanglement(
         item_format="raw",
     )
 
+    # If dataset returns subitems per item, need to wrap it
+    if dataset != "ImageNet" and raw_dataset[0][0].dim() == 3:
+        wrapped_dataset = SubitemDataset(raw_dataset)
+        del raw_dataset
+        raw_dataset = wrapped_dataset
+
+    dataloader = DataLoader(
+        raw_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+
+    feature_extractor = get_feature_extractor(feature)
+    feature_extractor = feature_extractor.to(device)
+
+    sample_item, _ = raw_dataset[0]
+
+    with torch.no_grad():
+        extracted_features = feature_extractor(sample_item)
+
+    if extracted_features.dim() == 1:
+        in_features = extracted_features.shape[0]
+    else:
+        in_features = extracted_features.shape[1]
+
+    if extracted_features.dim() == 3:
+        use_temporal_pooling = True
+    else:
+        use_temporal_pooling = False
+
     if isinstance(model, str):
         # Load model from wandb artifact
         artifact = get_artifact(model)
@@ -103,8 +146,9 @@ def evaluate_disentanglement(
         )
         model = get_probe(
             model_type=task_config["model"]["type"],
-            in_features=feature_config["feature_dim"],
+            in_features=in_features,
             n_outputs=n_outputs,
+            use_temporal_pooling=use_temporal_pooling,
             **task_config["model"]["params"],
         ).to(device)
         model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
@@ -112,28 +156,6 @@ def evaluate_disentanglement(
 
     model.to(device)
     model.eval()
-
-    # If dataset returns subitems per item, need to wrap it
-    if dataset != "ImageNet" and raw_dataset[0][0].dim() == 3:
-        wrapped_dataset = SubitemDataset(raw_dataset)
-        del raw_dataset
-        raw_dataset = wrapped_dataset
-
-    if task_config["training"].get("feature_aggregation") or task_config[
-        "evaluation"
-    ].get("feature_aggregation"):
-        raise NotImplementedError(
-            "Feature aggregation is not currently implemented for transform prediction."
-        )
-
-    dataloader = DataLoader(
-        raw_dataset,
-        batch_size=task_config["evaluation"]["batch_size"],
-        shuffle=False,
-    )
-
-    feature_extractor = get_feature_extractor(feature)
-    feature_extractor = feature_extractor.to(device)
 
     if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
         transform_obj = get_transform(
@@ -147,9 +169,14 @@ def evaluate_disentanglement(
         transform_obj = get_transform(transform_config)
 
     total_loss = 0
-    all_predictions = []
-    all_targets = []
     criterion = task_config["evaluation"]["criterion"]()
+
+    # Instantiate metrics from the task configuration
+    from synesis.metrics import instantiate_metrics
+    metrics = instantiate_metrics(
+        metric_configs=task_config["evaluation"]["metrics"],
+        num_classes=n_outputs,
+    )
 
     with torch.no_grad():
         for batch_raw_data, batch_targets in tqdm(dataloader, desc="Evaluating"):
@@ -163,58 +190,49 @@ def evaluate_disentanglement(
             )
 
             predictions = model(transformed_features)
-            if len(predictions.shape) == 2:
+            if len(predictions.shape) > 1 and n_outputs == 1:
                 predictions = predictions.squeeze(1)
-            loss = criterion(predictions, batch_targets.to(device))
+            loss = criterion(predictions, batch_targets.float().to(device))
             total_loss += loss.item()
 
-            all_predictions.append(predictions.detach().cpu())
-            all_targets.append(batch_targets.detach().cpu())
+            # Update metrics
+            for metric_cfg, metric in zip(task_config["evaluation"]["metrics"], metrics):
+                metric = metric.to(device)
+                metric.update(predictions, batch_targets.to(device))
 
     mean_loss = total_loss / len(dataloader)
     print(f"Mean loss: {mean_loss}")
 
-    all_predictions = torch.cat(all_predictions, dim=0)
-    all_targets = torch.cat(all_targets, dim=0)
+    # Calculate and print metrics from the task configuration
+    test_metric_results = {}
+    for metric_cfg, metric in zip(task_config["evaluation"]["metrics"], metrics):
+        test_metric_results[metric_cfg["name"]] = metric.compute().item()
+        metric.reset()
+        print(f"{metric_cfg['name']}: {test_metric_results[metric_cfg['name']]:.4f}")
 
-    # Calculate MSE
-    mse = nn.MSELoss()(all_predictions, all_targets).item()
-    print(f"MSE: {mse}")
-
-    results = {"avg_loss": mean_loss, "mse": mse}
+    results = {"avg_loss": mean_loss, **test_metric_results}
 
     # Get original metrics from wandb run
     run = wandb.Api().run(f"{entity}/{project}/{run_id}")
-    original_metrics = {"mse": get_metric_from_wandb(run, "MSE")}
+    original_metrics = {name: get_metric_from_wandb(run, f"{name}") for name in test_metric_results.keys()}
 
     # Calculate differences
     diff_metrics = {
-        f"diff_{k}": original_metrics.get(k, 0) - v for k, v in results.items()
+        f"diff_{k}": original_metrics.get(k, 0) - v for k, v in test_metric_results.items()
     }
 
-    # Combine all results
-    all_results = {
-        "run_name": run_name,
-        "dataset": args.dataset,
-        "transform": args.transform,
-        "label": args.label,
-        "original_mse": original_metrics.get("mse", 0),
-        "transformed_mse": results["mse"],
-        "diff_mse": diff_metrics["diff_mse"],
+    for name in test_metric_results.keys():
+        diff_val = diff_metrics[f"diff_{name}"]
+        print(f"{name} difference: {diff_val:.4f}")
+
+    # Log only the new metrics and differences
+    log_results = {
+        **{f"test/{name}": value for name, value in test_metric_results.items()},
+        **diff_metrics,
     }
 
-    # Save/append to CSV
-    results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
-    results_file = results_dir / f"v3_{dataset}_disentanglement_{task}.csv"
-
-    df = pd.DataFrame([all_results])
-    if not results_file.exists():
-        df.to_csv(results_file, index=False)
-    else:
-        df.to_csv(results_file, mode="a", header=False, index=False)
-
-    return results
+    if logging:
+        wandb.log(log_results)
 
 
 if __name__ == "__main__":
@@ -263,6 +281,19 @@ if __name__ == "__main__":
         required=True,
         help="Factor of variation.",
     )
+    parser.add_argument(
+        "--batch_size",
+        "-b",
+        type=int,
+        required=False,
+        default=32,
+        help="Batch size.",
+    )
+    parser.add_argument(
+        "--nolog",
+        action="store_true",
+        help="Do not log to wandb.",
+    )
 
     args = parser.parse_args()
 
@@ -276,11 +307,10 @@ if __name__ == "__main__":
     for run in wandb_runs:
         if run.name == run_name:
             run_id = run.id
-            break
     if run_id is None:
         raise ValueError(f"Run {run_name} not matched.")
 
-    results = evaluate_disentanglement(
+    evaluate_disentanglement(
         model=f"{entity}/{project}/{run_id}/{run_name}",
         feature=args.feature,
         dataset=args.dataset,
@@ -288,4 +318,6 @@ if __name__ == "__main__":
         label=args.label,
         task=args.task,
         device=args.device,
+        batch_size=args.batch_size,
+        logging=not args.nolog,
     )

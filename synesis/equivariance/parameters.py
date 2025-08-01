@@ -560,6 +560,12 @@ def evaluate(
     print(f"Mean Absolute Error: {mae:.4f}")
 
     if logging:
+        # Log individual test metrics
+        wandb.log({
+            "test/MSE": mse,
+            "test/MAE": mae,
+        })
+        
         # Create a table for the evaluation metrics
         metrics_table = wandb.Table(columns=["Metric", "Value"])
         metrics_table.add_data("Average Loss", avg_loss)
@@ -569,8 +575,6 @@ def evaluate(
         # Log the table to wandb
         wandb.log({"evaluation_metrics": metrics_table})
         wandb.finish()
-
-    return {"avg_loss": avg_loss, "mse": mse, "mae": mae}
 
 
 if __name__ == "__main__":
@@ -637,7 +641,7 @@ if __name__ == "__main__":
         logging=not args.nolog,
     )
 
-    results = evaluate(
+    evaluate(
         model=model,
         feature=args.feature,
         dataset=args.dataset,

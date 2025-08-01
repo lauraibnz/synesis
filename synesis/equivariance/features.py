@@ -37,6 +37,14 @@ def load_feature_stats(feature: str):
     return mean, std
 
 
+def flatten_features(tensor):
+    """Flatten features for consistent processing."""
+    # If shape is [B, 1, C, T], do temporal mean pooling
+    if tensor.dim() == 4:
+        tensor = tensor.mean(dim=-1)  # Pool over time -> [B, 1, C]
+    return tensor
+
+
 def preprocess_batch(
     batch_raw_data,
     batch_targets,
@@ -374,10 +382,7 @@ def train(
                 predicted_features = predicted_features.unsqueeze(1)
 
             if use_temporal_pooling:
-                with torch.no_grad():
-                    transformed_features = transformed_features.squeeze(1)
-                    transformed_features = model.temporal_pool(transformed_features)
-                    transformed_features = transformed_features.unsqueeze(1)
+                transformed_features = flatten_features(transformed_features)
 
             loss = criterion(predicted_features, transformed_features)
 
@@ -469,9 +474,7 @@ def train(
                             val_predicted_features = val_predicted_features.unsqueeze(1)
 
                         if use_temporal_pooling:
-                            val_transformed_features = val_transformed_features.squeeze(1)
-                            val_transformed_features = model.temporal_pool(val_transformed_features)
-                            val_transformed_features = val_transformed_features.unsqueeze(1)
+                            val_transformed_features = flatten_features(val_transformed_features)
 
                         val_loss = criterion(
                             val_predicted_features, val_transformed_features
@@ -552,9 +555,7 @@ def train(
                     predicted_features = predicted_features.unsqueeze(1)
 
                 if use_temporal_pooling:
-                    transformed_features = transformed_features.squeeze(1)
-                    transformed_features = model.temporal_pool(transformed_features)
-                    transformed_features = transformed_features.unsqueeze(1)
+                    transformed_features = flatten_features(transformed_features)
 
                 loss = criterion(predicted_features, transformed_features)
 
@@ -788,9 +789,7 @@ def evaluate(
                 predicted_features = predicted_features.unsqueeze(1)
 
             if use_temporal_pooling:
-                transformed_features = transformed_features.squeeze(1)
-                transformed_features = model.temporal_pool(transformed_features)
-                transformed_features = transformed_features.unsqueeze(1)
+                transformed_features = flatten_features(transformed_features)
 
             loss = criterion(predicted_features, transformed_features)
 
