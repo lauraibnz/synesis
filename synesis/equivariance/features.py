@@ -27,9 +27,12 @@ from synesis.transforms.transform_utils import get_transform
 from synesis.utils import deep_update, get_artifact, get_wandb_config
 
 
-def load_feature_stats(feature: str):
+def load_feature_stats(feature: str, dataset_name: str):
     """Load pre-computed mean and std for feature normalization."""
-    stats_path = Path("stats") / f"mean_std_{feature}.txt"
+    # Construct stats filename
+    stats_filename = f"mean_std_{dataset_name}_{feature}.txt"
+    
+    stats_path = Path("stats") / stats_filename
     with open(stats_path) as f:
         lines = f.readlines()
         mean = float(lines[0].split(": ")[1])
@@ -278,7 +281,7 @@ def train(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    feature_mean, feature_std = load_feature_stats(feature)
+    feature_mean, feature_std = load_feature_stats(feature, dataset)
 
     if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
         transform_obj = get_transform(
@@ -378,7 +381,7 @@ def train(
                 )
 
             predicted_features = model(original_features, param=transform_params)
-            if predicted_features.dim() == 2 and original_features.dim() == 3:
+            if original_features.dim() > predicted_features.dim():
                 predicted_features = predicted_features.unsqueeze(1)
 
             if use_temporal_pooling:
@@ -467,9 +470,8 @@ def train(
                         val_predicted_features = model(
                             val_original_features, param=val_transform_params
                         )
-                        if (
-                            val_predicted_features.dim() == 2
-                            and val_original_features.dim() == 3
+                        if ( 
+                            val_original_features.dim() > val_predicted_features.dim()
                         ):
                             val_predicted_features = val_predicted_features.unsqueeze(1)
 
@@ -551,7 +553,7 @@ def train(
                     )
 
                 predicted_features = model(original_features, param=transform_params)
-                if predicted_features.dim() == 2 and original_features.dim() == 3:
+                if original_features.dim() > predicted_features.dim():
                     predicted_features = predicted_features.unsqueeze(1)
 
                 if use_temporal_pooling:
@@ -694,7 +696,7 @@ def evaluate(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    feature_mean, feature_std = load_feature_stats(feature)
+    feature_mean, feature_std = load_feature_stats(feature, dataset)
 
     if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
         transform_obj = get_transform(
@@ -785,7 +787,7 @@ def evaluate(
                 )
 
             predicted_features = model(original_features, param=transform_params)
-            if predicted_features.dim() == 2 and original_features.dim() == 3:
+            if original_features.dim() > predicted_features.dim():
                 predicted_features = predicted_features.unsqueeze(1)
 
             if use_temporal_pooling:

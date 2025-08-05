@@ -302,15 +302,21 @@ def collate_packed_batch(batch, dataset):
     return packed_sequences, packed_labels
 
 
-def compute_and_save_feature_stats(dataset_name, feature_name):
+def compute_and_save_feature_stats(dataset_name, feature_name, label=None):
     """
     Compute and save the mean and standard deviation of features from .pt files.
 
     Args:
         dataset_name: Name of the dataset.
         feature_name: Name of the feature, used for naming the stats file.
+        label: Optional label/concept name (for SynTheory dataset).
     """
-    features_dir = Path(f"data/{dataset_name}/{feature_name}")
+    # Construct features directory path
+    if label:
+        features_dir = Path(f"data/{dataset_name}/{label}/{feature_name}")
+    else:
+        features_dir = Path(f"data/{dataset_name}/{feature_name}")
+    
     all_features = []
 
     # Traverse the directory and load all .pt files
@@ -335,12 +341,13 @@ def compute_and_save_feature_stats(dataset_name, feature_name):
     # Save the stats to a file
     stats_dir = Path("stats")
     stats_dir.mkdir(exist_ok=True)
-    stats_path = stats_dir / f"mean_std_{feature_name}.txt"
+    
+    stats_filename = f"mean_std_{dataset_name}_{feature_name}.txt"
+    
+    stats_path = stats_dir / stats_filename
     with open(stats_path, 'w') as f:
         f.write(f"mean: {mean}\n")
         f.write(f"std: {std}\n")
 
     print(f"Feature stats saved to {stats_path}")
 
-# Example usage
-# compute_and_save_feature_stats('dataset_name', 'feature_name')
