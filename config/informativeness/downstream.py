@@ -117,4 +117,9 @@ configs = {
             ],
         },
     },
+    "classification_SLP": {
+        "model": {
+            "params": {"hidden_units": []},
+        },
+    }
 }

@@ -192,7 +192,9 @@ def evaluate_disentanglement(
             predictions = model(transformed_features)
             if len(predictions.shape) > 1 and n_outputs == 1:
                 predictions = predictions.squeeze(1)
-            loss = criterion(predictions, batch_targets.float().to(device))
+            if isinstance(criterion, nn.BCEWithLogitsLoss):
+                batch_targets = batch_targets.float()
+            loss = criterion(predictions, batch_targets.to(device))
             total_loss += loss.item()
 
             # Update metrics

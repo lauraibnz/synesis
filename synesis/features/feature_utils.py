@@ -218,6 +218,7 @@ def fixed_batch_extractor(
             embeddings = embeddings.squeeze(1)
 
         for j, emb in enumerate(embeddings):
+            emb = emb.unsqueeze(0)
             output_path = dataset.feature_paths[i * batch_size + j]
             path = Path(output_path)
             path.parent.mkdir(parents=True, exist_ok=True)

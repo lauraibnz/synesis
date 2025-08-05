@@ -15,6 +15,7 @@ from synesis.features.feature_utils import (
 def extract_features(
     feature: str,
     dataset: str,
+    label: str = "dummy",
     batch_size: int = 32,
     device: Optional[str] = None,
     download_dataset: bool = False,
@@ -24,6 +25,7 @@ def extract_features(
     Args:
         feature: Feature extraction model name.
         dataset: Dataset name.
+        label: Label/concept name (required for SynTheory dataset).
         batch_size: Batch size for feature extraction.
         feature_config: Configuration for the feature extractor. If None,
                         default configuration is used.
@@ -41,7 +43,7 @@ def extract_features(
         name=dataset,
         feature=feature,
         item_format="raw",
-        label="dummy",
+        label=label,
         split=None,  # Use full dataset for feature extraction
         download=download_dataset,
         itemization=False,  # dynamic extractor will handle itemization
@@ -90,6 +92,13 @@ if __name__ == "__main__":
         help="Dataset name.",
     )
     parser.add_argument(
+        "--label",
+        "-l",
+        type=str,
+        default="dummy",
+        help="Label/concept name.",
+    )
+    parser.add_argument(
         "--batch_size",
         "-b",
         type=int,
@@ -105,6 +114,7 @@ if __name__ == "__main__":
     extract_features(
         feature=args.feature,
         dataset=args.dataset,
+        label=args.label,
         batch_size=args.batch_size,
         device=args.device,
     )

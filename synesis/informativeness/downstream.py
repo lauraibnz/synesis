@@ -212,11 +212,15 @@ def train(
             output = model(item)
             if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
-            
+
+            if isinstance(criterion, nn.BCEWithLogitsLoss):
+                target = target.float()
+
             if dataset != "MPE":
-                loss = criterion(output, target.float())
+                loss = criterion(output, target)
             else:
                 loss = criterion(output, target, mask)
+            
             loss.backward()
             optimizer.step()
 
@@ -261,8 +265,11 @@ def train(
                 if len(val_output.shape) == 2:
                     val_output = val_output.squeeze(1)
 
+                if isinstance(criterion, nn.BCEWithLogitsLoss):
+                    target = target.float()
+
                 if dataset != "MPE":
-                    val_loss += criterion(val_output, target.float()).item()
+                    val_loss += criterion(val_output, target).item()
                 else:
                     val_loss += criterion(val_output, target, mask).item()
 
@@ -500,9 +507,12 @@ def evaluate(
             output = model(item)
             if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
-            
+
+            if isinstance(criterion, nn.BCEWithLogitsLoss):
+                target = target.float()
+
             if dataset != "MPE":
-                total_loss += criterion(output, target.float()).item()
+                total_loss += criterion(output, target).item()
             else:
                 total_loss += criterion(output, target, mask).item()
 

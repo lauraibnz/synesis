@@ -168,6 +168,7 @@ def feature_distances(
     passes: int = 3,
     device: Optional[str] = None,
     logging: bool = True,
+    label: str = "dummy",
 ):
     """Calculate distances between features of original and transformed data.
     Meant to test robustness to covariate shifts.
@@ -208,7 +209,7 @@ def feature_distances(
         name=dataset,
         feature=feature,
         transform=transform,
-        label="dummy",
+        label=label,
         split="test",
         download=False,
         item_format="raw",
@@ -335,6 +336,14 @@ if __name__ == "__main__":
         help="Batch size.",
     )
     parser.add_argument(
+        "--label",
+        "-l",
+        type=str,
+        required=False,
+        default="dummy",
+        help="Dataset label to use.",
+    )
+    parser.add_argument(
         "--nolog",
         action="store_true",
         help="Do not log to wandb.",
@@ -350,4 +359,5 @@ if __name__ == "__main__":
         batch_size=args.batch_size,
         device=args.device,
         logging=not args.nolog,
+        label=args.label,
     )
