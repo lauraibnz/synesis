@@ -98,7 +98,7 @@ class MPE(Dataset):
         mask_roll = torch.tensor(mask_roll, dtype=torch.float32)
 
         # Note: Return mask later on when implementing custom BCE loss
-        return (feature, label)
+        return (feature, [label, mask_roll])
 
     def set_extractor(self, extractor):
         """Set the feature extractor for the dataset."""
@@ -221,6 +221,10 @@ class MPE(Dataset):
         temp_paths = sorted(Path(self.save_dir).glob(f"*.npz"))
         print(f"Number of extracted features: {len(temp_paths)}")
 
+        # randomly shuffle the paths
+        rng = np.random.default_rng(seed=42)
+        rng.shuffle(temp_paths)
+
         # split according to 80/10/10 split
         train_split = int(len(temp_paths) * 0.8)
         train = temp_paths[:train_split]
@@ -258,17 +262,21 @@ class MPE(Dataset):
 
         result = []
         current_section = None
-        with open(splits_path, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line.endswith(":"):
-                    current_section = line[:-1].lower()
-                    continue
-                if current_section == split and line:
-                    # Each line is a file path; Path(line) keeps it as Path
-                    result.append(Path(line))
-                if line.endswith(":") and current_section != split:
-                    continue
+        try:
+            with open(splits_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.endswith(":"):
+                        current_section = line[:-1].lower()
+                        continue
+                    if current_section == split and line:
+                        # Each line is a file path; Path(line) keeps it as Path
+                        result.append(Path(line))
+                    if line.endswith(":") and current_section != split:
+                        continue
+        except:
+            raise FileNotFoundError(f"Splits file {splits_path} not found. Please run feature extraction first.")
+        
         return result
     
     def load_paths(self, filenames):

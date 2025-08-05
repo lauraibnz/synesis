@@ -2,6 +2,7 @@ from torch import nn
 from torch.optim import Adam
 from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score
 from synesis.utils import NoteMetrics
+from synesis.losses import MaskedBce
 
 configs = {
     "default": {
@@ -97,7 +98,7 @@ configs = {
             "params": {"hidden_units": [512]},
         },
         "training": {
-            "criterion": nn.BCELoss,
+            "criterion": MaskedBce,
             "optimizer": {
                 "class": Adam,
                 "params": {"lr": 0.00005, "weight_decay": 0.00001},
@@ -107,7 +108,7 @@ configs = {
             "feature_aggregation": True,
         },
         "evaluation": {
-            "criterion": nn.BCELoss,
+            "criterion": MaskedBce,
             "feature_aggregation": True,
             "batch_size": 2,
             "metrics": [

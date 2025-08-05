@@ -189,7 +189,13 @@ def train(
 
         for item, target in progress_bar:
             item = item.to(device)
-            target = target.to(device)
+
+            if dataset != "MPE":
+                target = target.to(device)
+            else:
+                target, mask = target
+                target = target.to(device)
+                mask = mask.to(device)
 
             if (
                 item_format == "raw"
@@ -206,7 +212,11 @@ def train(
             output = model(item)
             if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
-            loss = criterion(output, target.float())
+            
+            if dataset != "MPE":
+                loss = criterion(output, target.float())
+            else:
+                loss = criterion(output, target, mask)
             loss.backward()
             optimizer.step()
 
@@ -227,7 +237,13 @@ def train(
                 val_dataloader, desc=f"Epoch {epoch+1}/{num_epochs} - Validation"
             ):
                 item = item.to(device)
-                target = target.to(device)
+
+                if dataset != "MPE":
+                    target = target.to(device)
+                else:
+                    target, mask = target
+                    target = target.to(device)
+                    mask = mask.to(device)
 
                 if (
                     item_format == "raw"
@@ -244,13 +260,24 @@ def train(
                 val_output = model(item)
                 if len(val_output.shape) == 2:
                     val_output = val_output.squeeze(1)
-                val_loss += criterion(val_output, target.float()).item()
+
+                if dataset != "MPE":
+                    val_loss += criterion(val_output, target.float()).item()
+                else:
+                    val_loss += criterion(val_output, target, mask).item()
 
                 for metric_cfg, metric in zip(
                     task_config["evaluation"]["metrics"], val_metrics
                 ):
-                    metric = metric.to(device) if metric_cfg["name"] != "NoteMetrics" else metric
-                    metric.update((val_output>0.3), target) # Used a threshold of 0.3 for binary classification
+                    metric = metric.to(device)
+                    if task_config["model"]["type"] == "transcriber":
+                        if metric_cfg["name"] == "NoteMetrics":
+                            threshold = 0.1
+                            val_output = (val_output > threshold).int()
+                        elif metric_cfg["name"] == "F1":
+                            threshold = 0.3
+                            val_output = (val_output > threshold).int()
+                    metric.update(val_output, target)
 
         # Calculate metrics
         avg_val_loss = val_loss / len(val_dataloader)
@@ -450,7 +477,13 @@ def evaluate(
     with torch.no_grad():
         for item, target in tqdm(dataloader, desc="Evaluating"):
             item = item.to(device)
-            target = target.to(device)
+
+            if dataset != "MPE":
+                target = target.to(device)
+            else:
+                target, mask = target
+                target = target.to(device)
+                mask = mask.to(device)
 
             if (
                 item_format == "raw"
@@ -468,12 +501,22 @@ def evaluate(
             if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
             
-            total_loss += criterion(output, target.float()).item()
+            if dataset != "MPE":
+                total_loss += criterion(output, target.float()).item()
+            else:
+                total_loss += criterion(output, target, mask).item()
 
             for metric_cfg, metric in zip(
                 task_config["evaluation"]["metrics"], metrics
             ):
-                metric = metric.to(device) if metric_cfg["name"] != "NoteMetrics" else metric
+                metric = metric.to(device)
+                if task_config["model"]["type"] == "transcriber":
+                    if metric_cfg["name"] == "NoteMetrics":
+                        threshold = 0.1
+                        output = (output > threshold).int()
+                    elif metric_cfg["name"] == "F1":
+                        threshold = 0.3
+                        output = (output > threshold).int()
                 metric.update(output, target)
 
     avg_loss = total_loss / len(dataloader)

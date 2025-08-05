@@ -11,6 +11,7 @@ import torch
 import numpy as np
 import mir_eval
 from collections import defaultdict
+from torchmetrics import Metric
 
 def deep_update(d, u):
     """
@@ -143,21 +144,14 @@ def get_wandb_config():
 
 # Define a class to calculate the notewise metrics for the transcriber probe
 # This class should return the note onset F1 score
-class NoteMetrics:
+class NoteMetrics(Metric):
     def __init__(self, hop_secs: float): 
+        super().__init__()
+        self.add_state("note_precision", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("note_recall", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
         self.hop_secs = hop_secs
-        self.pred_piano_roll = None
-        self.target_piano_roll = None
     
-    def reset(self) -> None:
-        """
-            Reset the metric state.
-        """
-        # only reset the predictions and target piano rolls
-        # reseting the hop_secs is not necessary; causes wrong behavior
-        self.pred_piano_roll = None
-        self.target_piano_roll = None
-
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         """
             Update the metrics with the predictions and target.
@@ -170,11 +164,21 @@ class NoteMetrics:
             preds = torch.from_numpy(preds, dtype=int)
         if isinstance(target, np.ndarray):
             target = torch.from_numpy(target, dtype=int)
+        
+        batch_size = preds.shape[0]
+        for batch_idx in range(batch_size):
+            pred_piano_roll = preds[batch_idx]
+            target_piano_roll = target[batch_idx]
+            score = self.notemetrics(pred_piano_roll, target_piano_roll)
+            if score is None:
+                continue
+            precision = score["Precision_no_offset"]
+            recall = score["Recall_no_offset"]
+            self.note_precision += precision
+            self.note_recall += recall
+            self.total += 1
 
-        self.pred_piano_roll = preds
-        self.target_piano_roll = target
-
-    def get_intervals(self, piano_roll: torch.Tensor):
+    def get_intervals(self, piano_roll: torch.Tensor, filter=False):
         """
             Get the intervals of the piano roll.
 
@@ -196,37 +200,29 @@ class NoteMetrics:
 
         notes = onsets[:, 1] + 21 # convert the note to the MIDI note number
         intervals = torch.cat([onsets[:, 0].unsqueeze(1), offsets[:, 0].unsqueeze(1)], dim=1) # shape [num_intervals, 2]
+
         intervals_secs = intervals * self.hop_secs # convert the intervals to seconds
+
+        # We will filter out events (onset - offset) durations less than 116ms
+        if filter:
+            interval_diff = intervals_secs[:, 1] - intervals_secs[:, 0]
+            valid_intervals = interval_diff >= 0.116
+            notes = notes[valid_intervals]
+            intervals_secs = intervals_secs[valid_intervals]
         return notes.cpu().detach().numpy(), intervals_secs.cpu().detach().numpy()
-    
+
     def compute(self):
         """
             Compute the notewise metrics.
+            Returns:
+                note_f1_score (float): The note onset F1 score.
         """
-        if self.pred_piano_roll is None or self.target_piano_roll is None:
-            raise ValueError("Predictions and target piano rolls must be updated before computing metrics.")
-
-        batch_size = self.pred_piano_roll.shape[0]
-        scores = defaultdict(list)
-
-        for i in range(batch_size):
-            pred_piano_roll = self.pred_piano_roll[i]
-            target_piano_roll = self.target_piano_roll[i]
-
-            metrics = self.notemetrics(pred_piano_roll, target_piano_roll)
-            if metrics is None:
-                continue
-            
-            for key, value in metrics.items():
-                scores[key].append(value)
+        if self.note_precision == 0 and self.note_recall == 0:
+            return 0.0
         
-        # Average the scores across the batch
-        averaged_scores = {key: np.mean(value) for key, value in scores.items()}
-
-        # We will get the note onset score for now
-        precision = averaged_scores["Precision_no_offset"]
-        recall = averaged_scores["Recall_no_offset"]
-        note_f1_score = 2 * (precision * recall) / (precision + recall)
+        precision = self.note_precision / self.total if self.total > 0 else 0.0
+        recall = self.note_recall / self.total if self.total > 0 else 0.0
+        note_f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
         return note_f1_score
     
     def notemetrics(self, pred_piano_roll: torch.Tensor, target_piano_roll: torch.Tensor):
@@ -242,7 +238,7 @@ class NoteMetrics:
         """
         # Get notes and intervals for both target and predicted piano rolls
         target_notes, target_intervals = self.get_intervals(target_piano_roll)
-        pred_notes, pred_intervals = self.get_intervals(pred_piano_roll)
+        pred_notes, pred_intervals = self.get_intervals(pred_piano_roll, filter=True)
 
         if len(target_notes) == 0:
             return None
