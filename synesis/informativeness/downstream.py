@@ -136,11 +136,15 @@ def train(
         extractor.to(device)
 
     # train setup
-    n_outputs = (
-        1
-        if task_config["model"]["type"] == "regressor"
-        else len(train_dataset.label_encoder.classes_)
-    )
+    if task_config["model"]["type"] == "transcriber":
+        n_outputs = 88
+    else:
+        n_outputs = (
+            1
+            if task_config["model"]["type"] == "regressor"
+            else len(train_dataset.label_encoder.classes_)
+        )
+
 
     sample_item, _ = train_dataset[0]
     if sample_item.dim() == 1:
@@ -245,8 +249,8 @@ def train(
                 for metric_cfg, metric in zip(
                     task_config["evaluation"]["metrics"], val_metrics
                 ):
-                    metric = metric.to(device)
-                    metric.update(val_output, target)
+                    metric = metric.to(device) if metric_cfg["name"] != "NoteMetrics" else metric
+                    metric.update((val_output>0.3), target) # Used a threshold of 0.3 for binary classification
 
         # Calculate metrics
         avg_val_loss = val_loss / len(val_dataloader)
@@ -350,13 +354,14 @@ def evaluate(
         task_config,
     )
 
+
     test_dataset = get_dataset(
-        name=dataset,
-        feature=feature,
-        label=label,
-        split="test",
-        download=False,
-        item_format=item_format,
+            name=dataset,
+            feature=feature,
+            label=label,
+            split="test",
+            download=False,
+            item_format=item_format,
     )
 
     if test_dataset[0][0].dim() > 2 and dataset != "ImageNet":
@@ -387,22 +392,26 @@ def evaluate(
         # Load model from wandb artifact
         artifact = get_artifact(model)
         artifact_dir = artifact.download()
-        n_outputs = (
-            1
-            if task_config["model"]["type"] == "regressor"
-            else len(test_dataset.label_encoder.classes_)
-        )
 
-        sample_item, _ = test_dataset[0]
-        if sample_item.dim() == 1:
-            in_features = sample_item.shape[0]
+        if task_config["model"]["type"] == "transcriber":
+            n_outputs = 88
         else:
-            in_features = sample_item.shape[1]
+            n_outputs = (
+                1
+                if task_config["model"]["type"] == "regressor"
+                else len(test_dataset.label_encoder.classes_)
+            )
 
-        if sample_item.dim() == 3:
-            use_temporal_pooling = True
-        else:
-            use_temporal_pooling = False
+    sample_item, _ = test_dataset[0]
+    if sample_item.dim() == 1:
+        in_features = sample_item.shape[0]
+    else:
+        in_features = sample_item.shape[1]
+
+    if sample_item.dim() == 3:
+        use_temporal_pooling = True
+    else:
+        use_temporal_pooling = False
 
         model = get_probe(
             model_type=task_config["model"]["type"],
@@ -458,12 +467,13 @@ def evaluate(
             output = model(item)
             if len(output.shape) == 2 and n_outputs == 1:
                 output = output.squeeze(1)
+            
             total_loss += criterion(output, target.float()).item()
 
             for metric_cfg, metric in zip(
                 task_config["evaluation"]["metrics"], metrics
             ):
-                metric = metric.to(device)
+                metric = metric.to(device) if metric_cfg["name"] != "NoteMetrics" else metric
                 metric.update(output, target)
 
     avg_loss = total_loss / len(dataloader)

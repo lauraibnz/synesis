@@ -89,9 +89,9 @@ class Classifier(nn.Module):
 class TranscriberProbe(Classifier):
     def __init__(self, in_features, n_outputs, **kwargs):
         kwargs.pop("output_activation", None) # Sigmoid is hardcoded; not necessary...
-        super().__init__(in_features, n_outputs, **kwargs)
         self.dropout_rate = kwargs.get("dropout_rate", 0)
         self.dropout_flag = kwargs.get("dropout_flag", False)
+        super().__init__(in_features, n_outputs, **kwargs)
         self.init_weights()
 
     def init_weights(self):
@@ -124,7 +124,7 @@ class TranscriberProbe(Classifier):
             x = layer(x)
 
         # return the probabilities and feature as well
-        return torch.sigmoid(x), x
+        return torch.sigmoid(x)
 
 class Regressor(nn.Module):
     """Customizable NN regressor with optional parameter embedding."""

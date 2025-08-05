@@ -8,6 +8,18 @@ configs = {
             "pooled": True,
         },
     },
+    "MelSpec": {
+        "__cls__": "MelSpec",
+        "item_len_sec": 1,
+        "sample_rate": 16000,
+        "extract_kws": {
+            "sample_rate": 16000,
+            "n_mels": 256,
+            "n_fft": 2048,
+            "win_length": 2048,
+            "hop_length": 256,
+        },
+    },
     "AudioMAE": {
         "__cls__": "AudioMAE",
         "item_len_sec": 10,

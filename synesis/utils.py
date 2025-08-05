@@ -151,12 +151,13 @@ class NoteMetrics:
     
     def reset(self) -> None:
         """
-            Reset the metrics.
+            Reset the metric state.
         """
+        # only reset the predictions and target piano rolls
+        # reseting the hop_secs is not necessary; causes wrong behavior
         self.pred_piano_roll = None
         self.target_piano_roll = None
-        self.hop_secs = None
-    
+
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         """
             Update the metrics with the predictions and target.
@@ -182,8 +183,8 @@ class NoteMetrics:
                 hop_secs (float): The hop size in seconds.
         """
         
-        padded_roll = torch.zeros((piano_roll.shape[1] + 2, 88), dtype=int)
-        padded_roll[1:-1, :] = piano_roll # store the pinao roll in the padded roll. So frame 1 to 2nd to last frame is the piano roll
+        padded_roll = torch.zeros((piano_roll.shape[0] + 2, 88), dtype=int)
+        padded_roll[1:-1, :] = piano_roll # store the piano roll in the padded roll. So frame 1 to 2nd to last frame is the piano roll
 
         # so, basically, we have an onset if the note was not on the previous frame, and it is on the current frame
         # (silence and no silence == onset and no silence and silence == offset)
@@ -240,8 +241,8 @@ class NoteMetrics:
                 scores (dict): A dictionary containing the notewise metrics.
         """
         # Get notes and intervals for both target and predicted piano rolls
-        target_notes, target_intervals = self.get_intervals(self.target_piano_roll)
-        pred_notes, pred_intervals = self.get_intervals(self.pred_piano_roll)
+        target_notes, target_intervals = self.get_intervals(target_piano_roll)
+        pred_notes, pred_intervals = self.get_intervals(pred_piano_roll)
 
         if len(target_notes) == 0:
             return None

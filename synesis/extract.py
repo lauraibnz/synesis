@@ -96,6 +96,7 @@ if __name__ == "__main__":
         default=32,
         help="Batch size for feature extraction.",
     )
+
     parser.add_argument(
         "--device", type=str, default=None, help="Device to use for feature extraction."
     )

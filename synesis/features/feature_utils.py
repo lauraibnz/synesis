@@ -124,10 +124,15 @@ def dynamic_batch_extractor(
     # concatenating new embeddings, so we don't want to interefere with that.
     existing_files = [p for p in dataset.feature_paths if Path(p).exists()]
 
+    if hasattr(dataset, "set_extractor") and not dataset.feature_paths:
+        # If the dataset has a set_extractor method, use it to set the extractor
+        dataset.set_extractor(extractor)
+
     pbar = tqdm(total=len(dataset))
     batch = []
     batch_paths = []
     extractor.to(device)
+
 
     for i in range(len(dataset)):
         x, _ = dataset[i]  # Ignore the label
