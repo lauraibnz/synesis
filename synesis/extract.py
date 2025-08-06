@@ -4,6 +4,7 @@ from typing import Optional
 import torch
 
 from config.features import configs as feature_configs
+from config.datasets import configs as dataset_configs
 from synesis.datasets.dataset_utils import get_dataset
 from synesis.features.feature_utils import (
     dynamic_batch_extractor,
@@ -33,21 +34,34 @@ def extract_features(
                 If None, GPU is used if available.
     """
     feature_config = feature_configs.get(feature)
+    dataset_config = dataset_configs.get(dataset)
 
     if not device:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     extractor = get_feature_extractor(feature)
 
-    dataset = get_dataset(
-        name=dataset,
-        feature=feature,
-        item_format="raw",
-        label=label,
-        split=None,  # Use full dataset for feature extraction
-        download=download_dataset,
-        itemization=False,  # dynamic extractor will handle itemization
-    )
+    if not dataset_config:
+        dataset = get_dataset(
+            name=dataset,
+            feature=feature,
+            item_format="raw",
+            label=label,
+            split=None,  # Use full dataset for feature extraction
+            download=download_dataset,
+            itemization=False,  # dynamic extractor will handle itemization
+        )
+    else:
+        dataset = get_dataset(
+            name=dataset,
+            feature=feature,
+            item_format="raw",
+            label=label,
+            split=None,  # Use full dataset for feature extraction
+            download=download_dataset,
+            itemization=False,  # dynamic extractor will handle itemization
+            **dataset_config,
+        )
 
     if "item_len" in feature_config or "item_len_sec" in feature_config:
         # variable length items (e.g. audio)

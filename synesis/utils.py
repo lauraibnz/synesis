@@ -218,11 +218,11 @@ class NoteMetrics(Metric):
                 note_f1_score (float): The note onset F1 score.
         """
         if self.note_precision == 0 and self.note_recall == 0:
-            return 0.0
-        
-        precision = self.note_precision / self.total if self.total > 0 else 0.0
-        recall = self.note_recall / self.total if self.total > 0 else 0.0
-        note_f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+            return np.float32(0.0)
+
+        precision = self.note_precision / self.total if self.total > 0 else np.float32(0.0)
+        recall = self.note_recall / self.total if self.total > 0 else np.float32(0.0)
+        note_f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else np.float32(0.0)
         return note_f1_score
     
     def notemetrics(self, pred_piano_roll: torch.Tensor, target_piano_roll: torch.Tensor):

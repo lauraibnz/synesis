@@ -267,9 +267,30 @@ configs = {
     "AFTER_Timbre": {
         "__cls__": "AFTER_Timbre",
         "sample_rate": 44100,
+        "extract_kws": {
+            "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint800000_EMA.pt",
+            "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
+        },
     },
     "AFTER_Structure": {
         "__cls__": "AFTER_Structure",
         "sample_rate": 44100,
+        "item_len_sec": 1,
+        "extract_kws": {
+            "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint800000_EMA.pt",
+            "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
+        },
+    },
+    "AFTER_Combined": {
+        "__cls__": "AFTER_Combined",
+        "sample_rate": 44100,
+        "item_len_sec": 1,
+        "extract_kws": {
+            "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint800000_EMA.pt",
+            "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
+        },
     },
 }

@@ -2,28 +2,21 @@ import os
 import sys
 import torch
 from torch import nn
-
-# Add AFTER codebase to sys.path
-AFTER_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../AFTER'))
-if AFTER_PATH not in sys.path:
-    sys.path.append(AFTER_PATH)
-
 from after.diffusion import RectifiedFlow
+import gin
 
 class AFTER_Timbre(nn.Module):
-    def __init__(self, feature_extractor=True):
+    def __init__(self, feature_extractor=True, extract_kws={}):
         super(AFTER_Timbre, self).__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        model_path = os.path.join(BASE_DIR, "../../../AFTER/experiments/after_runs/slakh2100_train/")
-        step = 800000
-        autoencoder_path = os.path.join(BASE_DIR, "../../../AFTER/pretrained/AE_slakh.pt")
-        checkpoint_path = os.path.join(model_path, f"checkpoint{step}_EMA.pt")
-        config_path = os.path.join(model_path, "config.gin")
-
-        import gin
-        gin.enter_interactive_mode()
+        if extract_kws == {}:
+            raise ValueError("Model/config paths must be provided.")
+        
+        autoencoder_path = extract_kws.get("autoencoder_path")
+        checkpoint_path = extract_kws.get("checkpoint_path")
+        config_path = extract_kws.get("config_path")
+        
         gin.parse_config_file(config_path)
 
         # Load model

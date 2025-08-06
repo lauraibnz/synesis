@@ -23,9 +23,7 @@ class MPE(Dataset):
         itemization: bool = True,
         label: str = "mpe",
         download: bool = False,
-        chunk_len_sec: float = 1.0,
-        duration_sec: float = 27000.0,
-        hop_length: int = 256) -> None:
+        **kwargs) -> None:
         """
             MPE dataset implementation. 
 
@@ -60,14 +58,15 @@ class MPE(Dataset):
         self.feature_paths = None
         self.ext_audio = None
         self.ext_midi = None
-        self.chunk_len_sec = chunk_len_sec
-        self.duration_sec = duration_sec
+        self.chunk_len_sec = kwargs.get("chunk_len_sec", 1.0)
+        self.duration_sec = kwargs.get("duration_sec", 27000.0)
         self.feature_extractor = None
-        self.hop_length = hop_length
+        self.hop_length = kwargs.get("hop_length", None)
         self.save_dir = "data/MPE"
         self.download = download # Always False for MPE dataset
         self.label_encoder = None # For compatibility with other datasets
         self.raw_data_paths = []
+        self.sample_rate = kwargs.get("sample_rate", 44100)
 
         # create save directory if it doesn't exist
         Path(self.save_dir).mkdir(parents=True, exist_ok=True)
@@ -135,13 +134,13 @@ class MPE(Dataset):
                 waveform = waveform.mean(dim=0, keepdim=True)
         
 
-            if sample_rate != self.feature_config["sample_rate"]:
+            if sample_rate != self.sample_rate:
                 resampler = torchaudio.transforms.Resample(
                     orig_freq=sample_rate,
-                    new_freq=self.feature_config["sample_rate"],
+                    new_freq=self.sample_rate,
                 )
-            waveform = resampler(waveform)
-            chunk_len = int(self.chunk_len_sec * self.feature_config["sample_rate"])
+                waveform = resampler(waveform)
+            chunk_len = int(self.chunk_len_sec * self.sample_rate)
 
             # Generate chunks of audio
             initial_num_chunks = waveform.size(1) // chunk_len
@@ -167,8 +166,8 @@ class MPE(Dataset):
             for i in tqdm(range(int(waveform_chunks.shape[1] / chunk_len)), desc=f"Extracting features... ",\
                      total=int(waveform_chunks.shape[1] / chunk_len)):
                 
-                if (total_samples_extracted / self.feature_config["sample_rate"]) > self.duration_sec:
-                    print(f"Total hours extracted {total_samples_extracted/self.feature_config['sample_rate']/3600} exceeds duration {\
+                if (total_samples_extracted / self.sample_rate) > self.duration_sec:
+                    print(f"Total hours extracted {total_samples_extracted/self.sample_rate/3600} exceeds duration {\
                         self.duration_sec/3600}.")
                     # Get splits
                     self.get_splits()
@@ -186,7 +185,13 @@ class MPE(Dataset):
 
                 # since we know the hop length in samples (or dist btw two consecutive frames)
                 # we can convert that to seconds using the sample rate
-                frame_rate = self.feature_config["sample_rate"] / self.hop_length
+                if self.hop_length is not None:
+                    frame_rate = self.sample_rate / self.hop_length
+                else:
+                    # This is not some spectrogram-like feature so we use the 
+                    # feature shape to determine the frame rate
+                    # why subtract 1? This is a hack to make things align: Still needs to be fixed
+                    frame_rate = (feature.shape[1] - 1) / self.chunk_len_sec
 
                 label_dict = self.get_label_roll(midi, self.chunk_len_sec, \
                     self.chunk_len_sec, i, frame_rate)

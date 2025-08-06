@@ -13,3 +13,8 @@ nnaudio
 torchmetrics
 laion-clap
 speechbrain
+gin-config
+einops_exts
+cached_conv
+tensorboard
+torch_ema

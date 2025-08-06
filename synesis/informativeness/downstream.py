@@ -291,6 +291,7 @@ def train(
         for metric_cfg, metric in zip(
             task_config["evaluation"]["metrics"], val_metrics
         ):
+            print(f"Computing {metric_cfg['name']} metric...")
             val_metric_results[metric_cfg["name"]] = metric.compute().item()
             metric.reset()
         print(
