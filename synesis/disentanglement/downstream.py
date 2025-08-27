@@ -30,7 +30,7 @@ def preprocess_batch(
 ):
     if any(
         tf in transform
-        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression"]
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression", "InstrumentShift"]
     ):
         transformed_raw_data = batch_raw_data[:, 1].to(device)
     elif "TimeStretch" in transform:
@@ -106,7 +106,7 @@ def evaluate_disentanglement(
     )
 
     # If dataset returns subitems per item, need to wrap it
-    if dataset != "ImageNet" and raw_dataset[0][0].dim() == 3:
+    if transform_config and raw_dataset[0][0].dim() == 3:
         wrapped_dataset = SubitemDataset(raw_dataset)
         del raw_dataset
         raw_dataset = wrapped_dataset
@@ -121,6 +121,12 @@ def evaluate_disentanglement(
     feature_extractor = feature_extractor.to(device)
 
     sample_item, _ = raw_dataset[0]
+
+    if any(
+        tf in transform
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression", "InstrumentShift"]
+    ):
+        sample_item = sample_item[0]
 
     with torch.no_grad():
         extracted_features = feature_extractor(sample_item)
@@ -162,7 +168,7 @@ def evaluate_disentanglement(
             transform_config,
             sample_rate=feature_config["sample_rate"],
         )
-    elif dataset == "ImageNet":
+    elif not transform_config:
         # transform handled in dataset
         transform_obj = None
     else:

@@ -268,9 +268,9 @@ configs = {
         "__cls__": "AFTER_Timbre",
         "sample_rate": 44100,
         "extract_kws": {
-            "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
-            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
-            "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
+            "autoencoder_path": "./externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "./externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
+            "config_path": "./externals/AFTER/pretrained/config.gin",
         },
     },
     "AFTER_Structure": {
@@ -278,9 +278,9 @@ configs = {
         "sample_rate": 44100,
         "item_len_sec": 1,
         "extract_kws": {
-            "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
-            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
-            "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
+            "autoencoder_path": "./externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "./externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
+            "config_path": "./externals/AFTER/pretrained/config.gin",
         },
     },
     "AFTER_Combined": {
@@ -288,9 +288,9 @@ configs = {
         "sample_rate": 44100,
         "item_len_sec": 1,
         "extract_kws": {
-            "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
-            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
-            "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
+            "autoencoder_path": "./externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "./externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
+            "config_path": "./externals/AFTER/pretrained/config.gin",
         },
     },
 }

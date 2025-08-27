@@ -448,6 +448,7 @@ def evaluate(
     else:
         use_temporal_pooling = False
 
+    if isinstance(model, str):
         model = get_probe(
             model_type=task_config["model"]["type"],
             in_features=in_features,

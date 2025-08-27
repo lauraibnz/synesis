@@ -155,8 +155,9 @@ class Regressor(nn.Module):
 
         # Add parameter embedding layer if enabled
         if self.emb_param:
+            param_input_dim = kwargs.get("param_input_dim", 1)
             self.param_encoder = nn.Sequential(
-                nn.Linear(1, self.emb_param_dim), nn.ReLU()
+                nn.Linear(param_input_dim, self.emb_param_dim), nn.ReLU()
             )
             # Adjust input features to account for embedded parameter
             self.adjusted_in_features = self.in_features + self.emb_param_dim
