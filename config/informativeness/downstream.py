@@ -113,7 +113,7 @@ configs = {
             "batch_size": 2,
             "metrics": [
                 {"name": "F1", "class": F1Score,"params": {"task": "binary",},},
-                {"name": "NoteMetrics", "class": NoteMetrics, "params": {"hop_secs": 1/62.5}},
+                {"name": "NoteMetrics", "class": NoteMetrics, "params": {"hop_secs": 1/86}},
             ],
         },
     },

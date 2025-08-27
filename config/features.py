@@ -11,13 +11,13 @@ configs = {
     "MelSpec": {
         "__cls__": "MelSpec",
         "item_len_sec": 1,
-        "sample_rate": 16000,
+        "sample_rate": 44100,
         "extract_kws": {
-            "sample_rate": 16000,
-            "n_mels": 256,
+            "sample_rate": 44100,
+            "n_mels": 18,
             "n_fft": 2048,
             "win_length": 2048,
-            "hop_length": 256,
+            "hop_length": 512,
         },
     },
     "AudioMAE": {
@@ -269,7 +269,7 @@ configs = {
         "sample_rate": 44100,
         "extract_kws": {
             "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
-            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint800000_EMA.pt",
+            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
             "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
         },
     },
@@ -279,7 +279,7 @@ configs = {
         "item_len_sec": 1,
         "extract_kws": {
             "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
-            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint800000_EMA.pt",
+            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
             "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
         },
     },
@@ -289,7 +289,7 @@ configs = {
         "item_len_sec": 1,
         "extract_kws": {
             "autoencoder_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/AE_slakh.pt",
-            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint800000_EMA.pt",
+            "checkpoint_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/checkpoint1000000_EMA.pt",
             "config_path": "/home/nkcemeka/Documents/synesis/externals/AFTER/pretrained/config.gin",
         },
     },

@@ -11,6 +11,7 @@ import yaml
 import pretty_midi
 import numpy as np
 from pathlib import Path
+import jams
 from config.features import configs as feature_configs
 
 class MPE(Dataset):
@@ -43,6 +44,9 @@ class MPE(Dataset):
         
         if root is None:
             raise ValueError("Root directory must be specified for MPE dataset.")
+
+        if kwargs.get("root"):
+            root = self.kwargs["root"]
         
         self.root = Path(root)
         if split not in [None, "train", "validation", "test"]:
@@ -66,7 +70,8 @@ class MPE(Dataset):
         self.download = download # Always False for MPE dataset
         self.label_encoder = None # For compatibility with other datasets
         self.raw_data_paths = []
-        self.sample_rate = kwargs.get("sample_rate", 44100)
+        self.sample_rate = kwargs.get("sample_rate", 16000)
+        self.dataset_type = kwargs.get("dataset_type", "maestro")
 
         # create save directory if it doesn't exist
         Path(self.save_dir).mkdir(parents=True, exist_ok=True)
@@ -78,7 +83,15 @@ class MPE(Dataset):
             feature_config = feature_configs[feature]
         self.feature_config = feature_config["extract_kws"]
         
-        self.audio_files, self.midi_files = self.get_files_maestro(self.root)
+        if self.dataset_type == "slakh":
+            self.audio_files, self.midi_files = self.get_files_slakh(self.root)
+        elif self.dataset_type == "maestro":
+            self.audio_files, self.midi_files = self.get_files_maestro(self.root)
+        elif self.dataset_type == "guitarset":
+            self.audio_files, self.midi_files = self.get_files_guitarset(self.root)
+        else:
+            raise ValueError(f"Unsupported dataset type: {self.dataset_type}. Supported types: 'slakh', 'maestro', 'guitarset'.")
+        
         print(f"Number of audio files: {len(self.audio_files)}, Number of midi files: {len(self.midi_files)}")
 
         self.paths = self.load_paths(self.load_split(self.save_dir, self.split)) if split else []
@@ -117,8 +130,6 @@ class MPE(Dataset):
         """Extract features from raw audio files."""
         # Implement feature extraction logic here
         # Extract features from audio files
-
-        
         total_samples_extracted = 0
         for audio_file, midi_file in zip(self.audio_files, self.midi_files):
             assert audio_file.exists(), f"{audio_file} does not exist"
@@ -302,12 +313,12 @@ class MPE(Dataset):
         midi_extensions = ["midi", "mid"]
         
         for ext in audio_extensions:
-            if Path(self.root).rglob(f"*.{ext}"):
+            if sorted(Path(self.root).rglob(f"*.{ext}")):
                 self.ext_audio = ext
                 break
         
         for ext in midi_extensions:
-            if Path(self.root).rglob(f"*.{ext}"):
+            if sorted(Path(self.root).rglob(f"*.{ext}")):
                 self.ext_midi = ext
                 break
         
@@ -365,16 +376,13 @@ class MPE(Dataset):
 
                     # prepare labels (note that end_frame is >= 0 else it would
                     # have been skipped)
+                    label_frames[max(0, start_frame):min(end_frame + 1, num_frames), pitch] = 1
                     if end_frame < num_frames:
-                        label_frames[max(0, start_frame):end_frame + 1, pitch] = 1
                         if start_frame < 0:
                             # We will never get here
                             mask_roll[:end_frame + 1, pitch] = 0
                     else:
                         if start_frame >= 0:
-                            # This section wasn't here before
-                            # ------------------------------
-                            label_frames[start_frame:, pitch] = 1
                             # ------------------------------
                             mask_roll[start_frame:, pitch] = 0
                         else:
@@ -504,4 +512,77 @@ class MPE(Dataset):
         # Since MAESTRO's audio and midi files have the same name,
         # we can use checker
         self.checker(audio_files, midi_files)
+        return audio_files, midi_files
+    
+    def jams_to_midi(self, jam: jams.JAMS, q: int = 1) -> pretty_midi.PrettyMIDI:
+        """
+            Convert jams to midi using pretty_midi.
+            Gotten from the `marl repo`_.
+            .. _marl repo: https://github.com/marl/GuitarSet/blob/master/visualize/interpreter.py
+
+            Args:
+                jam (jams.JAMS): Jams object
+                q (int): 1: with pitch bend. q = 0: without pitch bend.
+            
+            Returns:
+                midi: PrettyMIDI object
+        """
+        # q = 1: with pitch bend. q = 0: without pitch bend.
+        midi = pretty_midi.PrettyMIDI()
+        annos = jam.search(namespace='note_midi')
+        if len(annos) == 0:
+            annos = jam.search(namespace='pitch_midi')
+        for anno in annos:
+            midi_ch = pretty_midi.Instrument(program=25)
+            for note in anno:
+                pitch = int(round(note.value))
+                bend_amount = int(round((note.value - pitch) * 4096))
+                st = note.time
+                dur = note.duration
+                n = pretty_midi.Note(
+                    velocity=100 + np.random.choice(range(-5, 5)),
+                    pitch=pitch, start=st,
+                    end=st + dur
+                )
+                pb = pretty_midi.PitchBend(pitch=bend_amount * q, time=st)
+                midi_ch.notes.append(n)
+                midi_ch.pitch_bends.append(pb)
+            if len(midi_ch.notes) != 0:
+                midi.instruments.append(midi_ch)
+        return midi
+
+    
+    def get_files_guitarset(self, path: str) -> tuple[list[Path], list[Path]]:
+        """
+            Get the list of audio and midi files from the given path
+            for the GuitarSet dataset.
+
+            Args:
+                path (str): Path to the GuitarSet dataset
+
+            Returns:
+                audio_files (list): List of audio files
+                midi_files (list): List of midi files
+        """
+        # check if the annotations-midi folder exists
+        if not (Path(path)/"annotations-midi").exists():
+            # Get all the jams in this path
+            path_annot = Path(path)/"annotation"
+            all_jams = sorted(path_annot.glob("*.jams")) 
+
+            for _, jamPath in tqdm(enumerate(all_jams), total=len(all_jams)):
+                jam_path = str(jamPath)
+                jam = jams.load(jam_path)
+                midi = self.jams_to_midi(jam, q=1)
+                save_path = path_annot.parent / f"annotations-midi/{Path(jam_path).stem}"
+                save_path.parent.mkdir(parents=True, exist_ok=True)
+                midi.write(str(save_path) + f".{self.ext_midi}")
+
+        # Get the list of audio and midi
+        audio_files = sorted((Path(path)/"audio_mono-mic").rglob(f"*.{self.ext_audio}"))
+        midi_files = sorted((Path(path)/"annotations-midi").rglob(f"*.{self.ext_midi}"))
+
+        # Use the GuitarSet checker to check if the audio and midi files are okay
+        self.checker_guitarset_slakh(audio_files, midi_files)
+
         return audio_files, midi_files
