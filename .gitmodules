@@ -4,3 +4,6 @@
 [submodule "externals/ss-vq-vae"]
 	path = externals/ss-vq-vae
 	url = https://github.com/lauraibnz/ss-vq-vae.git
+[submodule "externals/dSEQ-VAE"]
+	path = externals/dSEQ-VAE
+	url = https://github.com/lauraibnz/dSEQ-VAE.git
