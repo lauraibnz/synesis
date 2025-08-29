@@ -214,12 +214,14 @@ def train(
                 output = output.squeeze(1)
 
             if isinstance(criterion, nn.BCEWithLogitsLoss):
-                target = target.float()
+                target_for_loss = target.float()
+            else:
+                target_for_loss = target
 
             if dataset != "MPE":
-                loss = criterion(output, target)
+                loss = criterion(output, target_for_loss)
             else:
-                loss = criterion(output, target, mask)
+                loss = criterion(output, target_for_loss, mask)
             
             loss.backward()
             optimizer.step()
@@ -266,12 +268,19 @@ def train(
                     val_output = val_output.squeeze(1)
 
                 if isinstance(criterion, nn.BCEWithLogitsLoss):
-                    target = target.float()
+                    target_for_loss = target.float()
+                else:
+                    target_for_loss = target
 
                 if dataset != "MPE":
-                    val_loss += criterion(val_output, target).item()
+                    val_loss += criterion(val_output, target_for_loss).item()
                 else:
-                    val_loss += criterion(val_output, target, mask).item()
+                    val_loss += criterion(val_output, target_for_loss, mask).item()
+
+                if task_config["model"]["type"] == "regressor":
+                    target_for_metrics = target_for_loss
+                else:
+                    target_for_metrics = target.long()
 
                 for metric_cfg, metric in zip(
                     task_config["evaluation"]["metrics"], val_metrics
@@ -284,7 +293,7 @@ def train(
                         elif metric_cfg["name"] == "F1":
                             threshold = 0.3
                             val_output = (val_output > threshold).int()
-                    metric.update(val_output, target)
+                    metric.update(val_output, target_for_metrics)
 
         # Calculate metrics
         avg_val_loss = val_loss / len(val_dataloader)
@@ -511,12 +520,19 @@ def evaluate(
                 output = output.squeeze(1)
 
             if isinstance(criterion, nn.BCEWithLogitsLoss):
-                target = target.float()
+                target_for_loss = target.float()
+            else:
+                target_for_loss = target
 
             if dataset != "MPE":
-                total_loss += criterion(output, target).item()
+                total_loss += criterion(output, target_for_loss).item()
             else:
-                total_loss += criterion(output, target, mask).item()
+                total_loss += criterion(output, target_for_loss, mask).item()
+
+            if task_config["model"]["type"] == "regressor":
+                target_for_metrics = target_for_loss
+            else:
+                target_for_metrics = target.long()
 
             for metric_cfg, metric in zip(
                 task_config["evaluation"]["metrics"], metrics
@@ -529,7 +545,7 @@ def evaluate(
                     elif metric_cfg["name"] == "F1":
                         threshold = 0.3
                         output = (output > threshold).int()
-                metric.update(output, target)
+                metric.update(output, target_for_metrics)
 
     avg_loss = total_loss / len(dataloader)
     for metric_cfg, metric in zip(

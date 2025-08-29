@@ -1,6 +1,6 @@
 from torch import nn
 from torch.optim import Adam
-from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score
+from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score, MeanSquaredError, MeanAbsoluteError
 from synesis.utils import NoteMetrics
 from synesis.losses import MaskedBce
 
@@ -53,7 +53,8 @@ configs = {
         "evaluation": {
             "criterion": nn.MSELoss,
             "metrics": [
-                {"name": "MSE", "class": nn.MSELoss, "params": {}},
+                {"name": "MSE", "class": MeanSquaredError, "params": {}},
+                {"name": "MAE", "class": MeanAbsoluteError, "params": {}},
             ],
         },
     },
@@ -69,7 +70,8 @@ configs = {
         "evaluation": {
             "criterion": nn.MSELoss,
             "metrics": [
-                {"name": "MSE", "class": nn.MSELoss, "params": {}},
+                {"name": "MSE", "class": MeanSquaredError, "params": {}},
+                {"name": "MAE", "class": MeanAbsoluteError, "params": {}},
             ],
         },
     },
@@ -82,6 +84,7 @@ configs = {
             "feature_aggregation": True,
         },
         "evaluation": {
+            "criterion": nn.BCEWithLogitsLoss,
             "metrics": [
                 {"name": "AUC_ROC", "class": AUROC, "params": {"task": "multilabel"}},
                 {
@@ -121,5 +124,22 @@ configs = {
         "model": {
             "params": {"hidden_units": []},
         },
-    }
+    },
+    "tagging_MLP": {
+        "training": {
+            "criterion": nn.BCEWithLogitsLoss,
+            "feature_aggregation": True,
+        },
+        "evaluation": {
+            "criterion": nn.BCEWithLogitsLoss,
+            "metrics": [
+                {"name": "AUC_ROC", "class": AUROC, "params": {"task": "multilabel"}},
+                {
+                    "name": "AP",
+                    "class": AveragePrecision,
+                    "params": {"task": "multilabel"},
+                },
+            ],
+        },
+    },
 }

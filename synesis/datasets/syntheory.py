@@ -85,6 +85,7 @@ class SynTheory(Dataset):
         self.seed = seed
         self.label = label  # This is our concept to probe
         self.transform = transform  # Store the transform
+        self.dataset_dir = None
         
         # Validate concept
         if self.label not in self.concepts:
@@ -118,11 +119,11 @@ class SynTheory(Dataset):
         # Load the info.csv file for this specific concept
         # Special handling for instruments which uses the notes dataset
         if self.label == "instruments" or self.label == "categories":
-            dataset_dir = "chords"
+            self.dataset_dir = "chords"
         else:
-            dataset_dir = self.label
+            self.dataset_dir = self.label
             
-        info_path = self.root / dataset_dir / "info.csv"
+        info_path = self.root / self.dataset_dir / "info.csv"
         if not info_path.exists():
             raise FileNotFoundError(f"Info file not found: {info_path}")
         
@@ -134,14 +135,17 @@ class SynTheory(Dataset):
         
         # Ensure we have the required columns
         required_cols = ["synth_file_path", self.target_column]
+        if self.dataset_dir == "tempos":
+            required_cols[0] = "offset_file_path"
         for col in required_cols:
             if col not in df.columns:
                 raise ValueError(f"Required column '{col}' not found in info.csv")
         
         # Create full audio paths
         audio_paths = []
-        for audio_path in df["synth_file_path"]:
-            full_path = self.root / dataset_dir / audio_path
+        path_col = "offset_file_path" if self.dataset_dir == "tempos" else "synth_file_path"
+        for audio_path in df[path_col]:
+            full_path = self.root / self.dataset_dir / audio_path
             audio_paths.append(str(full_path))
         
         # Get labels from the target column
@@ -162,126 +166,107 @@ class SynTheory(Dataset):
         np.random.seed(self.seed)
         indices = np.arange(len(audio_paths))
         np.random.shuffle(indices)
-        
-        # Special handling for tempos (out-of-domain split)
-        if self.label == "tempos" and self.is_regression:
-            # Sort by tempo for out-of-domain split
-            tempo_values = df[self.target_column].values
-            sorted_indices = np.argsort(tempo_values)
+    
+        # Ensure at least 2 samples with same content but different instruments per split
+        # For notes, chords, and instruments (which all have multiple instruments per content)
+        if self.dataset_dir in ["notes", "chords", "tempos"]:
+            if self.dataset_dir == "notes":
+                # Group by note + octave + register
+                df['content_key'] = df['root_note_pitch_class'].astype(str) + '_' + df['octave'].astype(str) + '_' + df['register'].astype(str)
+            elif self.dataset_dir == "chords":
+                # Group by chord type + root note
+                df['content_key'] = df['chord_type'].astype(str) + '_' + df['root_note_pitch_class'].astype(str)
+            elif self.dataset_dir == "tempos":
+                # Group by bpm and offset_time; click config co-varies with instrument
+                if 'offset_time' not in df.columns:
+                    raise ValueError("Required column for tempo grouping not found: 'offset_time'")
+                df['content_key'] = df['bpm'].astype(str) + '_' + df['offset_time'].astype(str)
             
-            # Use middle 70% for training, outer 30% for test/val
-            n_samples = len(sorted_indices)
-            train_start = int(0.15 * n_samples)
-            train_end = int(0.85 * n_samples)
+            # Group samples by content key
+            content_groups = df.groupby('content_key')
             
-            train_indices = sorted_indices[train_start:train_end]
-            holdout_indices = np.concatenate([
-                sorted_indices[:train_start], 
-                sorted_indices[train_end:]
-            ])
+            # For each content group, ensure at least 2 different instruments are in the same split
+            train_indices = []
+            test_indices = []
+            val_indices = []
             
-            # Split holdout into test and validation
-            np.random.shuffle(holdout_indices)
-            mid_point = len(holdout_indices) // 2
-            test_indices = holdout_indices[:mid_point]
-            val_indices = holdout_indices[mid_point:]
+            multi_instrument_groups = 0
+            single_instrument_groups = 0
+            
+            for content_key, group in content_groups:
+                group_indices = group.index.tolist()
+                
+                # If this content has multiple instruments, ensure at least 2 in each split
+                if len(group) >= 6:  # Need at least 6 to put 2 in each split
+                    multi_instrument_groups += 1
+                    
+                    # Shuffle the instruments for this content
+                    np.random.shuffle(group_indices)
+                    
+                    # Put at least 2 instruments in each split
+                    train_indices.extend(group_indices[:2])
+                    test_indices.extend(group_indices[2:4])
+                    val_indices.extend(group_indices[4:6])
+                    
+                    # Distribute remaining instruments randomly
+                    remaining_indices = group_indices[6:]
+                    for remaining_idx in remaining_indices:
+                        split_choice = np.random.choice(['train', 'test', 'validation'], p=[0.7, 0.15, 0.15])
+                        if split_choice == 'train':
+                            train_indices.append(remaining_idx)
+                        elif split_choice == 'test':
+                            test_indices.append(remaining_idx)
+                        else:  # validation
+                            val_indices.append(remaining_idx)
+                    
+
+                elif len(group) >= 2:
+                    # For content with 2-5 instruments, distribute to ensure each split gets some
+                    multi_instrument_groups += 1
+                    np.random.shuffle(group_indices)
+                    
+                    # Distribute as evenly as possible
+                    n_instruments = len(group_indices)
+                    if n_instruments == 2:
+                        train_indices.extend(group_indices[:1])
+                        test_indices.extend(group_indices[1:2])
+                    elif n_instruments == 3:
+                        train_indices.extend(group_indices[:1])
+                        test_indices.extend(group_indices[1:2])
+                        val_indices.extend(group_indices[2:3])
+                    elif n_instruments == 4:
+                        train_indices.extend(group_indices[:2])
+                        test_indices.extend(group_indices[2:3])
+                        val_indices.extend(group_indices[3:4])
+                    elif n_instruments == 5:
+                        train_indices.extend(group_indices[:2])
+                        test_indices.extend(group_indices[2:3])
+                        val_indices.extend(group_indices[3:5])
+                    
+
+                else:
+                    single_instrument_groups += 1
+                    # Single instrument content - assign randomly
+                    split_choice = np.random.choice(['train', 'test', 'validation'], p=[0.7, 0.15, 0.15])
+                    
+                    if split_choice == 'train':
+                        train_indices.extend(group_indices)
+                    elif split_choice == 'test':
+                        test_indices.extend(group_indices)
+                    else:  # validation
+                        val_indices.extend(group_indices)
+            
+
             
         else:
-            # Ensure at least 2 samples with same content but different instruments per split
-            # For notes, chords, and instruments (which all have multiple instruments per content)
-            if self.label in ["notes", "chords", "instruments"]:
-                if self.label == "notes":
-                    # Group by note + octave + register
-                    df['content_key'] = df['root_note_pitch_class'].astype(str) + '_' + df['octave'].astype(str) + '_' + df['register'].astype(str)
-                elif self.label == "chords" or self.label == "instruments":
-                    # Group by chord type + root note
-                    df['content_key'] = df['chord_type'].astype(str) + '_' + df['root_note_pitch_class'].astype(str)
-                
-                # Group samples by content key
-                content_groups = df.groupby('content_key')
-                
-                # For each content group, ensure at least 2 different instruments are in the same split
-                train_indices = []
-                test_indices = []
-                val_indices = []
-                
-                multi_instrument_groups = 0
-                single_instrument_groups = 0
-                
-                for content_key, group in content_groups:
-                    group_indices = group.index.tolist()
-                    
-                    # If this content has multiple instruments, ensure at least 2 in each split
-                    if len(group) >= 6:  # Need at least 6 to put 2 in each split
-                        multi_instrument_groups += 1
-                        
-                        # Shuffle the instruments for this content
-                        np.random.shuffle(group_indices)
-                        
-                        # Put at least 2 instruments in each split
-                        train_indices.extend(group_indices[:2])
-                        test_indices.extend(group_indices[2:4])
-                        val_indices.extend(group_indices[4:6])
-                        
-                        # Distribute remaining instruments randomly
-                        remaining_indices = group_indices[6:]
-                        for remaining_idx in remaining_indices:
-                            split_choice = np.random.choice(['train', 'test', 'validation'], p=[0.7, 0.15, 0.15])
-                            if split_choice == 'train':
-                                train_indices.append(remaining_idx)
-                            elif split_choice == 'test':
-                                test_indices.append(remaining_idx)
-                            else:  # validation
-                                val_indices.append(remaining_idx)
-                        
-
-                    elif len(group) >= 2:
-                        # For content with 2-5 instruments, distribute to ensure each split gets some
-                        multi_instrument_groups += 1
-                        np.random.shuffle(group_indices)
-                        
-                        # Distribute as evenly as possible
-                        n_instruments = len(group_indices)
-                        if n_instruments == 2:
-                            train_indices.extend(group_indices[:1])
-                            test_indices.extend(group_indices[1:2])
-                        elif n_instruments == 3:
-                            train_indices.extend(group_indices[:1])
-                            test_indices.extend(group_indices[1:2])
-                            val_indices.extend(group_indices[2:3])
-                        elif n_instruments == 4:
-                            train_indices.extend(group_indices[:2])
-                            test_indices.extend(group_indices[2:3])
-                            val_indices.extend(group_indices[3:4])
-                        elif n_instruments == 5:
-                            train_indices.extend(group_indices[:2])
-                            test_indices.extend(group_indices[2:3])
-                            val_indices.extend(group_indices[3:5])
-                        
-
-                    else:
-                        single_instrument_groups += 1
-                        # Single instrument content - assign randomly
-                        split_choice = np.random.choice(['train', 'test', 'validation'], p=[0.7, 0.15, 0.15])
-                        
-                        if split_choice == 'train':
-                            train_indices.extend(group_indices)
-                        elif split_choice == 'test':
-                            test_indices.extend(group_indices)
-                        else:  # validation
-                            val_indices.extend(group_indices)
-                
-
-                
-            else:
-                # Standard random split for other concepts
-                n_samples = len(indices)
-                train_end = int(0.7 * n_samples)
-                test_end = int(0.85 * n_samples)
-                
-                train_indices = indices[:train_end]
-                test_indices = indices[train_end:test_end]
-                val_indices = indices[test_end:]
+            # Standard random split for other concepts
+            n_samples = len(indices)
+            train_end = int(0.7 * n_samples)
+            test_end = int(0.85 * n_samples)
+            
+            train_indices = indices[:train_end]
+            test_indices = indices[train_end:test_end]
+            val_indices = indices[test_end:]
         
         # Store split indices for transform lookups
         self.train_indices = train_indices
@@ -356,7 +341,7 @@ class SynTheory(Dataset):
         
         # Find samples with different instruments but same other factors within the current split
         # For notes dataset, we want same note, octave, register but different instrument
-        if self.label == "notes":
+        if self.dataset_dir == "notes":
             mask = (
                 (current_split_df['root_note_pitch_class'] == current_row['root_note_pitch_class']) &
                 (current_split_df['octave'] == current_row['octave']) &
@@ -364,10 +349,17 @@ class SynTheory(Dataset):
                 (current_split_df['midi_program_num'] != current_instrument)
             )
         # For chords dataset, we want same chord type, root note but different instrument
-        elif self.label == "chords" or self.label == "instruments":
+        elif self.dataset_dir == "chords":
             mask = (
                 (current_split_df['root_note_pitch_class'] == current_row['root_note_pitch_class']) &
                 (current_split_df['chord_type'] == current_row['chord_type']) &
+                (current_split_df['midi_program_num'] != current_instrument)
+            )
+        # For tempos dataset, we want same bpm and offset_time but different instrument
+        elif self.dataset_dir == "tempos":
+            mask = (
+                (current_split_df['bpm'] == current_row['bpm']) &
+                (current_split_df['offset_time'] == current_row['offset_time']) &
                 (current_split_df['midi_program_num'] != current_instrument)
             )
         # For other concepts, just find different instrument

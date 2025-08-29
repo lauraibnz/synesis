@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional, Union
 
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
@@ -34,7 +35,27 @@ def preprocess_batch(
     ):
         transformed_raw_data = batch_raw_data[:, 1].to(device)
     elif "TimeStretch" in transform:
-        raise (NotImplementedError("TimeStretch not implemented yet."))
+        original_np = batch_raw_data.to("cpu").numpy()
+        transformed_list = []
+        for i in range(original_np.shape[0]):
+            original_len = original_np.shape[2]
+            np_item = transform_obj(original_np[i][0], sample_rate=sample_rate)
+            if len(np_item) > original_len:
+                # Random crop to original length
+                offset = torch.randint(0, len(np_item) - original_len, (1,)).item()
+                np_item = np_item[offset : offset + original_len]
+            elif len(np_item) < original_len:
+                # Repeat-pad to original length, split randomly left/right
+                pad = original_len - len(np_item)
+                left_pad = torch.randint(0, pad + 1, (1,)).item()
+                right_pad = pad - left_pad
+                # Wrap pad using numpy for speed and consistency
+                np_item = np.pad(np_item, (left_pad, right_pad), mode="wrap")
+            # Convert to tensor
+            transformed_list.append(torch.as_tensor(np_item, dtype=torch.float32))
+        transformed_raw_data = torch.stack(transformed_list, dim=0).to(device)
+        if transformed_raw_data.dim() == 2:
+            transformed_raw_data = transformed_raw_data.unsqueeze(1)
     else:
         transformed_raw_data = transform_obj(batch_raw_data.to(device))
 
@@ -198,15 +219,27 @@ def evaluate_disentanglement(
             predictions = model(transformed_features)
             if len(predictions.shape) > 1 and n_outputs == 1:
                 predictions = predictions.squeeze(1)
+            
+            # Handle target dtype for loss computation
             if isinstance(criterion, nn.BCEWithLogitsLoss):
-                batch_targets = batch_targets.float()
-            loss = criterion(predictions, batch_targets.to(device))
+                target_for_loss = batch_targets.float()
+            else:
+                target_for_loss = batch_targets
+            
+            loss = criterion(predictions, target_for_loss.to(device))
             total_loss += loss.item()
+
+            # Handle target dtype for metrics (metrics expect long for classification)
+            if task_config["model"]["type"] == "regressor":
+                target_for_metrics = target_for_loss
+            else:
+                # For classification tasks, metrics expect long tensors
+                target_for_metrics = batch_targets.long()
 
             # Update metrics
             for metric_cfg, metric in zip(task_config["evaluation"]["metrics"], metrics):
                 metric = metric.to(device)
-                metric.update(predictions, batch_targets.to(device))
+                metric.update(predictions, target_for_metrics.to(device))
 
     mean_loss = total_loss / len(dataloader)
     print(f"Mean loss: {mean_loss}")
