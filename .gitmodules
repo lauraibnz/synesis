@@ -1,3 +1,6 @@
 [submodule "externals/AFTER"]
 	path = externals/AFTER
 	url = https://github.com/Nkcemeka/AFTER.git
+[submodule "externals/ss-vq-vae"]
+	path = externals/ss-vq-vae
+	url = https://github.com/lauraibnz/ss-vq-vae.git
