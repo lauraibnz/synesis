@@ -293,4 +293,22 @@ configs = {
             "config_path": "./externals/AFTER/pretrained/config.gin",
         },
     },
+    "SSVQVAE_Structure": {
+        "__cls__": "SSVQVAE_Structure", 
+        "sample_rate": 16000,
+        "extract_kws": {
+            "logdir": "./externals/ss-vq-vae/experiments/slakh2100_train",
+            "model_state_path": "./externals/ss-vq-vae/experiments/slakh2100_train/model_state.pt",
+            "config_path": "./externals/ss-vq-vae/experiments/slakh2100_train/config.yaml"
+        }
+    },
+    "SSVQVAE_Timbre": {
+        "__cls__": "SSVQVAE_Timbre", 
+        "sample_rate": 16000,
+        "extract_kws": {
+            "logdir": "./externals/ss-vq-vae/experiments/slakh2100_train",
+            "model_state_path": "./externals/ss-vq-vae/experiments/slakh2100_train/model_state.pt",
+            "config_path": "./externals/ss-vq-vae/experiments/slakh2100_train/config.yaml"
+        }
+    }
 }
