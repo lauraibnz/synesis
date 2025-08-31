@@ -113,10 +113,6 @@ def dynamic_batch_extractor(
             path = Path(output_path)
             path.parent.mkdir(parents=True, exist_ok=True)
 
-            if path.exists():
-                emb_old = torch.load(path, weights_only=True)
-                emb = torch.cat((emb_old, emb), dim=0)
-
             torch.save(emb, path)
 
     # Identify if .pt files are already present, and if so, skip them.

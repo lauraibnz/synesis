@@ -310,5 +310,21 @@ configs = {
             "model_state_path": "./externals/ss-vq-vae/experiments/slakh2100_train/model_state.pt",
             "config_path": "./externals/ss-vq-vae/experiments/slakh2100_train/config.yaml"
         }
-    }
+    },
+    "TSDSAE_Structure": {
+        "__cls__": "TSDSAE_Structure",
+        "item_len_sec": 4.0,
+        "sample_rate": 16000,
+        "extract_kws": {
+            "checkpoint_path": "./externals/dSEQ-VAE/outputs/epoch=738-step=2220695.ckpt"
+        },
+    },
+    "TSDSAE_Timbre": {
+        "__cls__": "TSDSAE_Timbre",
+        "item_len_sec": 4.0,
+        "sample_rate": 16000,
+        "extract_kws": {
+            "checkpoint_path": "./externals/dSEQ-VAE/outputs/epoch=738-step=2220695.ckpt"
+        },
+    },
 }

@@ -14,8 +14,8 @@ configs = {
                 "params": {"lr": 0.001, "weight_decay": 0.001},
             },
             "batch_size": 32,
-            "num_epochs": 100,
-            "patience": 10,
+            "num_epochs": 5,
+            "patience": 3,
             "feature_aggregation": False,
         },
         "evaluation": {
