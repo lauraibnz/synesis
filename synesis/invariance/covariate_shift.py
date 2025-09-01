@@ -213,6 +213,7 @@ def feature_distances(
         split="test",
         download=False,
         item_format="raw",
+        itemization=False,
     )
 
     # If dataset returns subitems per item, need to wrap it

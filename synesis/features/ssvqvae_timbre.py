@@ -46,7 +46,7 @@ class SSVQVAE_Timbre(nn.Module):
             # If already spectrogram, just ensure correct format
             x = x.to(self.device)
         
-        l_style = torch.as_tensor([x.shape[2]], device=self.device)
+        l_style = torch.full((x.shape[0],), x.shape[2], device=self.device)
 
         # Extract style embedding
         encoded_s, losses_s = self.exp.model.encode_style(x, l_style)

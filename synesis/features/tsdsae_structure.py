@@ -31,16 +31,11 @@ class TSDSAE_Structure(nn.Module):
         self.model = self.model.eval().to(self.device)
 
         # Setup preprocessing transforms
-        # The model expects 251 time steps for 4 seconds of audio
-        # Calculate the correct hop_length to get 251 time steps
-        # For 4 seconds: (4 * SR) / hop_length = 251
-        # So: hop_length = (4 * SR) / 251 = (4 * 16000) / 251 ≈ 255
-        expected_hop_length = int((4.0 * SR) / 251)
-        
+        # Use the original HOP constant that the model was trained with
         self.mel = torchaudio.transforms.MelSpectrogram(
             sample_rate=SR, 
             n_fft=NFFT, 
-            hop_length=expected_hop_length,  # Use calculated hop_length
+            hop_length=HOP,
             n_mels=NMEL
         ).to(self.device)
         
@@ -55,9 +50,11 @@ class TSDSAE_Structure(nn.Module):
         """
         x = x.to(self.device)
         
-        # x is already in the correct format from the dataset pipeline
-        # [batch, channels, samples] where each sample is 4 seconds
-        
+        # Handle both 2D and 3D inputs
+        if x.dim() == 2:
+            # Input is (channels, samples) - add batch dimension
+            x = x.unsqueeze(0)  # [1, channels, samples]
+
         # Convert to mono if stereo
         if x.shape[1] > 1:
             x = x.mean(dim=1, keepdim=True)

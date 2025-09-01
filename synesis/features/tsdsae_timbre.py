@@ -31,16 +31,11 @@ class TSDSAE_Timbre(nn.Module):
         self.model = self.model.eval().to(self.device)
 
         # Setup preprocessing transforms
-        # The model expects 251 time steps for 4 seconds of audio
-        # Calculate the correct hop_length to get 251 time steps
-        # For 4 seconds: (4 * SR) / hop_length = 251
-        # So: hop_length = (4 * SR) / 251 = (4 * 16000) / 251 ≈ 255
-        expected_hop_length = int((4.0 * SR) / 251)
-        
+        # Use the original HOP constant that the model was trained with
         self.mel = torchaudio.transforms.MelSpectrogram(
             sample_rate=SR, 
             n_fft=NFFT, 
-            hop_length=expected_hop_length,  # Use calculated hop_length
+            hop_length=HOP,
             n_mels=NMEL
         ).to(self.device)
         
