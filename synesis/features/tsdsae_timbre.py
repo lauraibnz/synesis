@@ -48,6 +48,8 @@ class TSDSAE_Timbre(nn.Module):
         x: (batch, channels, samples) or (batch, samples) - already processed to 4-second chunks
         Returns: timbre_emb [batch, T, z_dim] - timbre embeddings
         """
+        if x.dim() == 2:
+            x = x.unsqueeze(1)
         x = x.to(self.device)
         
         # x is already in the correct format from the dataset pipeline
