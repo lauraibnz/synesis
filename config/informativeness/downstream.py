@@ -125,6 +125,7 @@ configs = {
             "params": {"hidden_units": []},
         },
     },
+    "classification_MLP": {},
     "tagging_MLP": {
         "training": {
             "criterion": nn.BCEWithLogitsLoss,

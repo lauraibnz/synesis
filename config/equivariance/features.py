@@ -26,7 +26,7 @@ configs = {
         },
     },
     "regression_MLP": {},
-    "regression_linear": {
+    "regression_SLP": {
         "model": {
             "params": {"hidden_units": []},
         },
