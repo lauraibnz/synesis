@@ -1,8 +1,10 @@
 from torch import nn
 from torch.optim import Adam
 from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score, MeanSquaredError, MeanAbsoluteError
-from synesis.utils import NoteMetrics
+from synesis.utils import NoteMetrics, F1Metrics, AccMetrics
 from synesis.losses import MaskedBce
+
+TRANSCRIBER_FRAME_RATE = 62.75
 
 configs = {
     "default": {
@@ -98,7 +100,7 @@ configs = {
     "transcriber_probe": {
         "model": {
             "type": "transcriber",
-            "params": {"hidden_units": [512]},
+            "params": {"hidden_units": [512, 512]},
         },
         "training": {
             "criterion": MaskedBce,
@@ -106,17 +108,18 @@ configs = {
                 "class": Adam,
                 "params": {"lr": 0.00005, "weight_decay": 0.00001},
             },
-            "batch_size": 2,
+            "batch_size": 4,
             "num_epochs": 20,
             "feature_aggregation": True,
         },
         "evaluation": {
             "criterion": MaskedBce,
             "feature_aggregation": True,
-            "batch_size": 2,
+            "batch_size": 1,
             "metrics": [
-                {"name": "F1", "class": F1Score,"params": {"task": "binary",},},
-                {"name": "NoteMetrics", "class": NoteMetrics, "params": {"hop_secs": 1/86}},
+                {"name": "F1Metrics", "class": F1Metrics, "params": {"frame_rate": TRANSCRIBER_FRAME_RATE}},
+                {"name": "NoteMetrics", "class": NoteMetrics, "params": {"hop_secs": 1./TRANSCRIBER_FRAME_RATE}},
+                {"name": "AccMetrics", "class": AccMetrics, "params": {"frame_rate": TRANSCRIBER_FRAME_RATE}},
             ],
         },
     },

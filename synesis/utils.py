@@ -12,6 +12,7 @@ import numpy as np
 import mir_eval
 from collections import defaultdict
 from torchmetrics import Metric
+from sklearn.metrics import precision_recall_fscore_support as prfs
 
 def deep_update(d, u):
     """
@@ -157,18 +158,18 @@ class NoteMetrics(Metric):
             Update the metrics with the predictions and target.
 
             Args:
-                preds (torch.Tensor): The predicted piano roll [frames, num_pitches].
-                target (torch.Tensor): The target piano roll [frames, num_pitches].
+                preds (torch.Tensor): The predicted piano roll [frames, num_pitches] - already thresholded {0, 1}.
+                target (torch.Tensor): The target piano roll [frames, num_pitches] - boolean {0, 1}.
         """
-        if isinstance(preds, np.ndarray):
-            preds = torch.from_numpy(preds, dtype=int)
-        if isinstance(target, np.ndarray):
-            target = torch.from_numpy(target, dtype=int)
-        
         batch_size = preds.shape[0]
         for batch_idx in range(batch_size):
             pred_piano_roll = preds[batch_idx]
             target_piano_roll = target[batch_idx]
+
+            # chop piano_rolls (added this for test set)
+            pred_piano_roll = pred_piano_roll[:target_piano_roll.shape[0], :]
+            target_piano_roll = target_piano_roll[:pred_piano_roll.shape[0], :]
+
             score = self.notemetrics(pred_piano_roll, target_piano_roll)
             if score is None:
                 continue
@@ -184,10 +185,15 @@ class NoteMetrics(Metric):
 
             Args:
                 piano_roll (torch.Tensor | np.ndarray): The piano roll to get the intervals from [frames, num_pitches].
-                hop_secs (float): The hop size in seconds.
+                filter (bool): Whether to filter out short notes.
         """
+        # Ensure tensor is on CPU and in integer format
+        if isinstance(piano_roll, torch.Tensor):
+            piano_roll = piano_roll.cpu().detach().int()
+        else:
+            piano_roll = torch.tensor(piano_roll, dtype=torch.int)
         
-        padded_roll = torch.zeros((piano_roll.shape[0] + 2, 88), dtype=int)
+        padded_roll = torch.zeros((piano_roll.shape[0] + 2, 128), dtype=torch.int)
         padded_roll[1:-1, :] = piano_roll # store the piano roll in the padded roll. So frame 1 to 2nd to last frame is the piano roll
 
         # so, basically, we have an onset if the note was not on the previous frame, and it is on the current frame
@@ -198,7 +204,7 @@ class NoteMetrics(Metric):
         onsets = (diff == 1).nonzero() # shape [num_onsets, 2]
         offsets = (diff == -1).nonzero() # shape [num_offsets, 2]
 
-        notes = onsets[:, 1] + 21 # convert the note to the MIDI note number
+        notes = onsets[:, 1] #+ 21 # convert the note to the MIDI note number
         intervals = torch.cat([onsets[:, 0].unsqueeze(1), offsets[:, 0].unsqueeze(1)], dim=1) # shape [num_intervals, 2]
 
         intervals_secs = intervals * self.hop_secs # convert the intervals to seconds
@@ -237,7 +243,8 @@ class NoteMetrics(Metric):
                 scores (dict): A dictionary containing the notewise metrics.
         """
         # Get notes and intervals for both target and predicted piano rolls
-        target_notes, target_intervals = self.get_intervals(target_piano_roll)
+        # Apply same filtering to both for fair comparison (is this the right thing to do?)
+        target_notes, target_intervals = self.get_intervals(target_piano_roll, filter=True)
         pred_notes, pred_intervals = self.get_intervals(pred_piano_roll, filter=True)
 
         if len(target_notes) == 0:
@@ -249,3 +256,156 @@ class NoteMetrics(Metric):
         )
         return scores
     
+
+class F1Metrics(Metric):
+    def __init__(self, frame_rate: float): 
+        super().__init__()
+        self.add_state("frame_precision", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("frame_recall", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.frame_rate = frame_rate
+    
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        """
+            Update the metrics with the predictions and target.
+
+            Args:
+                preds (torch.Tensor): The predicted piano roll [B, frames, num_pitches].
+                target (torch.Tensor): The target piano roll [B, frames, num_pitches].
+        """
+        # Convert to boolean tensors
+        if isinstance(preds, np.ndarray):
+            preds = torch.from_numpy(preds).bool()
+        else:
+            preds = preds.bool()
+        if isinstance(target, np.ndarray):
+            target = torch.from_numpy(target).bool()
+        else:
+            target = target.bool()
+        
+        batch_size = preds.shape[0]
+        for batch_idx in range(batch_size):
+
+            pred_piano_roll = preds[batch_idx]
+            target_piano_roll = target[batch_idx]
+
+            # chop pred_piano_roll
+            pred_piano_roll = pred_piano_roll[:target_piano_roll.shape[0], :]
+            target_piano_roll = target_piano_roll[:pred_piano_roll.shape[0], :]
+
+            # TP = torch.logical_and(pred_piano_roll == True, target_piano_roll == True).sum()
+            # FP = torch.logical_and(pred_piano_roll == True, target_piano_roll == False).sum()
+            # FN = torch.logical_and(pred_piano_roll == False, target_piano_roll == True).sum()
+
+            # p = TP / (TP + FP + np.finfo(float).eps)
+            # r = TP / (TP + FN + np.finfo(float).eps)
+            scores = multipitch_metrics(pred_piano_roll.cpu().detach().numpy(), \
+                                   target_piano_roll.cpu().detach().numpy(), self.frame_rate)
+            p = scores["Precision"]
+            r = scores["Recall"]
+
+            self.frame_precision += p
+            self.frame_recall += r
+            self.total += 1
+
+    def compute(self):
+        """
+            Compute the framewise metrics.
+            Returns:
+                frame_f1_score (float): The frame F1 score.
+        """
+        if self.frame_precision == 0 and self.frame_recall == 0:
+            return np.float32(0.0)
+
+        precision = self.frame_precision / self.total if self.total > 0 else np.float32(0.0)
+        recall = self.frame_recall / self.total if self.total > 0 else np.float32(0.0)
+        frame_f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else np.float32(0.0)
+        return frame_f1_score
+    
+    
+
+def multipitch_metrics(ref_roll: np.ndarray, est_roll: np.ndarray, \
+                       frame_rate: float, pitch_offset: int = 0) -> dict:
+    """
+        Calculate multipitch metrics using mir_eval.
+
+        Args:
+        ------
+            ref_roll (np.ndarray): Reference multipitch roll.
+            est_roll (np.ndarray): Estimated multipitch roll.
+            frame_rate (float): Frames per second
+            pitch_offset (int): Offset for the pitch values, default is 0.
+
+        Returns:
+        -------
+            scores (dict): Dictionary containing the calculated metrics.
+    """
+    time_ref = np.arange(ref_roll.shape[0]) / frame_rate
+    time_est = np.arange(est_roll.shape[0]) / frame_rate
+
+    ref_freqs = [np.nonzero(ref_roll[t, :])[0] for t in range(ref_roll.shape[0])]
+    est_freqs = [np.nonzero(est_roll[t, :])[0] for t in range(est_roll.shape[0])]
+
+    # Convert frequencies to Hz
+    ref_freqs = [np.array([mir_eval.util.midi_to_hz(p+pitch_offset) for p in freqs]) for freqs in ref_freqs]
+    est_freqs = [np.array([mir_eval.util.midi_to_hz(p+pitch_offset) for p in freqs]) for freqs in est_freqs]
+
+    
+    scores = mir_eval.multipitch.evaluate(
+        ref_time=time_ref, ref_freqs=ref_freqs, \
+        est_time=time_est, est_freqs=est_freqs
+    )
+
+    return scores
+
+class AccMetrics(Metric):
+    def __init__(self, frame_rate: float): 
+        super().__init__()
+        self.add_state("accuracy", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.frame_rate = frame_rate
+    
+    def update(self, preds: torch.Tensor, target: torch.Tensor):
+        """
+            Update the metrics with the predictions and target.
+
+            Args:
+                preds (torch.Tensor): The predicted piano roll [B, frames, num_pitches].
+                target (torch.Tensor): The target piano roll [B, frames, num_pitches].
+        """
+        # Convert to boolean tensors
+        if isinstance(preds, np.ndarray):
+            preds = torch.from_numpy(preds).bool()
+        else:
+            preds = preds.bool()
+        if isinstance(target, np.ndarray):
+            target = torch.from_numpy(target).bool()
+        else:
+            target = target.bool()
+        
+        batch_size = preds.shape[0]
+        for batch_idx in range(batch_size):
+
+            pred_piano_roll = preds[batch_idx]
+            target_piano_roll = target[batch_idx]
+
+            # chop pred_piano_roll
+            pred_piano_roll = pred_piano_roll[:target_piano_roll.shape[0], :]
+            target_piano_roll = target_piano_roll[:pred_piano_roll.shape[0], :]
+
+            scores = multipitch_metrics(pred_piano_roll.cpu().detach().numpy(), \
+                                   target_piano_roll.cpu().detach().numpy(), self.frame_rate)
+            a = scores["Accuracy"]
+
+            self.accuracy += a
+            self.total += 1
+
+    def compute(self):
+        """
+            Compute the accuracy metric
+
+            Returns:
+                accuracy (float): The accuracy score.
+        """
+        accuracy = self.accuracy / self.total if self.total > 0 else np.float32(0.0)
+        return accuracy

@@ -11,11 +11,11 @@ class MelSpec(MelSpectrogram):
         self.extract_kws = extract_kws
         self.feature_extractor = feature_extractor
     
-        sample_rate = kwargs.get('sample_rate', 16000)
-        n_mels = self.extract_kws.get('n_mels', 256)
-        n_fft = self.extract_kws.get('n_fft', 2048)
-        win_length = self.extract_kws.get('win_length', 2048)
-        hop_length = self.extract_kws.get('hop_length', 512)
+        sample_rate = self.extract_kws["sample_rate"]
+        n_mels = self.extract_kws['n_mels']
+        n_fft = self.extract_kws['n_fft']
+        win_length = self.extract_kws['win_length']
+        hop_length = self.extract_kws['hop_length']
 
         super().__init__(sample_rate=sample_rate, n_mels=n_mels, n_fft=n_fft, 
                          win_length=win_length, hop_length=hop_length, f_min=30, f_max=sample_rate // 2)
@@ -32,6 +32,7 @@ class MelSpec(MelSpectrogram):
         """
         if waveform.dim() == 1:
             waveform = waveform.unsqueeze(0)
+        
         mel_spec = super().forward(waveform)
 
         # find the squared absolute mel spectrogram

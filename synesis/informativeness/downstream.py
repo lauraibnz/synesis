@@ -137,7 +137,7 @@ def train(
 
     # train setup
     if task_config["model"]["type"] == "transcriber":
-        n_outputs = 88
+        n_outputs = 128
     else:
         n_outputs = (
             1
@@ -290,8 +290,8 @@ def train(
                         if metric_cfg["name"] == "NoteMetrics":
                             threshold = 0.1
                             val_output = (val_output > threshold).int()
-                        elif metric_cfg["name"] == "F1":
-                            threshold = 0.3
+                        elif metric_cfg["name"] == "F1Metrics" or metric_cfg["name"] == "AccMetrics":
+                            threshold = 0.2
                             val_output = (val_output > threshold).int()
                     metric.update(val_output, target_for_metrics)
 
@@ -438,7 +438,7 @@ def evaluate(
         artifact_dir = artifact.download()
 
         if task_config["model"]["type"] == "transcriber":
-            n_outputs = 88
+            n_outputs = 128
         else:
             n_outputs = (
                 1
@@ -542,8 +542,8 @@ def evaluate(
                     if metric_cfg["name"] == "NoteMetrics":
                         threshold = 0.1
                         output = (output > threshold).int()
-                    elif metric_cfg["name"] == "F1":
-                        threshold = 0.3
+                    elif metric_cfg["name"] == "F1Metrics" or metric_cfg["name"] == "AccMetrics":
+                        threshold = 0.2
                         output = (output > threshold).int()
                 metric.update(output, target_for_metrics)
 

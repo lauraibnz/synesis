@@ -1,7 +1,7 @@
 import warnings
 from pathlib import Path
 from typing import Optional, Tuple, Union
-
+import csv
 import torch
 import torchaudio
 from torch import Tensor
@@ -13,6 +13,8 @@ import numpy as np
 from pathlib import Path
 import jams
 from config.features import configs as feature_configs
+import torch.nn.functional as F
+import random
 
 class MPE(Dataset):
     def __init__(self,
@@ -46,13 +48,13 @@ class MPE(Dataset):
             raise ValueError("Root directory must be specified for MPE dataset.")
 
         if kwargs.get("root"):
-            root = self.kwargs["root"]
+            root = kwargs["root"]
         
         self.root = Path(root)
         if split not in [None, "train", "validation", "test"]:
             raise ValueError(
                 f"Invalid split: {split} "
-                + "Options: None, 'train', 'validation', 'test'"
+                + "Options: 'None', 'train', 'validation', 'test'"
             )
         self.split = split
         self.item_format = item_format
@@ -62,16 +64,19 @@ class MPE(Dataset):
         self.feature_paths = None
         self.ext_audio = None
         self.ext_midi = None
+        self.datasets = kwargs.get("datasets", None) # It will be None for training but paths will load the extracted data
         self.chunk_len_sec = kwargs.get("chunk_len_sec", 1.0)
-        self.duration_sec = kwargs.get("duration_sec", 27000.0)
+        self.set_duration()
+        self.hop = kwargs.get("hop", 0.8)
+        self.test_dataset = kwargs.get("test_dataset", "guitarset")
+        self.test_dataset_path = kwargs.get("test_dataset_path", None)
         self.feature_extractor = None
         self.hop_length = kwargs.get("hop_length", None)
         self.save_dir = "data/MPE"
         self.download = download # Always False for MPE dataset
         self.label_encoder = None # For compatibility with other datasets
         self.raw_data_paths = []
-        self.sample_rate = kwargs.get("sample_rate", 16000)
-        self.dataset_type = kwargs.get("dataset_type", "maestro")
+        self.sample_rate = kwargs.get("sample_rate", 44100)
 
         # create save directory if it doesn't exist
         Path(self.save_dir).mkdir(parents=True, exist_ok=True)
@@ -79,24 +84,18 @@ class MPE(Dataset):
         # set the audio and midi file extensions
         self.set_extensions()
 
-        if not feature_config:
-            feature_config = feature_configs[feature]
-        self.feature_config = feature_config["extract_kws"]
-        
-        if self.dataset_type == "slakh":
-            self.audio_files, self.midi_files = self.get_files_slakh(self.root)
-        elif self.dataset_type == "maestro":
-            self.audio_files, self.midi_files = self.get_files_maestro(self.root)
-        elif self.dataset_type == "guitarset":
-            self.audio_files, self.midi_files = self.get_files_guitarset(self.root)
-        else:
-            raise ValueError(f"Unsupported dataset type: {self.dataset_type}. Supported types: 'slakh', 'maestro', 'guitarset'.")
-        
-        print(f"Number of audio files: {len(self.audio_files)}, Number of midi files: {len(self.midi_files)}")
-
         self.paths = self.load_paths(self.load_split(self.save_dir, self.split)) if split else []
         self.feature_paths = self.paths
-    
+
+    def set_duration(self):
+        if self.split == "train":
+            self.duration_sec = 21600*6
+        elif self.split == "validation":
+            self.duration_sec = 2160
+        elif self.split == "test":
+            self.duration_sec = float('inf')
+            #self.duration_sec = 2160
+
     def __len__(self):
         return len(self.paths)
     
@@ -122,16 +121,30 @@ class MPE(Dataset):
             print(f"No features found in {self.save_dir}. Extracting features...")
             if extractor is None:
                 raise ValueError("Feature extractor must be provided for MPE dataset.")
-            self.extract_features()
+            
+            if self.split is None:
+                for each in ["train", "validation", "test"]:
+                    self.split = each
+                    self.set_duration()
+                    self.extract_features()
+            else:
+                self.extract_features()
             self.paths = self.load_paths(self.load_split(self.save_dir, self.split)) if self.split else []
             self.feature_paths = self.paths
     
     def extract_features(self):
         """Extract features from raw audio files."""
+        # Before extracting, create train, validation, test directories
+        for split in ["train", "validation", "test"]:
+            (Path(self.save_dir) / split).mkdir(parents=True, exist_ok=True)
+
         # Implement feature extraction logic here
         # Extract features from audio files
         total_samples_extracted = 0
-        for audio_file, midi_file in zip(self.audio_files, self.midi_files):
+        
+        for each in self.get_datasets():
+            audio_file = each[0]
+            midi_file = each[1]
             assert audio_file.exists(), f"{audio_file} does not exist"
             assert midi_file.exists(), f"{midi_file} does not exist"
 
@@ -151,42 +164,36 @@ class MPE(Dataset):
                     new_freq=self.sample_rate,
                 )
                 waveform = resampler(waveform)
-            chunk_len = int(self.chunk_len_sec * self.sample_rate)
-
-            # Generate chunks of audio
-            initial_num_chunks = waveform.size(1) // chunk_len
-            remainder = waveform.size(1) % chunk_len
-            chunks = []
-            chunks.append(waveform[:, :initial_num_chunks * chunk_len])
-
-            if remainder > 0:
-                # pad the last chunk to length of chunk_len and append to chunks
-                padded_chunk = torch.cat(
-                    [waveform[:, initial_num_chunks * chunk_len:], 
-                     torch.zeros(1, chunk_len - remainder)],
-                    dim=1
-                )
-                chunks.append(padded_chunk)
             
-            # concatenate chunks into one tensor
-            waveform_chunks = torch.cat(chunks, dim=1)
-            assert waveform_chunks.shape[1] % chunk_len == 0, \
-                f"Waveform length {waveform_chunks.shape[1]} is not a multiple of chunk_len {chunk_len}"
-            
-            # Extract features
-            for i in tqdm(range(int(waveform_chunks.shape[1] / chunk_len)), desc=f"Extracting features... ",\
-                     total=int(waveform_chunks.shape[1] / chunk_len)):
-                
+            if self.split != "test":
+                chunk_len = int(self.chunk_len_sec * self.sample_rate)
+                hop_samples = int(self.hop * self.sample_rate)
+            else:
+                # For test split, use the entire audio file
+                chunk_len = waveform.shape[-1]
+                hop_samples = chunk_len  # No overlap for test
+                self.chunk_len_sec = chunk_len / self.sample_rate
+
+            # Fix padding logic
+            remainder = (waveform.shape[-1] - chunk_len) % hop_samples
+            if remainder != 0 and waveform.shape[-1] > chunk_len:
+                pad_amount = hop_samples - remainder
+                waveform = F.pad(waveform, (0, pad_amount), "constant", 0)
+
+            num_chunks = int((waveform.shape[-1] - chunk_len) // hop_samples + 1)
+
+            for i in tqdm(range(num_chunks), desc=f"Extracting features... ", total=num_chunks):
                 if (total_samples_extracted / self.sample_rate) > self.duration_sec:
                     print(f"Total hours extracted {total_samples_extracted/self.sample_rate/3600} exceeds duration {\
                         self.duration_sec/3600}.")
-                    # Get splits
-                    self.get_splits()
                     return
                 
-                start = i * chunk_len
-                end = start + chunk_len
-                waveform_chunk = waveform_chunks[:, start:end]
+                start = i * self.hop
+                end = start + self.chunk_len_sec
+                start_samples = int(start * self.sample_rate)
+                end_samples = int(end * self.sample_rate)
+
+                waveform_chunk = waveform[:, start_samples:end_samples]
                 feature = self.feature_extractor(waveform_chunk)
                 feature = feature.squeeze().T.unsqueeze(0) # Transpose to (1, time, n_mels)
                 total_samples_extracted += waveform_chunk.shape[1]
@@ -205,15 +212,19 @@ class MPE(Dataset):
                     frame_rate = (feature.shape[1] - 1) / self.chunk_len_sec
 
                 label_dict = self.get_label_roll(midi, self.chunk_len_sec, \
-                    self.chunk_len_sec, i, frame_rate)
+                    self.hop, i, frame_rate)
                 
 
                 # Ensure number of time steps of feature matches label_frames
                 if label_dict["label_frames"].shape[0] != feature.shape[1]:
-                    assert label_dict["label_frames"].shape[0] == feature.shape[1], \
-                        f"Label frames {label_dict['label_frames'].shape[0]} does not match feature time steps {feature.shape[1]}."
-                
-                store_path = f"./{self.save_dir}/{str(audio_file.stem)}_{i}.npz" 
+                    print(f"Warning: Label frames {label_dict['label_frames'].shape[0]} does not match feature time steps {feature.shape[1]}. Skipping this chunk.")
+                    continue
+
+                if "slakh" not in str(audio_file):
+                    store_path = f"./{self.save_dir}/{self.split}/{str(audio_file.stem)}_{i}.npz"
+                else:
+                    track_name = audio_file.parent.stem
+                    store_path = f"./{self.save_dir}/{self.split}/{track_name}_{str(audio_file.stem)}_{i}.npz"
                 store_dict['audio'] = waveform_chunk
                 store_dict['feature'] = feature
 
@@ -225,41 +236,6 @@ class MPE(Dataset):
      
         print(f"Total samples extracted: {total_samples_extracted}")
         print(f"Features saved to {self.save_dir} directory.")
-        self.get_splits()
-
-    def get_splits(self):
-        """
-            Obtain the splits of the dataset and save them to a file.
-            This is useful for datasets that do not have predefined splits.
-        """
-        # load all the file names of extracted features
-        print(f"Obtaining splits...")
-        temp_paths = sorted(Path(self.save_dir).glob(f"*.npz"))
-        print(f"Number of extracted features: {len(temp_paths)}")
-
-        # randomly shuffle the paths
-        rng = np.random.default_rng(seed=42)
-        rng.shuffle(temp_paths)
-
-        # split according to 80/10/10 split
-        train_split = int(len(temp_paths) * 0.8)
-        train = temp_paths[:train_split]
-        remainder = temp_paths[train_split:]
-        val_split = int(len(remainder) * 0.5)
-        val = remainder[:val_split]
-        test = remainder[val_split:]
-
-        # save the splits to a file
-        with open(Path(self.save_dir) / "splits.txt", "w") as f:
-            f.write("train:\n")
-            for path in train:
-                f.write(f"{path}\n")
-            f.write("validation:\n")
-            for path in val:
-                f.write(f"{path}\n")
-            f.write("test:\n")
-            for path in test:
-                f.write(f"{path}\n")
     
     def load_split(self, save_dir, split):
         """
@@ -272,27 +248,11 @@ class MPE(Dataset):
             Returns:
                 List of pathlib.Path: List of file paths for the requested split.
         """
-        splits_path = Path(save_dir) / "splits.txt"
-        split = split.lower()
-        assert split in {"train", "validation", "test"}, "Invalid split requested."
+        splits_path = Path(save_dir) / f"{split}"
+        result = sorted(splits_path.rglob("*.npz"))
+        if not result:
+            raise FileNotFoundError(f"No files found for split: {split}")
 
-        result = []
-        current_section = None
-        try:
-            with open(splits_path, "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.endswith(":"):
-                        current_section = line[:-1].lower()
-                        continue
-                    if current_section == split and line:
-                        # Each line is a file path; Path(line) keeps it as Path
-                        result.append(Path(line))
-                    if line.endswith(":") and current_section != split:
-                        continue
-        except:
-            raise FileNotFoundError(f"Splits file {splits_path} not found. Please run feature extraction first.")
-        
         return result
     
     def load_paths(self, filenames):
@@ -326,7 +286,7 @@ class MPE(Dataset):
 
     
     def get_label_roll(self, midi: pretty_midi.PrettyMIDI, \
-                  duration: int | float, hop_size: float, idx: int, pr_rate, pitch_offset=21) -> dict:
+                  duration: int | float, hop_size: float, idx: int, pr_rate, pitch_offset=0) -> dict:
         """
             Get the label and pedal rolls for a given audio segment.
             The regressed rolls generated follow Kong's model!
@@ -358,8 +318,8 @@ class MPE(Dataset):
         end = start + duration
 
         # initialize the labels
-        label_frames = np.zeros((num_frames, 88))
-        mask_roll = np.ones((num_frames, 88))
+        label_frames = np.zeros((num_frames, 128))
+        mask_roll = np.ones((num_frames, 128))
 
         for instrument in midi.instruments:
             if not instrument.is_drum:
@@ -443,8 +403,8 @@ class MPE(Dataset):
                 f"Audio Track name: {audio_track_name} not the same as midi Track name: {midi_track_name}"
             
             # Check the file names
-            assert audio_files[idx].stem == midi_files[idx].stem, \
-                f"Audio file name: {audio_files[idx].stem} not the same as midi file: {midi_files[idx].stem}"
+            #assert audio_files[idx].stem == midi_files[idx].stem, \
+            #    f"Audio file name: {audio_files[idx].stem} not the same as midi file: {midi_files[idx].stem}"
 
     def get_files_slakh(self, path: str) -> tuple[list[Path], list[Path]]:
         """
@@ -463,35 +423,48 @@ class MPE(Dataset):
         audio_files = []
         midi_files = []
 
-        for each in ['train', 'validation', 'test']:
-            base_path = Path(path)/f"{each}/"
-            tracks = [folder for folder in base_path.iterdir() if folder.is_dir()]
-            for track in tqdm(tracks):
-                try:
-                    metadata = track / "metadata.yaml"
-                    with open(metadata, "r") as f:
-                        yaml_data = yaml.safe_load(f)
-        
-                    for key, value in yaml_data["stems"].items():
-                        if value["inst_class"] not in unwanted:
-                            audio_file = track / "stems" / f"{key}.{self.ext_audio}"
-                            midi_file = track / "MIDI" / f"{key}.{self.ext_midi}"
+        if self.split == "train":
+            split = "train"
+        elif self.split == "validation":
+            split = "validation"
+        elif self.split == "test":
+            split = "test"
 
-                            try:
-                                assert audio_file.exists(), f"{audio_file} does not exist"
-                                assert midi_file.exists(), f"{midi_file} does not exist"
-                            except AssertionError as e:
-                                continue
-                            audio_files.append(audio_file)
-                            midi_files.append(midi_file)
-                except:
-                    print(f"Error in {track}")
-                    continue
+        base_path = Path(path)/f"{split}/"
+        tracks = [folder for folder in base_path.iterdir() if folder.is_dir()]
+        for track in tqdm(tracks):
+            try:
+                audio_file = track / "mix.flac"
+                midi_file = track / "all_src.mid"
+                assert audio_file.exists(), f"{audio_file} does not exist"
+                assert midi_file.exists(), f"{midi_file} does not exist"
+                audio_files.append(audio_file)
+                midi_files.append(midi_file)
+                # metadata = track / "metadata.yaml"
+                # with open(metadata, "r") as f:
+                #     yaml_data = yaml.safe_load(f)
+    
+                # for key, value in yaml_data["stems"].items():
+                #     if value["inst_class"] not in unwanted:
+                #         audio_file = track / "stems" / f"{key}.flac"
+                #         midi_file = track / "MIDI" / f"{key}.mid"
+
+                #         try:
+                #             assert audio_file.exists(), f"{audio_file} does not exist"
+                #             assert midi_file.exists(), f"{midi_file} does not exist"
+                #         except AssertionError as e:
+                #             continue
+                #         audio_files.append(audio_file)
+                #         midi_files.append(midi_file)
+            except:
+                print(f"Error in {track}")
+                continue
         
         # Check if the audio and midi files are the same
         # for the Slakh dataset
         self.checker_guitarset_slakh(audio_files, midi_files, dataset="slakh")
-        return audio_files, midi_files
+        files = list(zip(audio_files, midi_files))
+        return files
     
     
     def get_files_maestro(self, path: str) -> tuple[list[Path], list[Path]]:
@@ -550,8 +523,57 @@ class MPE(Dataset):
             if len(midi_ch.notes) != 0:
                 midi.instruments.append(midi_ch)
         return midi
-
     
+    def get_maestro_train_val_test(self, base_path, ext_audio="wav", ext_midi="midi"):
+        train_files = []
+        val_files = []
+        test_files = []
+        split = self.split
+
+        # metadata_csv is structured as follows:
+        # canonical_composer, canonical_title, split, year, midi_filename, audio_filename, duration
+        # read the csv file
+        metadata_csv = Path(base_path) / "maestro-v3.0.0.csv"
+        assert metadata_csv.exists(), f"{metadata_csv} does not exist"
+        
+        with open(metadata_csv, 'r') as f:
+            content = csv.reader(f, delimiter=',', quotechar='"')
+
+            base_path = Path(base_path)
+            next(content)  # skip the header
+
+            for i, each in enumerate(content):
+                if each[2] == 'train':
+                    midi_path = base_path / each[4]
+                    audio_path = str(base_path / each[4]).replace(f".{ext_midi}", f".{ext_audio}")
+                    audio_path = Path(audio_path)
+                    train_files.append((audio_path, midi_path))
+                    assert audio_path.exists(), f"{audio_path} does not exist"
+                    assert midi_path.exists(), f"{midi_path} does not exist"
+                elif each[2] == 'validation':
+                    midi_path = base_path / each[4]
+                    audio_path = str(base_path / each[4]).replace(f".{ext_midi}", f".{ext_audio}")
+                    audio_path = Path(audio_path)
+                    val_files.append((audio_path, midi_path))
+                    assert audio_path.exists(), f"{audio_path} does not exist"
+                    assert midi_path.exists(), f"{midi_path} does not exist"
+                elif each[2] == 'test':
+                    midi_path = base_path / each[4]
+                    audio_path = str(base_path / each[4]).replace(f".{ext_midi}", f".{ext_audio}")
+                    audio_path = Path(audio_path)
+                    test_files.append((audio_path, midi_path))
+                    assert audio_path.exists(), f"{audio_path} does not exist"
+                    assert midi_path.exists(), f"{midi_path} does not exist"
+                else:
+                    raise ValueError(f"Split {each[2]} not supported")
+        
+        if split == "train":
+            return train_files
+        elif split == "validation":
+            return val_files
+        elif split == "test":
+            return test_files
+
     def get_files_guitarset(self, path: str) -> tuple[list[Path], list[Path]]:
         """
             Get the list of audio and midi files from the given path
@@ -576,13 +598,118 @@ class MPE(Dataset):
                 midi = self.jams_to_midi(jam, q=1)
                 save_path = path_annot.parent / f"annotations-midi/{Path(jam_path).stem}"
                 save_path.parent.mkdir(parents=True, exist_ok=True)
-                midi.write(str(save_path) + f".{self.ext_midi}")
+                midi.write(str(save_path) + f".mid")
 
         # Get the list of audio and midi
-        audio_files = sorted((Path(path)/"audio_mono-mic").rglob(f"*.{self.ext_audio}"))
-        midi_files = sorted((Path(path)/"annotations-midi").rglob(f"*.{self.ext_midi}"))
+        audio_files = sorted((Path(path)/"audio_mono-mic").rglob(f"*.wav"))
+        midi_files = sorted((Path(path)/"annotations-midi").rglob(f"*.mid"))
 
         # Use the GuitarSet checker to check if the audio and midi files are okay
         self.checker_guitarset_slakh(audio_files, midi_files)
 
-        return audio_files, midi_files
+        train_files = []
+        val_files = []
+        test_files = []
+
+        train_len = int(0.8 * len(audio_files))
+        val_len = int(0.1 * len(audio_files))
+
+        train_files = list(zip(audio_files[:train_len], midi_files[:train_len]))
+        val_files = list(zip(audio_files[train_len:train_len+val_len], midi_files[train_len:train_len+val_len]))
+        test_files = list(zip(audio_files[train_len+val_len:], midi_files[train_len+val_len:]))
+
+        # Ensure train files is not in val_files or test_files, else throw an error
+        for train in train_files:
+            if train in val_files or train in test_files:
+                raise ValueError(f"Duplicate found: {train}")
+        
+        # Check val_files are not in test_files
+        for val in val_files:
+            if val in test_files:
+                raise ValueError(f"Duplicate found: {val}")
+        
+        if self.split == "train":
+            return train_files
+        elif self.split == "validation":
+            return val_files
+        elif self.split == "test":
+            return test_files
+
+    def get_files_musicnet(self, path: str) -> tuple[list[Path], list[Path]]:
+        train_files = []
+        test_files = []
+        val_files = []
+
+        train_audio = sorted((Path(path)/"train_data/").rglob(f"*.wav"))
+        train_midi = sorted((Path(path)/"train_labels/").rglob(f"*.mid"))
+        test_audio = sorted((Path(path)/"test_data/").rglob(f"*.wav"))
+        test_midi = sorted((Path(path)/"test_labels/").rglob(f"*.mid"))
+
+        # The MIDI files have the right name but the wrong parent so we change it
+        for i, midi_file in enumerate(train_midi):
+            stem = midi_file.stem
+            train_midi[i] = Path(path)/"musicnet_em"/f"{stem}.mid"
+
+        for i, midi_file in enumerate(test_midi):
+            stem = midi_file.stem
+            test_midi[i] = Path(path)/"musicnet_em"/f"{stem}.mid"
+
+        temp = []  
+        temp.extend(list(zip(train_audio, train_midi)))
+
+        # store 10% of train files as val files
+        val_len = int(0.1 * len(temp))
+        val_files.extend(temp[:val_len])
+        train_files.extend(temp[val_len:])
+        test_files.extend(list(zip(test_audio, test_midi)))
+
+        # check paths are valid
+        for audio, midi in train_files:
+            assert audio.stem == midi.stem, f"Audio and MIDI files do not match: {audio}, {midi}"
+        for audio, midi in val_files:
+            assert audio.stem == midi.stem, f"Audio and MIDI files do not match: {audio}, {midi}"
+        for audio, midi in test_files:
+            assert audio.stem == midi.stem, f"Audio and MIDI files do not match: {audio}, {midi}"
+
+        if self.split == "train":
+            return train_files
+        elif self.split == "validation":
+            return val_files
+        elif self.split == "test":
+            return test_files
+
+    def get_datasets(self):
+        files = []
+
+        if self.split != "test":
+            for dataset_type, path in self.datasets.items():
+                    if dataset_type == "maestro":
+                        files.extend(self.get_maestro_train_val_test(path))
+                    elif dataset_type == "slakh":
+                        files.extend(self.get_files_slakh(path))
+                    elif dataset_type == "musicnet":
+                        files.extend(self.get_files_musicnet(path))
+                    elif dataset_type == "guitarset":
+                        files.extend(self.get_files_guitarset(path))
+                    else:
+                        raise ValueError(f"Unsupported dataset type: {dataset_type}. \
+                            Supported types: 'slakh', 'musicnet', 'guitarset'.")
+        else:
+            #path = self.datasets[self.test_dataset]
+            path = self.test_dataset_path
+            if self.test_dataset == "maestro":
+                files.extend(self.get_maestro_train_val_test(path))
+            elif self.test_dataset == "slakh":
+                files.extend(self.get_files_slakh(path))
+            elif self.test_dataset == "musicnet":
+                files.extend(self.get_files_musicnet(path))
+            elif self.test_dataset == "guitarset":
+                files.extend(self.get_files_guitarset(path))
+            else:
+                raise ValueError(f"Unsupported test dataset type: {self.test_dataset}. \
+                    Supported types: 'slakh', 'musicnet', 'guitarset'.")
+        
+        # randomly shuffle the files
+        random.seed(0)
+        random.shuffle(files)
+        return files

@@ -5,6 +5,12 @@ from torch import nn
 import confugue
 import librosa
 import numpy as np
+from pathlib import Path
+
+PROJECT_ROOT = os.path.join(os.path.dirname(__file__), '..', '..', 'externals', 'ss-vq-vae', 'src')
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
+
 from ss_vq_vae.models.vqvae_oneshot import Experiment
 
 class SSVQVAE_Structure(nn.Module):

@@ -17,7 +17,7 @@ def instantiate_metrics(metric_configs, num_classes=None):
     for metric_config in metric_configs:
         metric_class = metric_config["class"]
         metric_params = metric_config.get("params", {})
-        if metric_config["name"] not in ["MSE", "MAE", "NoteMetrics"]:
+        if metric_config["name"] not in ["MSE", "MAE", "NoteMetrics", "F1Metrics", "AccMetrics"]:
             # add num_classes to metric params
             metric_params["num_classes"] = num_classes
             metric_params["num_labels"] = num_classes

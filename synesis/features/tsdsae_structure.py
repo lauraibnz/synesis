@@ -76,7 +76,8 @@ class TSDSAE_Structure(nn.Module):
         if mel_log.shape[2] != 251:
             if mel_log.shape[2] > 251:
                 # Truncate if too long
-                mel_log = mel_log[:, :, :251]
+                pass
+                #mel_log = mel_log[:, :, :251]
             else:
                 # Pad if too short (shouldn't happen with 4-second chunks)
                 padding = 251 - mel_log.shape[2]

@@ -294,7 +294,8 @@ configs = {
         },
     },
     "SSVQVAE_Structure": {
-        "__cls__": "SSVQVAE_Structure", 
+        "__cls__": "SSVQVAE_Structure",
+        "item_len_sec": 1.0, 
         "sample_rate": 16000,
         "extract_kws": {
             "logdir": "./externals/ss-vq-vae/experiments/slakh2100_train",
