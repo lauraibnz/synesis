@@ -4,7 +4,7 @@ from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score, MeanSquared
 from synesis.utils import NoteMetrics, F1Metrics, AccMetrics
 from synesis.losses import MaskedBce
 
-TRANSCRIBER_FRAME_RATE = 62.75
+TRANSCRIBER_FRAME_RATE = 86.25
 
 configs = {
     "default": {
