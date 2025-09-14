@@ -14,9 +14,9 @@ from src.models.ts_dsae import TsDsae
 from src.datasets.constants.slakh import SR, NFFT, HOP, NMEL
 
 
-class TSDSAE_Timbre(nn.Module):
+class TSDSAE_Combined(nn.Module):
     def __init__(self, feature_extractor=True, extract_kws={}):
-        super(TSDSAE_Timbre, self).__init__()
+        super(TSDSAE_Combined, self).__init__()
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         if extract_kws == {}:
@@ -44,17 +44,17 @@ class TSDSAE_Timbre(nn.Module):
     @torch.no_grad()
     def forward(self, x):
         """
-        Extract timbre embeddings (global embeddings) from audio
+        Extract structure embeddings (local embeddings) from audio
         x: (batch, channels, samples) or (batch, samples) - already processed to 4-second chunks
-        Returns: timbre_emb [batch, T, z_dim] - timbre embeddings
+        Returns: structure_emb [batch, z_dim, temp_dim] - structure embeddings
         """
-        if x.dim() == 2:
-            x = x.unsqueeze(1)
         x = x.to(self.device)
         
-        # x is already in the correct format from the dataset pipeline
-        # [batch, channels, samples] where each sample is 4 seconds
-        
+        # Handle both 2D and 3D inputs
+        if x.dim() == 2:
+            # Input is (channels, samples) - add batch dimension
+            x = x.unsqueeze(0)  # [1, channels, samples]
+
         # Convert to mono if stereo
         if x.shape[1] > 1:
             x = x.mean(dim=1, keepdim=True)
@@ -76,8 +76,8 @@ class TSDSAE_Timbre(nn.Module):
         if mel_log.shape[2] != 251:
             if mel_log.shape[2] > 251:
                 # Truncate if too long
-                #mel_log = mel_log[:, :, :251]
                 pass
+                #mel_log = mel_log[:, :, :251]
             else:
                 # Pad if too short (shouldn't happen with 4-second chunks)
                 padding = 251 - mel_log.shape[2]
@@ -92,7 +92,16 @@ class TSDSAE_Timbre(nn.Module):
         # Forward pass through model
         outputs = self.model(mel_input, seq_lengths, deterministic=True)
         
-        # Extract timbre embeddings (global) [batch, T, z_dim]
-        timbre_emb = outputs['v']  # [batch, T, z_dim]
-
-        return timbre_emb.cpu()
+        # Extract local embeddings (structure) [batch, temp_dim, z_dim]
+        structure_emb = outputs['z_pos']  # [batch, T, z_dim]
+        
+        # Switch time and z dimensions: [batch, T, z_dim] -> [batch, z_dim, T]
+        structure_emb = structure_emb.transpose(1, 2)  # [batch, z_dim, T]
+        timbre_emb = outputs['v']  # [1, z_dim]
+        # add time dimension to timbre_emb
+        timbre_emb = timbre_emb.unsqueeze(2)  # [1, z_dim, 1]
+        # repeat timbre_emb along time dimension to match structure_emb
+        timbre_emb = timbre_emb.repeat(1, 1, structure_emb.shape[2])  # [1, z_dim, T]
+        # concatenate along the feature dimension
+        combined_emb = torch.cat((structure_emb, timbre_emb), dim=1)
+        return combined_emb.cpu()

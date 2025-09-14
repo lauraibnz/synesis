@@ -11,10 +11,10 @@ configs = {
     "MelSpec": {
         "__cls__": "MelSpec",
         "item_len_sec": 1,
-        "sample_rate": 44100,
+        "sample_rate": 16000,
         "extract_kws": {
-            "sample_rate": 44100,
-            "n_mels": 18,
+            "sample_rate": 16000,
+            "n_mels": 256,
             "n_fft": 2048,
             "win_length": 2048,
             "hop_length": 512,
@@ -293,6 +293,16 @@ configs = {
             "config_path": "./externals/AFTER/pretrained/config.gin",
         },
     },
+    "SSVQVAE_Combined": {
+        "__cls__": "SSVQVAE_Combined",
+        "item_len_sec": 1.0, 
+        "sample_rate": 16000,
+        "extract_kws": {
+            "logdir": "./externals/ss-vq-vae/experiments/slakh2100_train",
+            "model_state_path": "./externals/ss-vq-vae/experiments/slakh2100_train/model_state.pt",
+            "config_path": "./externals/ss-vq-vae/experiments/slakh2100_train/config.yaml"
+        }
+    },
     "SSVQVAE_Structure": {
         "__cls__": "SSVQVAE_Structure",
         "item_len_sec": 1.0, 
@@ -322,6 +332,14 @@ configs = {
     },
     "TSDSAE_Timbre": {
         "__cls__": "TSDSAE_Timbre",
+        "item_len_sec": 4.0,
+        "sample_rate": 16000,
+        "extract_kws": {
+            "checkpoint_path": "./externals/dSEQ-VAE/outputs/epoch=738-step=2220695.ckpt"
+        },
+    },
+    "TSDSAE_Combined": {
+        "__cls__": "TSDSAE_Combined",
         "item_len_sec": 4.0,
         "sample_rate": 16000,
         "extract_kws": {

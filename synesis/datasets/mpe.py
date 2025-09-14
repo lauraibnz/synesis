@@ -15,6 +15,19 @@ import jams
 from config.features import configs as feature_configs
 import torch.nn.functional as F
 import random
+import copy
+import collections
+import os
+import math
+
+def seed_everything(seed):
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
 
 class MPE(Dataset):
     def __init__(self,
@@ -65,11 +78,13 @@ class MPE(Dataset):
         self.ext_audio = None
         self.ext_midi = None
         self.datasets = kwargs.get("datasets", None) # It will be None for training but paths will load the extracted data
+        self.val_datasets = kwargs.get("val_datasets", None)
+        self.test_datasets = kwargs.get("test_datasets", None)
         self.chunk_len_sec = kwargs.get("chunk_len_sec", 1.0)
         self.set_duration()
         self.hop = kwargs.get("hop", 0.8)
-        self.test_dataset = kwargs.get("test_dataset", "guitarset")
-        self.test_dataset_path = kwargs.get("test_dataset_path", None)
+        # self.test_dataset = kwargs.get("test_dataset", "guitarset")
+        # self.test_dataset_path = kwargs.get("test_dataset_path", None)
         self.feature_extractor = None
         self.hop_length = kwargs.get("hop_length", None)
         self.save_dir = "data/MPE"
@@ -84,6 +99,8 @@ class MPE(Dataset):
         # set the audio and midi file extensions
         self.set_extensions()
 
+        seed_everything(0)
+
         self.paths = self.load_paths(self.load_split(self.save_dir, self.split)) if split else []
         self.feature_paths = self.paths
 
@@ -91,7 +108,7 @@ class MPE(Dataset):
         if self.split == "train":
             self.duration_sec = 21600*6
         elif self.split == "validation":
-            self.duration_sec = 2160
+            self.duration_sec = 2160*2
         elif self.split == "test":
             self.duration_sec = float('inf')
             #self.duration_sec = 2160
@@ -102,13 +119,17 @@ class MPE(Dataset):
     def __getitem__(self, index):
         feature = np.load(self.paths[index])["feature"]
         label = np.load(self.paths[index])["label_frames"]
-        mask_roll = np.load(self.paths[index])["mask_roll"]
+        if self.split != "test":
+            mask_roll = np.load(self.paths[index])["mask_roll"]
 
         feature = torch.tensor(feature, dtype=torch.float32)
         label = torch.tensor(label, dtype=torch.float32)
-        mask_roll = torch.tensor(mask_roll, dtype=torch.float32)
+        if self.split != "test":
+            mask_roll = torch.tensor(mask_roll, dtype=torch.float32)
 
         # Note: Return mask later on when implementing custom BCE loss
+        if self.split == "test":
+            return (feature, label)
         return (feature, [label, mask_roll])
 
     def set_extractor(self, extractor):
@@ -150,6 +171,7 @@ class MPE(Dataset):
 
             # Load the MIDI file
             midi = pretty_midi.PrettyMIDI(str(midi_file))
+            #midi = self.pedal_extend(str(midi_file))
 
             # Load the audio file
             waveform, sample_rate = torchaudio.load(audio_file)
@@ -165,22 +187,33 @@ class MPE(Dataset):
                 )
                 waveform = resampler(waveform)
             
-            if self.split != "test":
+            audio_len = waveform.shape[-1]
+            
+            if self.split !="test":
                 chunk_len = int(self.chunk_len_sec * self.sample_rate)
                 hop_samples = int(self.hop * self.sample_rate)
             else:
+                chunk_len = int(self.chunk_len_sec * self.sample_rate)
+                hop_samples = chunk_len//2
+                self.hop = (hop_samples)/self.sample_rate
+                #hop_samples = int((self.hop + 0.2) * self.sample_rate)
                 # For test split, use the entire audio file
-                chunk_len = waveform.shape[-1]
-                hop_samples = chunk_len  # No overlap for test
-                self.chunk_len_sec = chunk_len / self.sample_rate
+                #chunk_len = waveform.shape[-1]
+                #hop_samples = chunk_len  # No overlap for test
+                #self.chunk_len_sec = chunk_len / self.sample_rate
 
             # Fix padding logic
             remainder = (waveform.shape[-1] - chunk_len) % hop_samples
-            if remainder != 0 and waveform.shape[-1] > chunk_len:
+            if remainder != 0:
                 pad_amount = hop_samples - remainder
                 waveform = F.pad(waveform, (0, pad_amount), "constant", 0)
 
             num_chunks = int((waveform.shape[-1] - chunk_len) // hop_samples + 1)
+
+            if self.split == "test":
+                feat_chunks = []
+                label_chunks = []
+                audio_chunks = []
 
             for i in tqdm(range(num_chunks), desc=f"Extracting features... ", total=num_chunks):
                 if (total_samples_extracted / self.sample_rate) > self.duration_sec:
@@ -190,8 +223,13 @@ class MPE(Dataset):
                 
                 start = i * self.hop
                 end = start + self.chunk_len_sec
-                start_samples = int(start * self.sample_rate)
-                end_samples = int(end * self.sample_rate)
+
+                # I use the approach below to round stuff and avoid floating point issues
+                start_samples = int((start * self.sample_rate)+0.5)
+                end_samples = int((end * self.sample_rate)+0.5)
+
+                assert end_samples - start_samples == chunk_len, \
+                    f"Chunk length mismatch: {end_samples - start_samples} != {chunk_len}"
 
                 waveform_chunk = waveform[:, start_samples:end_samples]
                 feature = self.feature_extractor(waveform_chunk)
@@ -209,33 +247,164 @@ class MPE(Dataset):
                     # This is not some spectrogram-like feature so we use the 
                     # feature shape to determine the frame rate
                     # why subtract 1? This is a hack to make things align: Still needs to be fixed
-                    frame_rate = (feature.shape[1] - 1) / self.chunk_len_sec
+                    #frame_rate = (feature.shape[1] - 1) / self.chunk_len_sec
+                    frame_rate = feature.shape[1] / self.chunk_len_sec
 
                 label_dict = self.get_label_roll(midi, self.chunk_len_sec, \
                     self.hop, i, frame_rate)
                 
 
                 # Ensure number of time steps of feature matches label_frames
-                if label_dict["label_frames"].shape[0] != feature.shape[1]:
-                    print(f"Warning: Label frames {label_dict['label_frames'].shape[0]} does not match feature time steps {feature.shape[1]}. Skipping this chunk.")
-                    continue
+                if label_dict["label_frames"].shape[0] > feature.shape[1]:
+                    label_dict["label_frames"] = label_dict["label_frames"][:feature.shape[1], :]
+                    label_dict["mask_roll"] = label_dict["mask_roll"][:feature.shape[1], :]
+                    assert label_dict["label_frames"].shape[0] == feature.shape[1], \
+                        f"Something is wrong! label_frames should match feature time steps {feature.shape[1]}."
+                else:
+                    assert label_dict["label_frames"].shape[0] <= feature.shape[1], \
+                        f"Label frames {label_dict['label_frames'].shape[0]} exceeds feature time steps {feature.shape[1]}."
+
+                if self.split != "test":
+                    if "slakh" not in str(audio_file):
+                        store_path = f"./{self.save_dir}/{self.split}/{str(audio_file.stem)}_{i}.npz"
+                    else:
+                        track_name = audio_file.parent.stem
+                        store_path = f"./{self.save_dir}/{self.split}/{track_name}_{str(audio_file.stem)}_{i}.npz"
+                    store_dict['audio'] = waveform_chunk
+                    store_dict['feature'] = feature
+
+                    # Store the label information as well
+                    for key in label_dict.keys():
+                        store_dict[key] = label_dict[key]
+                        
+                    np.savez(store_path, **store_dict)
+                else:
+                    feat_chunks.append(feature)
+                    label_chunks.append(label_dict["label_frames"])
+                    audio_chunks.append(waveform_chunk)
+            
+            if self.split == "test":
+                feature = np.array(feat_chunks).squeeze()
+                label_frames = np.array(label_chunks).squeeze()
+                audio_chunks = np.array(audio_chunks).squeeze()
 
                 if "slakh" not in str(audio_file):
-                    store_path = f"./{self.save_dir}/{self.split}/{str(audio_file.stem)}_{i}.npz"
+                        store_path = f"./{self.save_dir}/{self.split}/{str(audio_file.stem)}.npz"
                 else:
                     track_name = audio_file.parent.stem
-                    store_path = f"./{self.save_dir}/{self.split}/{track_name}_{str(audio_file.stem)}_{i}.npz"
-                store_dict['audio'] = waveform_chunk
+                    store_path = f"./{self.save_dir}/{self.split}/{track_name}_{str(audio_file.stem)}.npz"
+                store_dict['audio'] = audio_chunks
                 store_dict['feature'] = feature
 
                 # Store the label information as well
-                for key in label_dict.keys():
-                    store_dict[key] = label_dict[key]
+                store_dict['label_frames'] = label_frames
+                store_dict['audio_len'] = audio_len
                     
                 np.savez(store_path, **store_dict)
      
         print(f"Total samples extracted: {total_samples_extracted}")
         print(f"Features saved to {self.save_dir} directory.")
+    
+    def pedal_extend(self, midi_path: str, CC_SUSTAIN=64):
+        """
+            Extend the sustain events in the MIDI file.
+            
+            Args:
+                midi_path (str): Path to the MIDI file.
+                CC_SUSTAIN (int): MIDI control change number for sustain pedal. Default is 64.
+            
+            Returns:
+                midi_copy (pretty_midi.PrettyMIDI): MIDI file with extended sustain events.
+        """
+        # make a copy of the MIDI file
+        midi = pretty_midi.PrettyMIDI(midi_path)
+        midi_copy = copy.deepcopy(midi)
+
+        
+        # we want to deal with events in the following order:
+        # PEDAL_DOWN, PEDAL_UP, ONSET, OFFSET
+        PEDAL_DOWN = 0
+        PEDAL_UP = 1
+        ONSET = 2
+        OFFSET = 3
+
+        # we will store all pedal and note events in a list
+        # it will be sorted by time (pedal down, pedal up, onset, offset)
+        events = []
+        events.extend([(note.start, ONSET, [note, instrument]) for \
+                        instrument in midi_copy.instruments for note in instrument.notes])
+        events.extend([(note.end, OFFSET, [note, instrument]) for \
+                        instrument in midi_copy.instruments for note in instrument.notes])
+        
+        for instrument in midi_copy.instruments:
+            if not instrument.is_drum:
+                for cc in instrument.control_changes:
+                    if cc.number == CC_SUSTAIN:
+                        if cc.value >= 64:
+                            events.append((cc.time, PEDAL_DOWN, [cc, instrument]))
+                        else:
+                            events.append((cc.time, PEDAL_UP, [cc, instrument]))
+
+        # sort the events by time and event type
+        events.sort(key=lambda x: (x[0], x[1]))
+
+        # We will keep a track of notes to extend (notes that fall within (pedal_down, pedal_up))
+        # for each instrument
+        extend_insts = collections.defaultdict(list)
+        sus_insts = collections.defaultdict(bool) # stores sustain state for each instrument
+
+        # We go through the events and extend the notes
+        time = 0
+        for time, event_type, event in events:
+            if event_type == PEDAL_DOWN:
+                sus_insts[event[1]] = True
+            elif event_type == PEDAL_UP:
+                sus_insts[event[1]] = False
+
+                # If the pedal is up, we will end all of the notes
+                # currently being extended
+                ext_notes_inst = [] # Store new notes to extend
+                for note in extend_insts[event[1]]:
+                    if note.end < time:
+                        # This note was extended, so we can end it
+                        note.end = time
+                    else:
+                        # This note has not ended, so we still keep it
+                        ext_notes_inst.append(note)
+                extend_insts[event[1]] = ext_notes_inst
+            elif event_type == ONSET:
+                if sus_insts[event[1]]:
+                    ext_notes_inst = []
+                    # if sustain is on, we have to stop notes that are currently being extended
+                    for note in extend_insts[event[1]]:
+                        if note.pitch == event[0].pitch:
+                            note.end = time
+                            if note.start == note.end:
+                                # it means this note now has zero duration,
+                                # according to the official implementation, we should not keep it
+                                event[1].notes.remove(note)
+                        else:
+                            # if the note is not the same as the one being extended,
+                            # we can just add it to the list of notes to extend
+                            ext_notes_inst.append(note)
+                
+                # Add the new set of notes to extend to the list
+                extend_insts[event[1]].append(event[0])
+            elif event_type == OFFSET:
+                # if susain is on, we will not end the note
+                # so let's consider where sustain is off
+                if not sus_insts[event[1]]:
+                    if event[0] in extend_insts[event[1]]:
+                        extend_insts[event[1]].remove(event[0])
+            else:
+                raise AssertionError(f"Unknown event type: {event_type}")    
+        
+        # End notes that are still being extended
+        for instrument in extend_insts.values():
+            for note in instrument:
+                note.end = time
+        
+        return midi_copy
     
     def load_split(self, save_dir, split):
         """
@@ -567,12 +736,41 @@ class MPE(Dataset):
                 else:
                     raise ValueError(f"Split {each[2]} not supported")
         
+        # Ensure train files is not in val_files or test_files, else throw an error
+        # for train in train_files:
+        #     if train in val_files or train in test_files:
+        #         raise ValueError(f"Duplicate found: {train}")
+        
         if split == "train":
             return train_files
         elif split == "validation":
             return val_files
         elif split == "test":
             return test_files
+        else:
+            raise ValueError(f"Split {split} not supported")
+        # else:
+        #     chosen_test_files = [
+        #         "2009/MIDI-Unprocessed_02_R1_2009_03-06_ORIG_MID--AUDIO_02_R1_2009_02_R1_2009_04_WAV.midi",
+        #         "2004/MIDI-Unprocessed_SMF_17_R1_2004_03-06_ORIG_MID--AUDIO_20_R2_2004_12_Track12_wav--1.midi",
+        #         "2008/MIDI-Unprocessed_09_R3_2008_01-07_ORIG_MID--AUDIO_09_R3_2008_wav--2.midi",
+        #         "2014/MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_01_R1_2014_wav--2.midi",
+        #         "2014/MIDI-UNPROCESSED_01-03_R1_2014_MID--AUDIO_01_R1_2014_wav--1.midi",
+        #         "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--2.midi",
+        #         "2018/MIDI-Unprocessed_Recital17-19_MID--AUDIO_18_R1_2018_wav--3.midi",
+        #         "2008/MIDI-Unprocessed_10_R2_2008_01-05_ORIG_MID--AUDIO_10_R2_2008_wav--1.midi",
+        #         "2008/MIDI-Unprocessed_14_R1_2008_01-05_ORIG_MID--AUDIO_14_R1_2008_wav--3.midi",
+        #         "2013/ORIG-MIDI_02_7_6_13_Group__MID--AUDIO_08_R1_2013_wav--5.midi",
+        #         "2015/MIDI-Unprocessed_R2_D1-2-3-6-7-8-11_mid--AUDIO-from_mp3_03_R2_2015_wav--1.midi",
+        #         "2015/MIDI-Unprocessed_R1_D1-1-8_mid--AUDIO-from_mp3_06_R1_2015_wav--6.midi"
+        #     ]
+        #     final_test_files = []
+
+        #     for each in chosen_test_files:
+        #         for file in test_files:
+        #             if each in str(file[1]):
+        #                 final_test_files.append((file[0], file[1]))
+        #     return final_test_files
 
     def get_files_guitarset(self, path: str) -> tuple[list[Path], list[Path]]:
         """
@@ -680,36 +878,58 @@ class MPE(Dataset):
 
     def get_datasets(self):
         files = []
-
-        if self.split != "test":
-            for dataset_type, path in self.datasets.items():
-                    if dataset_type == "maestro":
-                        files.extend(self.get_maestro_train_val_test(path))
-                    elif dataset_type == "slakh":
-                        files.extend(self.get_files_slakh(path))
-                    elif dataset_type == "musicnet":
-                        files.extend(self.get_files_musicnet(path))
-                    elif dataset_type == "guitarset":
-                        files.extend(self.get_files_guitarset(path))
-                    else:
-                        raise ValueError(f"Unsupported dataset type: {dataset_type}. \
-                            Supported types: 'slakh', 'musicnet', 'guitarset'.")
+        if self.split == "train":
+            dataset_items = self.datasets.items()
+        elif self.split == "validation":
+            dataset_items = self.val_datasets.items()
+        elif self.split == "test":
+            dataset_items = self.test_datasets.items()
         else:
-            #path = self.datasets[self.test_dataset]
-            path = self.test_dataset_path
-            if self.test_dataset == "maestro":
+            raise ValueError(f"Invalid split: {self.split}. Must be one of 'train', 'validation', or 'test'.")
+
+
+        for (dataset_type, path) in dataset_items:
+            if dataset_type == "maestro":
                 files.extend(self.get_maestro_train_val_test(path))
-            elif self.test_dataset == "slakh":
+            elif dataset_type == "slakh":
                 files.extend(self.get_files_slakh(path))
-            elif self.test_dataset == "musicnet":
+            elif dataset_type == "musicnet":
                 files.extend(self.get_files_musicnet(path))
-            elif self.test_dataset == "guitarset":
+            elif dataset_type == "guitarset":
                 files.extend(self.get_files_guitarset(path))
             else:
-                raise ValueError(f"Unsupported test dataset type: {self.test_dataset}. \
+                raise ValueError(f"Unsupported dataset type: {dataset_type}. \
                     Supported types: 'slakh', 'musicnet', 'guitarset'.")
+
+        # if self.split != "test":
+        #     for dataset_type, path in self.datasets.items():
+        #             if dataset_type == "maestro":
+        #                 files.extend(self.get_maestro_train_val_test(path))
+        #             elif dataset_type == "slakh":
+        #                 files.extend(self.get_files_slakh(path))
+        #             elif dataset_type == "musicnet":
+        #                 files.extend(self.get_files_musicnet(path))
+        #             elif dataset_type == "guitarset":
+        #                 files.extend(self.get_files_guitarset(path))
+        #             else:
+        #                 raise ValueError(f"Unsupported dataset type: {dataset_type}. \
+        #                     Supported types: 'slakh', 'musicnet', 'guitarset'.")
+        # else:
+        #     #path = self.datasets[self.test_dataset]
+        #     path = self.test_dataset_path
+        #     if self.test_dataset == "maestro":
+        #         files.extend(self.get_maestro_train_val_test(path))
+        #     elif self.test_dataset == "slakh":
+        #         files.extend(self.get_files_slakh(path))
+        #     elif self.test_dataset == "musicnet":
+        #         files.extend(self.get_files_musicnet(path))
+        #     elif self.test_dataset == "guitarset":
+        #         files.extend(self.get_files_guitarset(path))
+        #     else:
+        #         raise ValueError(f"Unsupported test dataset type: {self.test_dataset}. \
+        #             Supported types: 'slakh', 'musicnet', 'guitarset'.")
         
         # randomly shuffle the files
-        random.seed(0)
+        #random.seed(0)
         random.shuffle(files)
         return files

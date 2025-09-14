@@ -140,8 +140,11 @@ class AggregateDataset(Dataset):
                     item = item.unsqueeze(1)
 
         # (n_subitems, channel, feat) -> (channel, feat)
+        if self.dataset.__class__.__name__ == "MPE":
+            item = item.squeeze()
+            return item, label
+        
         item = item.mean(dim=0)
-
         return item, label
 
 

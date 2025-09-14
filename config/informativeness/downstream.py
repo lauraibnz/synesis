@@ -1,10 +1,8 @@
 from torch import nn
 from torch.optim import Adam
 from torchmetrics import AUROC, Accuracy, AveragePrecision, F1Score, MeanSquaredError, MeanAbsoluteError
-from synesis.utils import NoteMetrics, F1Metrics, AccMetrics
+from synesis.utils import F1Metrics, AccMetrics
 from synesis.losses import MaskedBce
-
-TRANSCRIBER_FRAME_RATE = 86.25
 
 configs = {
     "default": {
@@ -117,9 +115,8 @@ configs = {
             "feature_aggregation": True,
             "batch_size": 1,
             "metrics": [
-                {"name": "F1Metrics", "class": F1Metrics, "params": {"frame_rate": TRANSCRIBER_FRAME_RATE}},
-                {"name": "NoteMetrics", "class": NoteMetrics, "params": {"hop_secs": 1./TRANSCRIBER_FRAME_RATE}},
-                {"name": "AccMetrics", "class": AccMetrics, "params": {"frame_rate": TRANSCRIBER_FRAME_RATE}},
+                {"name": "F1Metrics", "class": F1Metrics},
+                {"name": "AccMetrics", "class": AccMetrics},
             ],
         },
     },

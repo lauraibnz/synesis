@@ -162,6 +162,8 @@ class NoteMetrics(Metric):
                 target (torch.Tensor): The target piano roll [frames, num_pitches] - boolean {0, 1}.
         """
         batch_size = preds.shape[0]
+        predictions = []
+        targets = []
         for batch_idx in range(batch_size):
             pred_piano_roll = preds[batch_idx]
             target_piano_roll = target[batch_idx]
@@ -170,14 +172,20 @@ class NoteMetrics(Metric):
             pred_piano_roll = pred_piano_roll[:target_piano_roll.shape[0], :]
             target_piano_roll = target_piano_roll[:pred_piano_roll.shape[0], :]
 
-            score = self.notemetrics(pred_piano_roll, target_piano_roll)
-            if score is None:
-                continue
-            precision = score["Precision_no_offset"]
-            recall = score["Recall_no_offset"]
-            self.note_precision += precision
-            self.note_recall += recall
-            self.total += 1
+            predictions.append(pred_piano_roll.cpu().detach().numpy())
+            targets.append(target_piano_roll.cpu().detach().numpy())
+
+        predictions = np.vstack(np.vstack(predictions))
+        targets = np.vstack(np.vstack(targets))
+
+        score = self.notemetrics(predictions, targets)
+        # if score is None:
+        #     continue
+        precision = score["Precision_no_offset"]
+        recall = score["Recall_no_offset"]
+        self.note_precision += precision
+        self.note_recall += recall
+        self.total += 1
 
     def get_intervals(self, piano_roll: torch.Tensor, filter=False):
         """
@@ -258,12 +266,11 @@ class NoteMetrics(Metric):
     
 
 class F1Metrics(Metric):
-    def __init__(self, frame_rate: float): 
+    def __init__(self): 
         super().__init__()
-        self.add_state("frame_precision", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.add_state("frame_recall", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.frame_rate = frame_rate
+        self.add_state("true_positives", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("false_positives", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("false_negatives", default=torch.tensor(0.0), dist_reduce_fx="sum")
     
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         """
@@ -293,20 +300,13 @@ class F1Metrics(Metric):
             pred_piano_roll = pred_piano_roll[:target_piano_roll.shape[0], :]
             target_piano_roll = target_piano_roll[:pred_piano_roll.shape[0], :]
 
-            # TP = torch.logical_and(pred_piano_roll == True, target_piano_roll == True).sum()
-            # FP = torch.logical_and(pred_piano_roll == True, target_piano_roll == False).sum()
-            # FN = torch.logical_and(pred_piano_roll == False, target_piano_roll == True).sum()
+            TP = torch.logical_and(pred_piano_roll == True, target_piano_roll == True).sum()
+            FP = torch.logical_and(pred_piano_roll == True, target_piano_roll == False).sum()
+            FN = torch.logical_and(pred_piano_roll == False, target_piano_roll == True).sum()
 
-            # p = TP / (TP + FP + np.finfo(float).eps)
-            # r = TP / (TP + FN + np.finfo(float).eps)
-            scores = multipitch_metrics(pred_piano_roll.cpu().detach().numpy(), \
-                                   target_piano_roll.cpu().detach().numpy(), self.frame_rate)
-            p = scores["Precision"]
-            r = scores["Recall"]
-
-            self.frame_precision += p
-            self.frame_recall += r
-            self.total += 1
+            self.true_positives += TP
+            self.false_positives += FP
+            self.false_negatives += FN
 
     def compute(self):
         """
@@ -314,15 +314,10 @@ class F1Metrics(Metric):
             Returns:
                 frame_f1_score (float): The frame F1 score.
         """
-        if self.frame_precision == 0 and self.frame_recall == 0:
-            return np.float32(0.0)
-
-        precision = self.frame_precision / self.total if self.total > 0 else np.float32(0.0)
-        recall = self.frame_recall / self.total if self.total > 0 else np.float32(0.0)
-        frame_f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else np.float32(0.0)
-        return frame_f1_score
-    
-    
+        precision = self.true_positives / (self.true_positives + self.false_positives + np.finfo(float).eps)
+        recall = self.true_positives / (self.true_positives + self.false_negatives + np.finfo(float).eps)
+        frame_f1_score = 2 * (precision * recall) / (precision + recall + np.finfo(float).eps)
+        return frame_f1_score  
 
 def multipitch_metrics(ref_roll: np.ndarray, est_roll: np.ndarray, \
                        frame_rate: float, pitch_offset: int = 0) -> dict:
@@ -359,11 +354,11 @@ def multipitch_metrics(ref_roll: np.ndarray, est_roll: np.ndarray, \
     return scores
 
 class AccMetrics(Metric):
-    def __init__(self, frame_rate: float): 
+    def __init__(self): 
         super().__init__()
-        self.add_state("accuracy", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.frame_rate = frame_rate
+        self.add_state("true_positives", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("false_positives", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("false_negatives", default=torch.tensor(0.0), dist_reduce_fx="sum")
     
     def update(self, preds: torch.Tensor, target: torch.Tensor):
         """
@@ -393,13 +388,14 @@ class AccMetrics(Metric):
             pred_piano_roll = pred_piano_roll[:target_piano_roll.shape[0], :]
             target_piano_roll = target_piano_roll[:pred_piano_roll.shape[0], :]
 
-            scores = multipitch_metrics(pred_piano_roll.cpu().detach().numpy(), \
-                                   target_piano_roll.cpu().detach().numpy(), self.frame_rate)
-            a = scores["Accuracy"]
+            TP = torch.logical_and(pred_piano_roll == True, target_piano_roll == True).sum()
+            FP = torch.logical_and(pred_piano_roll == True, target_piano_roll == False).sum()
+            FN = torch.logical_and(pred_piano_roll == False, target_piano_roll == True).sum()
 
-            self.accuracy += a
-            self.total += 1
-
+            self.true_positives += TP
+            self.false_positives += FP
+            self.false_negatives += FN
+    
     def compute(self):
         """
             Compute the accuracy metric
@@ -407,5 +403,5 @@ class AccMetrics(Metric):
             Returns:
                 accuracy (float): The accuracy score.
         """
-        accuracy = self.accuracy / self.total if self.total > 0 else np.float32(0.0)
+        accuracy = self.true_positives / (self.true_positives + self.false_positives + self.false_negatives + np.finfo(float).eps)
         return accuracy

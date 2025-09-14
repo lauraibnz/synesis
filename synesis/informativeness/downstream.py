@@ -18,6 +18,15 @@ from synesis.features.feature_utils import get_feature_extractor
 from synesis.metrics import instantiate_metrics
 from synesis.probes import get_probe
 from synesis.utils import deep_update, get_artifact, get_wandb_config
+import numpy as np
+import mir_eval
+
+def seed_everything(seed):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
 
 
 def train(
@@ -49,6 +58,7 @@ def train(
         If logging is True, returns the wandb run path to the model artifact.
         Otherwise, returns the trained model.
     """
+    seed_everything(42)
     feature_config = feature_configs[feature]
     task_config = deep_update(
         deep_update(task_configs["default"], task_configs.get(task, None)), task_config
@@ -287,13 +297,10 @@ def train(
                 ):
                     metric = metric.to(device)
                     if task_config["model"]["type"] == "transcriber":
-                        if metric_cfg["name"] == "NoteMetrics":
-                            threshold = 0.1
-                            val_output = (val_output > threshold).int()
-                        elif metric_cfg["name"] == "F1Metrics" or metric_cfg["name"] == "AccMetrics":
-                            threshold = 0.2
-                            val_output = (val_output > threshold).int()
-                    metric.update(val_output, target_for_metrics)
+                        threshold = 0.2
+                        metric.update((val_output >= threshold).int(), target_for_metrics)
+                    else:
+                        metric.update(val_output, target_for_metrics)
 
         # Calculate metrics
         avg_val_loss = val_loss / len(val_dataloader)
@@ -397,7 +404,6 @@ def evaluate(
         deep_update(task_configs["default"], task_configs.get(task, None)),
         task_config,
     )
-
 
     test_dataset = get_dataset(
             name=dataset,
@@ -539,13 +545,10 @@ def evaluate(
             ):
                 metric = metric.to(device)
                 if task_config["model"]["type"] == "transcriber":
-                    if metric_cfg["name"] == "NoteMetrics":
-                        threshold = 0.1
-                        output = (output > threshold).int()
-                    elif metric_cfg["name"] == "F1Metrics" or metric_cfg["name"] == "AccMetrics":
-                        threshold = 0.2
-                        output = (output > threshold).int()
-                metric.update(output, target_for_metrics)
+                    threshold = 0.2
+                    metric.update((output >= threshold).int(), target_for_metrics)
+                else:
+                    metric.update(output, target_for_metrics)
 
     avg_loss = total_loss / len(dataloader)
     for metric_cfg, metric in zip(
@@ -575,6 +578,365 @@ def evaluate(
         wandb.finish()
 
     return test_metric_results
+
+def stitch(arr: np.ndarray):
+    # Stitches the results from the model
+    # so that everything aligns
+    arr = arr[:, :-1, :]
+    result = []
+    num_segments, num_frames, _ = arr.shape
+    factor_75 = int(num_frames * 0.75)
+    factor_25 = int(num_frames * 0.25)
+    result.append(arr[0, :factor_75])
+    for each in range(1, num_segments - 1):
+        result.append(arr[each, factor_25 : factor_75])
+    result.append(arr[-1, factor_25:])
+    result = np.concatenate(result)
+    return result
+
+
+def multipitch_metrics(ref_roll: np.ndarray, est_roll: np.ndarray, \
+                       frame_rate: float, pitch_offset: int = 0) -> dict:
+    """
+        Calculate multipitch metrics using mir_eval.
+
+        Args:
+        ------
+            ref_roll (np.ndarray): Reference multipitch roll.
+            est_roll (np.ndarray): Estimated multipitch roll.
+            frame_rate (float): Frames per second
+            pitch_offset (int): Offset for the pitch values, default is 0.
+
+        Returns:
+        -------
+            scores (dict): Dictionary containing the calculated metrics.
+    """
+    time_ref = np.arange(ref_roll.shape[0]) / frame_rate
+    time_est = np.arange(est_roll.shape[0]) / frame_rate
+
+    ref_freqs = [np.nonzero(ref_roll[t, :])[0] for t in range(ref_roll.shape[0])]
+    est_freqs = [np.nonzero(est_roll[t, :])[0] for t in range(est_roll.shape[0])]
+
+    # Convert frequencies to Hz
+    ref_freqs = [np.array([mir_eval.util.midi_to_hz(p+pitch_offset) for p in freqs]) for freqs in ref_freqs]
+    est_freqs = [np.array([mir_eval.util.midi_to_hz(p+pitch_offset) for p in freqs]) for freqs in est_freqs]
+
+    # filter frequencies above 5000 Hz
+    ref_freqs = [freqs[freqs <= 5000] for freqs in ref_freqs]
+    est_freqs = [freqs[freqs <= 5000] for freqs in est_freqs]
+
+    # filter frequencies below 20Hz
+    ref_freqs = [freqs[freqs >= 20] for freqs in ref_freqs]
+    est_freqs = [freqs[freqs >= 20] for freqs in est_freqs]
+
+    
+    scores = mir_eval.multipitch.evaluate(
+        ref_time=time_ref, ref_freqs=ref_freqs, \
+        est_time=time_est, est_freqs=est_freqs
+    )
+
+    return scores
+
+
+def notemetrics(pred_piano_roll: torch.Tensor, target_piano_roll: torch.Tensor, frame_rate: float):
+        """
+            Compute the notewise metrics for the predicted and target piano rolls.
+
+            Args:
+                pred_piano_roll (torch.Tensor): The predicted piano roll [frames, num_pitches].
+                target_piano_roll (torch.Tensor): The target piano roll [frames, num_pitches].
+            
+            Returns:
+                scores (dict): A dictionary containing the notewise metrics.
+        """
+        # Get notes and intervals for both target and predicted piano rolls
+        # Apply same filtering to both for fair comparison (is this the right thing to do?)
+        target_notes, target_intervals = get_intervals(target_piano_roll, frame_rate, filter=True)
+        pred_notes, pred_intervals = get_intervals(pred_piano_roll, frame_rate, filter=True)
+
+        if len(target_notes) == 0:
+            return None
+        
+        # match notes (reference notes to predicted notes)
+        scores = mir_eval.transcription.evaluate(
+            target_intervals, target_notes, pred_intervals, pred_notes
+        )
+        return scores
+
+def get_intervals(piano_roll: torch.Tensor, frame_rate, filter=False):
+        """
+            Get the intervals of the piano roll.
+
+            Args:
+                piano_roll (torch.Tensor | np.ndarray): The piano roll to get the intervals from [frames, num_pitches].
+                filter (bool): Whether to filter out short notes.
+        """
+        # Ensure tensor is on CPU and in integer format
+        hop_secs = 1/frame_rate
+        if isinstance(piano_roll, torch.Tensor):
+            piano_roll = piano_roll.cpu().detach().int()
+        else:
+            piano_roll = torch.tensor(piano_roll, dtype=torch.int)
+        
+        padded_roll = torch.zeros((piano_roll.shape[0] + 2, 128), dtype=torch.int)
+        padded_roll[1:-1, :] = piano_roll # store the piano roll in the padded roll. So frame 1 to 2nd to last frame is the piano roll
+
+        # so, basically, we have an onset if the note was not on the previous frame, and it is on the current frame
+        # (silence and no silence == onset and no silence and silence == offset)
+
+        # subtract the previous frame from the current frame
+        diff = padded_roll[1:, :] - padded_roll[:-1, :]
+        onsets = (diff == 1).nonzero() # shape [num_onsets, 2]
+        offsets = (diff == -1).nonzero() # shape [num_offsets, 2]
+
+        notes = onsets[:, 1] #+ 21 # convert the note to the MIDI note number
+        intervals = torch.cat([onsets[:, 0].unsqueeze(1), offsets[:, 0].unsqueeze(1)], dim=1) # shape [num_intervals, 2]
+
+        intervals_secs = intervals * hop_secs # convert the intervals to seconds
+        # We will filter out events (onset - offset) durations less than 116ms
+        if filter:
+            interval_diff = intervals_secs[:, 1] - intervals_secs[:, 0]
+            valid_intervals = interval_diff >= 0.116
+            notes = notes[valid_intervals]
+            intervals_secs = intervals_secs[valid_intervals]
+        
+        return notes.cpu().detach().numpy(), intervals_secs.cpu().detach().numpy()
+
+
+def get_test_frame_metrics(model, files, threshold, feature_config):
+    frame_metrics = {'p': [], 'r': [], 'a': [], 'f1': []}
+    for file in tqdm(files):
+        file_npz = np.load(file)
+        feature = file_npz["feature"]
+        audio_len = file_npz["audio_len"]
+        audio_secs = audio_len / feature_config["sample_rate"]
+        label = file_npz["label_frames"]
+        feature = torch.tensor(feature).to("cuda" if torch.cuda.is_available() else "cpu")
+        out_list = []
+        with torch.no_grad():
+            for feat in feature:
+                out = model(feat.unsqueeze(0))
+                out_list.append(out.squeeze().cpu().numpy())
+        
+        output = np.array(out_list)
+
+        # stitch the output
+        output = stitch(output)
+
+        # stitch the label too
+        label = stitch(label)
+
+        # calculate the frame metrics
+        output = output.squeeze() >= threshold
+        output = output[:label.shape[0], :]
+        label = label[:output.shape[0], :]
+        frame_rate = output.shape[0] / audio_secs
+        scores = multipitch_metrics(output, label, frame_rate)
+        p = scores["Precision"]
+        r = scores["Recall"]
+        a = scores["Accuracy"]
+        f1 = 2 * (p * r) / (p + r + 1e-8)
+        frame_metrics['p'].append(p)
+        frame_metrics['r'].append(r)
+        frame_metrics['a'].append(a)
+        frame_metrics['f1'].append(f1)
+
+    p = np.mean(frame_metrics['p'])
+    r = np.mean(frame_metrics['r'])
+    a = np.mean(frame_metrics['a'])
+    f1 = np.mean(frame_metrics['f1'])
+    return f1, a
+
+def get_test_note_metrics(model, files, threshold, feature_config):
+    note_metrics = {'p_no_offset': [], 'r_no_offset': [], 'f1_no_offset': []}
+    for file in files:
+        file_npz = np.load(file)
+        feature = file_npz["feature"]
+        audio_len = file_npz["audio_len"]
+        audio_secs = audio_len / feature_config["sample_rate"]
+        label = file_npz["label_frames"]
+        feature = torch.tensor(feature).to("cuda" if torch.cuda.is_available() else "cpu")
+        out_list = []
+        with torch.no_grad():
+            for feat in feature:
+                out = model(feat.unsqueeze(0))
+                out_list.append(out.squeeze().cpu().numpy())
+        
+        output = np.array(out_list)
+
+        # stitch the output
+        output = stitch(output)
+
+        # stitch the label too
+        label = stitch(label)
+        #calculate the note metrics
+        frame_rate = output.shape[0] / audio_secs
+        output = output.squeeze() >= threshold
+        output = output[:label.shape[0], :]
+        label = label[:output.shape[0], :]
+        note_scores = notemetrics(output, torch.tensor(label), frame_rate)
+        if note_scores is not None:
+            p_no_offset = note_scores["Precision_no_offset"]
+            r_no_offset = note_scores["Recall_no_offset"]
+            f1_no_offset = note_scores["F-measure_no_offset"]
+            note_metrics['p_no_offset'].append(p_no_offset)
+            note_metrics['r_no_offset'].append(r_no_offset)
+            note_metrics['f1_no_offset'].append(f1_no_offset)
+
+    p = np.mean(note_metrics['p_no_offset'])
+    r = np.mean(note_metrics['r_no_offset'])
+    f1 = np.mean(note_metrics['f1_no_offset'])
+    return f1
+
+def get_val_metrics(model, files, threshold, feature_config):
+    frame_metrics = {'p': [], 'r': [], 'a': [], 'f1': []}
+    for file in tqdm(files):
+        file_npz = np.load(file)
+        feature = file_npz["feature"]
+        audio = file_npz["audio"]
+        audio_secs = audio.shape[-1] / feature_config["sample_rate"]
+        label = file_npz["label_frames"]
+        feature = torch.tensor(feature).to("cuda" if torch.cuda.is_available() else "cpu")
+        frame_rate = feature.shape[1] / audio_secs
+        with torch.no_grad():
+            output = model(feature)
+        
+        # calculate the frame metrics
+        output = output.squeeze().cpu().numpy() >= threshold
+        output = output[:label.shape[0], :]
+        label = label[:output.shape[0], :]
+        scores = multipitch_metrics(output, label, frame_rate)
+        p = scores["Precision"]
+        r = scores["Recall"]
+        a = scores["Accuracy"]
+        f1 = 2 * (p * r) / (p + r + 1e-8)
+        frame_metrics['p'].append(p)
+        frame_metrics['r'].append(r)
+        frame_metrics['a'].append(a)
+        frame_metrics['f1'].append(f1)
+
+    p = np.mean(frame_metrics['p'])
+    r = np.mean(frame_metrics['r'])
+    a = np.mean(frame_metrics['a'])
+    f1 = np.mean(frame_metrics['f1'])
+    return f1, a
+
+def evaluate_mpe(
+    model: Union[nn.Module, str],
+    feature: str,
+    task: str,
+    task_config: Optional[dict] = None,
+    device: Optional[str] = None,
+    logging: bool = False,
+):
+    """
+    Evaluate a given trained downstream model
+    on multi-pitch estimation (MPE) or 
+    transcription task.
+    Returns:
+        Dictionary of evaluation metrics.
+    """
+
+    if isinstance(model, str):
+        # Resume wandb run
+        entity, project, run_id, model_name = model.split("/")
+        if logging:
+            wandb.init(project=project, entity=entity, id=run_id, resume="allow")
+
+    feature_config = feature_configs[feature]
+    task_config = deep_update(
+        deep_update(task_configs["default"], task_configs.get(task, None)),
+        task_config,
+    )
+
+    if isinstance(model, str):
+        # Load model from wandb artifact
+        artifact = get_artifact(model)
+        artifact_dir = artifact.download()
+
+        if task_config["model"]["type"] == "transcriber":
+            n_outputs = 128
+        else:
+            raise ValueError("MPE evaluation only supports transcription task.")
+    
+    if feature == "SSVQVAE_Structure":
+        in_features = 1024
+    elif feature == "SSVQVAE_Combined":
+        in_features = 2048
+    elif feature == "TSDSAE_Structure":
+        in_features = 16
+    elif feature == "TSDSAE_Combined":
+        in_features = 32
+    elif feature == "AFTER_Structure":
+        in_features = 12
+    elif feature == "AFTER_Combined":
+        in_features = 18
+    else:
+        raise ValueError(f"Feature {feature} not supported for MPE evaluation.")
+
+    if isinstance(model, str):
+        model = get_probe(
+            model_type=task_config["model"]["type"],
+            in_features=in_features,
+            n_outputs=n_outputs,
+            **task_config["model"]["params"],
+        )
+        model.load_state_dict(
+            torch.load(Path(artifact_dir) / f"{feature}.pt", weights_only=True)
+        )
+        os.remove(Path(artifact_dir) / f"{feature}.pt")
+
+    if not device:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    model.to(device)
+
+    model.eval()
+    test_metric_results = {}
+    val_data_paths = "./data/MPE/validation"
+    val_files = list(Path(val_data_paths).rglob("*.npz"))
+    test_data_paths = "./data/MPE/test"
+    test_files = list(Path(test_data_paths).rglob("*.npz"))
+
+    # Get the best threshold from validation set
+    thresholds = np.arange(0, 1, 0.05)
+    selected_threshold = None
+    best_f1 = -1
+    for thresh in thresholds:
+        f1, _ = get_val_metrics(model, val_files, thresh, feature_config)
+        if selected_threshold is None or f1 > best_f1:
+            best_f1 = f1
+            selected_threshold = thresh
+
+    print(f"Selected threshold: {selected_threshold}")
+
+    note_f1 = get_test_note_metrics(model, test_files, 0.1, feature_config) 
+    frame_f1, a = get_test_frame_metrics(model, test_files, selected_threshold, feature_config)
+
+    test_metric_results["Note F1"] = note_f1
+    test_metric_results["Frame F1"] = frame_f1
+    test_metric_results["Frame Accuracy"] = a
+
+    for name, value in test_metric_results.items():
+        print(f"{name}: {value:.4f}")
+
+    if logging:
+        # Log individual test metrics
+        wandb.log({
+            **{f"test/{name}": value for name, value in test_metric_results.items()},
+        })
+        
+        # Create a table for the evaluation metrics
+        metrics_table = wandb.Table(columns=["Metric", "Value"])
+        for name, value in test_metric_results.items():
+            metrics_table.add_data(name, value)
+
+        # Log the table to wandb
+        wandb.log({"evaluation_metrics": metrics_table})
+        wandb.finish()
+
+    return test_metric_results
+
 
 
 if __name__ == "__main__":
@@ -637,13 +999,22 @@ if __name__ == "__main__":
         logging=not args.nolog,
     )
 
-    results = evaluate(
-        model=model,
-        feature=args.feature,
-        dataset=args.dataset,
-        item_format=args.item_format,
-        label=args.label,
-        task=args.task,
-        device=args.device,
-        logging=not args.nolog,
-    )
+    if args.task == "transcriber_probe":
+        results = evaluate_mpe(
+            model=model,
+            feature=args.feature,
+            task=args.task,
+            device=args.device,
+            logging=not args.nolog,
+        )
+    else:
+        results = evaluate(
+            model=model,
+            feature=args.feature,
+            dataset=args.dataset,
+            item_format=args.item_format,
+            label=args.label,
+            task=args.task,
+            device=args.device,
+            logging=not args.nolog,
+        )
