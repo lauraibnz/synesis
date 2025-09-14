@@ -185,7 +185,7 @@ def evaluate_disentanglement(
     model.to(device)
     model.eval()
 
-    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
+    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise", "LowPassFilter"]):
         transform_obj = get_transform(
             transform_config,
             sample_rate=feature_config["sample_rate"],

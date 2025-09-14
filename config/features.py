@@ -346,4 +346,40 @@ configs = {
             "checkpoint_path": "./externals/dSEQ-VAE/outputs/epoch=738-step=2220695.ckpt"
         },
     },
+    "AFTER_Timbre_no_adv": {
+        "__cls__": "AFTER_Timbre",
+        "sample_rate": 44100,
+        "extract_kws": {
+            "autoencoder_path": "./externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "./externals/AFTER/experiments/after_runs/slakh2100_train_no_adv/checkpoint1000000_EMA.pt",
+            "config_path": "./externals/AFTER/experiments/after_runs/slakh2100_train_no_adv/config.gin",
+        },
+    },
+    "AFTER_Structure_no_adv": {
+        "__cls__": "AFTER_Structure",
+        "sample_rate": 44100,
+        "extract_kws": {
+            "autoencoder_path": "./externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "./externals/AFTER/experiments/after_runs/slakh2100_train_no_adv/checkpoint1000000_EMA.pt",
+            "config_path": "./externals/AFTER/experiments/after_runs/slakh2100_train_no_adv/config.gin",
+        },
+    },
+    "AFTER_Timbre_no_augm": {
+        "__cls__": "AFTER_Timbre",
+        "sample_rate": 44100,
+        "extract_kws": {
+            "autoencoder_path": "./externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "./externals/AFTER/experiments/after_runs/slakh2100_train_no_augm/checkpoint1000000_EMA.pt",
+            "config_path": "./externals/AFTER/experiments/after_runs/slakh2100_train_no_augm/config.gin",
+        },
+    },
+    "AFTER_Structure_no_augm": {
+        "__cls__": "AFTER_Structure",
+        "sample_rate": 44100,
+        "extract_kws": {
+            "autoencoder_path": "./externals/AFTER/pretrained/AE_slakh.pt",
+            "checkpoint_path": "./externals/AFTER/experiments/after_runs/slakh2100_train_no_augm/checkpoint1000000_EMA.pt",
+            "config_path": "./externals/AFTER/experiments/after_runs/slakh2100_train_no_augm/config.gin",
+        },
+    },
 }

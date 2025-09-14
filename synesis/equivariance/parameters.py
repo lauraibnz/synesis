@@ -4,6 +4,7 @@ feature pair.
 """
 
 import argparse
+import math
 import os
 from pathlib import Path
 from typing import Optional, Union
@@ -33,17 +34,22 @@ def preprocess_batch(
     feature_extractor,
     sample_rate,
     device,
+    task_type="regressor",
+    transform_config=None,
 ):
     """Get transformed data, extract features from both the original and
     transformed data, and concatenate them for input to the model."""
 
     if any(
         tf in transform
-        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression"]
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression", "InstrumentShift"]
     ):
         original_raw_data = batch_raw_data[:, 0].to(device)
         transformed_raw_data = batch_raw_data[:, 1].to(device)
-        transform_params = batch_targets.to(device)
+        transform_params = batch_targets        
+        if len(transform_params.shape) == 1:
+            transform_params = transform_params.unsqueeze(1)
+        transform_params = transform_params.to(device)
 
     elif "TimeStretch" in transform:
         # need to perform on gpu, item by item
@@ -100,7 +106,7 @@ def preprocess_batch(
             transformed_raw_data.append(torch.tensor(transformed_item))
 
             # map [0.5, 2.0] to [0, 1]
-            transform_param = (transform_param - 0.5) / 1.5
+            transform_param = (math.log2(transform_param) + 1) / 2
             transform_params.append(transform_param)
 
         # make tensors and stack
@@ -122,8 +128,16 @@ def preprocess_batch(
                 float(t_param)
                 for t_param in transform_obj.transform_parameters["transpositions"]
             ]
-            # map [0.5, 2.0] to [0, 1]
-            transform_params = [(t_param - 0.5) / 1.5 for t_param in transform_params]
+            # Convert ratios to semitones: semitones = 12 * log2(ratio)
+            # Then map [min_semitones, max_semitones] to [0, 1] for perceptually linear progression
+            
+            # Get the actual min/max from the passed transform config
+            min_semitones = transform_config.get("params", {}).get("min_transpose_semitones", -12)
+            max_semitones = transform_config.get("params", {}).get("max_transpose_semitones", 12)
+            
+            # Convert ratios to semitones, then normalize to [0, 1]
+            semitone_params = [12 * math.log2(ratio) for ratio in transform_params]
+            transform_params = [(s - min_semitones) / (max_semitones - min_semitones) for s in semitone_params]
 
             # convert to tensor of shape [batch, 1, 1] and move to device
             transform_params = torch.tensor(transform_params).to(device)
@@ -133,11 +147,28 @@ def preprocess_batch(
             transform_params = 1 - (transform_params + 30) / 80
             # convert to tensor of shape [batch, 1, 1] and move to device
             transform_params = torch.tensor(transform_params).to(device)
+        elif "LowPassFilter" in transform:
+            transform_params = transform_obj.transform_parameters["cutoff_freq"]
+            # Get the actual min/max from the passed transform config
+            min_cutoff = transform_config.get("params", {}).get("min_cutoff_freq", 1000)
+            max_cutoff = transform_config.get("params", {}).get("max_cutoff_freq", 4000)
+            
+            # Normalize [min_cutoff, max_cutoff] to [0, 1]
+            transform_params = [(freq - min_cutoff) / (max_cutoff - min_cutoff) for freq in transform_params]
+            
+            # convert to tensor of shape [batch, 1, 1] and move to device
+            transform_params = torch.tensor(transform_params).to(device)
         else:
             # they will be of shape [batch, channel, 1], and on device
             transform_params = transform_obj.transform_parameters[
                 f"{transform.lower()}_factors"
             ]
+
+    # For classification tasks, we need to handle discrete class labels
+    if task_type == "classifier":
+        # For classification, batch_targets should already be class indices
+        # We don't need to process them further, just ensure they're on the right device
+        transform_params = batch_targets.to(device)
 
     # combine original and transformed data
     combined_raw_data = torch.cat([original_raw_data, transformed_raw_data], dim=0)
@@ -229,6 +260,7 @@ def train(
         split="train",
         download=False,
         item_format="raw",
+        itemization=False,
     )
     val_dataset = get_dataset(
         name=dataset,
@@ -238,10 +270,11 @@ def train(
         split="validation",
         download=False,
         item_format="raw",
+        itemization=False,
     )
 
     # If dataset returns subitems per item, need to wrap it
-    if dataset != "ImageNet" and train_dataset[0][0].dim() == 3:
+    if transform_config and train_dataset[0][0].dim() == 3:
         wrapped_train = SubitemDataset(train_dataset)
         wrapped_val = SubitemDataset(val_dataset)
         del train_dataset, val_dataset
@@ -250,12 +283,12 @@ def train(
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
+    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise", "LowPassFilter"]):
         transform_obj = get_transform(
             transform_config,
             sample_rate=feature_config["sample_rate"],
         )
-    elif dataset == "ImageNet":
+    elif not transform_config:
         # transform handled in dataset
         transform_obj = None
     else:
@@ -268,7 +301,12 @@ def train(
         val_dataset, shuffle=False, batch_size=task_config["training"]["batch_size"]
     )
 
-    sample_item, _ = train_dataset[0]
+    sample_item, sample_target = train_dataset[0]
+    if any(
+        tf in transform
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression", "InstrumentShift"]
+    ):
+        sample_item = sample_item[0]
 
     with torch.no_grad():
         extracted_features = feature_extractor(sample_item)
@@ -283,10 +321,24 @@ def train(
     else:
         use_temporal_pooling = False
 
+    try:
+        n_outputs = sample_target.shape[0]
+    except:
+        n_outputs = 1
+
+    # For classification tasks, n_outputs should be the number of classes
+    if task_config["model"]["type"] == "classifier":
+        # Special case: if target is multi-dimensional (like one-hot difference vectors),
+        # use the target dimension as n_outputs
+        if len(sample_target.shape) > 1 or sample_target.shape[0] > 1:
+            n_outputs = sample_target.shape[0]
+        else:
+            n_outputs = len(train_dataset.label_encoder.classes_)
+
     model = get_probe(
         model_type=task_config["model"]["type"],
         in_features=in_features * 2,
-        n_outputs=1,  # currently only predicting one parameter
+        n_outputs=n_outputs,
         use_temporal_pooling=use_temporal_pooling,
         **task_config["model"]["params"],
     ).to(device)
@@ -297,6 +349,10 @@ def train(
         model.parameters(),
         **task_config["training"]["optimizer"]["params"],
     )
+
+    # For multi-dimensional targets, use MSE loss regardless of config
+    if task_config["model"]["type"] == "classifier" and len(sample_target.shape) > 1:
+        criterion = nn.MSELoss()
 
     best_val_loss = float("inf")
     epochs_without_improvement = 0
@@ -318,12 +374,22 @@ def train(
                 feature_extractor=feature_extractor,
                 sample_rate=feature_config.get("sample_rate", None),
                 device=device,
+                task_type=task_config["model"]["type"],
+                transform_config=transform_config,
             )
 
             optimizer.zero_grad()
             predicted_params = model(concat_features)
-            if len(predicted_params.shape) == 2:
+            # Only squeeze for regression tasks, not for classification
+            if task_config["model"]["type"] == "regressor" and len(predicted_params.shape) == 2:
                 predicted_params = predicted_params.squeeze(1)
+            
+            # For classification, targets should be long tensors
+            if task_config["model"]["type"] == "classifier":
+                # Only convert to long if it's a single class index
+                if len(transform_params.shape) == 1 and transform_params.shape[0] == 1:
+                    transform_params = transform_params.long()
+            
             loss = criterion(predicted_params, transform_params)
 
             loss.backward()
@@ -352,11 +418,21 @@ def train(
                     sample_rate=feature_config.get("sample_rate", None),
                     feature_extractor=feature_extractor,
                     device=device,
+                    task_type=task_config["model"]["type"],
+                    transform_config=transform_config,
                 )
 
                 predicted_params = model(concat_features)
-                if len(predicted_params.shape) == 2:
+                # Only squeeze for regression tasks, not for classification
+                if task_config["model"]["type"] == "regressor" and len(predicted_params.shape) == 2:
                     predicted_params = predicted_params.squeeze(1)
+                
+                # For classification, targets should be long tensors
+                if task_config["model"]["type"] == "classifier":
+                    # Only convert to long if it's a single class index
+                    if len(transform_params.shape) == 1 and transform_params.shape[0] == 1:
+                        transform_params = transform_params.long()
+                
                 loss = criterion(predicted_params, transform_params)
 
                 total_val_loss += loss.item()
@@ -448,6 +524,7 @@ def evaluate(
         split="test",
         download=False,
         item_format="raw",
+        itemization=False,
     )
 
     if not device:
@@ -461,19 +538,19 @@ def evaluate(
         )
 
     # If dataset returns subitems per item, need to wrap it
-    if dataset != "ImageNet" and test_dataset[0][0].dim() == 3:
+    if transform_config and test_dataset[0][0].dim() == 3:
         wrapped_test = SubitemDataset(test_dataset)
         del test_dataset
         test_dataset = wrapped_test
 
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
-    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
+    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise", "LowPassFilter"]):
         transform_obj = get_transform(
             transform_config,
             sample_rate=feature_config["sample_rate"],
         )
-    elif dataset == "ImageNet":
+    elif not transform_config:
         # transform handled in dataset
         transform_obj = None
     else:
@@ -483,7 +560,14 @@ def evaluate(
         test_dataset, shuffle=False, batch_size=task_config["evaluation"]["batch_size"]
     )
 
-    sample_item, _ = test_dataset[0]
+    sample_item, sample_target = test_dataset[0]
+
+    if any(
+        tf in transform
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression", "InstrumentShift"]
+    ):
+        sample_item = sample_item[0]
+
     with torch.no_grad():
         extracted_features = feature_extractor(sample_item)
 
@@ -497,20 +581,34 @@ def evaluate(
     else:
         use_temporal_pooling = False
 
+    try:
+        n_outputs = sample_target.shape[0]
+    except:
+        n_outputs = 1    
+
+    # For classification tasks, n_outputs should be the number of classes
+    if task_config["model"]["type"] == "classifier":
+        # Special case: if target is multi-dimensional (like one-hot difference vectors),
+        # use the target dimension as n_outputs
+        if len(sample_target.shape) > 1 or sample_target.shape[0] > 1:
+            n_outputs = sample_target.shape[0]
+        else:
+            n_outputs = len(test_dataset.label_encoder.classes_)
+
     if isinstance(model, str):
         # Load model from wandb artifact
         artifact = get_artifact(model)
         artifact_dir = artifact.download()
 
-        model = get_probe(
-            model_type=task_config["model"]["type"],
-            in_features=in_features * 2,
-            n_outputs=1,  # currently only predicting one parameter
-            use_temporal_pooling=use_temporal_pooling,
-            **task_config["model"]["params"],
-        )
-        model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
-        os.remove(Path(artifact_dir) / f"{feature}.pt")
+    model = get_probe(
+        model_type=task_config["model"]["type"],
+        in_features=in_features * 2,
+        n_outputs=n_outputs,
+        use_temporal_pooling=use_temporal_pooling,
+        **task_config["model"]["params"],
+    )
+    model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))
+    os.remove(Path(artifact_dir) / f"{feature}.pt")
 
     model.to(device)
 
@@ -518,6 +616,10 @@ def evaluate(
     total_loss = 0
     test_metric_results = {}
     criterion = task_config["training"]["criterion"]()
+
+    # For multi-dimensional targets, use MSE loss regardless of config
+    if task_config["model"]["type"] == "classifier" and len(sample_target.shape) > 1:
+        criterion = nn.MSELoss()
 
     with torch.no_grad():
         for batch_raw_data, batch_targets in tqdm(test_loader, desc="Evaluating"):
@@ -530,48 +632,118 @@ def evaluate(
                 sample_rate=feature_config.get("sample_rate", None),
                 feature_extractor=feature_extractor,
                 device=device,
+                task_type=task_config["model"]["type"],
+                transform_config=transform_config,
             )
 
             predicted_params = model(concat_features)
-            if len(predicted_params.shape) == 2:
+            # Only squeeze for regression tasks, not for classification
+            if task_config["model"]["type"] == "regressor" and len(predicted_params.shape) == 2:
                 predicted_params = predicted_params.squeeze(1)
+            
+            # For classification, targets should be long tensors
+            if task_config["model"]["type"] == "classifier":
+                # Only convert to long if it's a single class index
+                if len(transform_params.shape) == 1 and transform_params.shape[0] == 1:
+                    transform_params = transform_params.long()
+            
             loss = criterion(predicted_params, transform_params)
 
             total_loss += loss.item()
 
-            # calculate additional metrics
-            mse = nn.MSELoss()(predicted_params, transform_params).item()
-            if "mse" not in test_metric_results:
-                test_metric_results["mse"] = 0
-            test_metric_results["mse"] += mse
+            # Calculate appropriate metrics based on task type
+            if task_config["model"]["type"] == "classifier":
+                # Check if this is a multi-dimensional target (like one-hot difference vectors)
+                if len(transform_params.shape) > 1 or transform_params.shape[0] > 1:
+                    # For vector predictions, use cosine similarity
+                    cos_sim = nn.CosineSimilarity(dim=-1)(predicted_params, transform_params).mean().item()
+                    if "cosine_similarity" not in test_metric_results:
+                        test_metric_results["cosine_similarity"] = 0
+                    test_metric_results["cosine_similarity"] += cos_sim
+                else:
+                    # For classification, calculate accuracy
+                    if predicted_params.dim() > 1:
+                        predicted_classes = predicted_params.argmax(dim=-1)
+                    else:
+                        predicted_classes = predicted_params
+                    # Ensure both tensors have the same shape for comparison
+                    if predicted_classes.shape != transform_params.shape:
+                        predicted_classes = predicted_classes.squeeze()
+                        transform_params = transform_params.squeeze()
+                    accuracy = (predicted_classes == transform_params).float().mean().item()
+                    if "accuracy" not in test_metric_results:
+                        test_metric_results["accuracy"] = 0
+                    test_metric_results["accuracy"] += accuracy
+            else:
+                # For regression, calculate MSE and MAE
+                mse = nn.MSELoss()(predicted_params, transform_params).item()
+                if "mse" not in test_metric_results:
+                    test_metric_results["mse"] = 0
+                test_metric_results["mse"] += mse
 
-            mae = nn.L1Loss()(predicted_params, transform_params).item()
-            if "mae" not in test_metric_results:
-                test_metric_results["mae"] = 0
-            test_metric_results["mae"] += mae
+                mae = nn.L1Loss()(predicted_params, transform_params).item()
+                if "mae" not in test_metric_results:
+                    test_metric_results["mae"] = 0
+                test_metric_results["mae"] += mae
 
     # Average metrics
     avg_loss = total_loss / len(test_loader)
-    mse = test_metric_results["mse"] / len(test_loader)
-    mae = test_metric_results["mae"] / len(test_loader)
-
-    print(f"Average test loss: {avg_loss:.4f}")
-    print(f"Mean Squared Error: {mse:.4f}")
-    print(f"Mean Absolute Error: {mae:.4f}")
+    
+    if task_config["model"]["type"] == "classifier":
+        # Check if we have vector predictions or class predictions
+        if "cosine_similarity" in test_metric_results:
+            # Vector predictions (like SynTheory InstrumentShift)
+            cosine_similarity = test_metric_results["cosine_similarity"] / len(test_loader)
+            print(f"Average test loss: {avg_loss:.4f}")
+            print(f"Cosine Similarity: {cosine_similarity:.4f}")
+            
+            if logging:
+                # Log vector prediction metrics
+                wandb.log({
+                    "test/CosineSimilarity": cosine_similarity,
+                })
+                
+                # Create a table for the evaluation metrics
+                metrics_table = wandb.Table(columns=["Metric", "Value"])
+                metrics_table.add_data("Average Loss", avg_loss)
+                metrics_table.add_data("Cosine Similarity", cosine_similarity)
+        else:
+            # Class predictions
+            accuracy = test_metric_results["accuracy"] / len(test_loader)
+            print(f"Average test loss: {avg_loss:.4f}")
+            print(f"Accuracy: {accuracy:.4f}")
+            
+            if logging:
+                # Log classification metrics
+                wandb.log({
+                    "test/Accuracy": accuracy,
+                })
+                
+                # Create a table for the evaluation metrics
+                metrics_table = wandb.Table(columns=["Metric", "Value"])
+                metrics_table.add_data("Average Loss", avg_loss)
+                metrics_table.add_data("Accuracy", accuracy)
+    else:
+        mse = test_metric_results["mse"] / len(test_loader)
+        mae = test_metric_results["mae"] / len(test_loader)
+        print(f"Average test loss: {avg_loss:.4f}")
+        print(f"Mean Squared Error: {mse:.4f}")
+        print(f"Mean Absolute Error: {mae:.4f}")
+        
+        if logging:
+            # Log regression metrics
+            wandb.log({
+                "test/MSE": mse,
+                "test/MAE": mae,
+            })
+            
+            # Create a table for the evaluation metrics
+            metrics_table = wandb.Table(columns=["Metric", "Value"])
+            metrics_table.add_data("Average Loss", avg_loss)
+            metrics_table.add_data("Mean Squared Error", mse)
+            metrics_table.add_data("Mean Absolute Error", mae)
 
     if logging:
-        # Log individual test metrics
-        wandb.log({
-            "test/MSE": mse,
-            "test/MAE": mae,
-        })
-        
-        # Create a table for the evaluation metrics
-        metrics_table = wandb.Table(columns=["Metric", "Value"])
-        metrics_table.add_data("Average Loss", avg_loss)
-        metrics_table.add_data("Mean Squared Error", mse)
-        metrics_table.add_data("Mean Absolute Error", mae)
-
         # Log the table to wandb
         wandb.log({"evaluation_metrics": metrics_table})
         wandb.finish()

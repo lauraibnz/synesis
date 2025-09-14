@@ -59,15 +59,13 @@ def preprocess_batch(
 ):
     if any(
         tf in transform
-        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression"]
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression", "InstrumentShift"]
     ):
         original_raw_data = batch_raw_data[:, 0].to(device)
         transformed_raw_data = batch_raw_data[:, 1].to(device)
         transform_params = batch_targets
         if len(transform_params.shape) == 1:
             transform_params = transform_params.unsqueeze(1)
-        if len(transform_params.shape) == 2:
-            transform_params = transform_params.unsqueeze(2)
         transform_params = transform_params.to(device)
 
     elif "TimeStretch" in transform:
@@ -260,6 +258,7 @@ def train(
         split="train",
         download=False,
         item_format="raw",
+        itemization=False,
     )
     val_dataset = get_dataset(
         name=dataset,
@@ -269,10 +268,11 @@ def train(
         split="validation",
         download=False,
         item_format="raw",
+        itemization=False,
     )
 
     # If dataset returns subitems per item, need to wrap it
-    if dataset != "ImageNet" and train_dataset[0][0].dim() == 3:
+    if transform_config and train_dataset[0][0].dim() == 3:
         wrapped_train = SubitemDataset(train_dataset)
         wrapped_val = SubitemDataset(val_dataset)
         del train_dataset, val_dataset
@@ -288,7 +288,7 @@ def train(
             transform_config,
             sample_rate=feature_config["sample_rate"],
         )
-    elif dataset == "ImageNet":
+    elif not transform_config:
         transform_obj = None
     else:
         transform_obj = get_transform(transform_config)
@@ -306,7 +306,13 @@ def train(
         drop_last=True if task_config["model"]["batch_norm"] else False,
     )
 
-    sample_item, _ = train_dataset[0]
+    sample_item, sample_target = train_dataset[0]
+    if any(
+        tf in transform
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression", "InstrumentShift"]
+    ):
+        sample_item = sample_item[0]
+
     with torch.no_grad():
         extracted_features = feature_extractor(sample_item)
 
@@ -320,6 +326,11 @@ def train(
     else:
         use_temporal_pooling = False
 
+    try:
+        param_input_dim = sample_target.shape[0]
+    except:
+        param_input_dim = 1
+
     model = get_probe(
         model_type=task_config["model"]["type"],
         in_features=in_features,
@@ -328,6 +339,7 @@ def train(
         n_outputs=in_features,
         use_batch_norm=task_config["model"]["batch_norm"],
         use_temporal_pooling=use_temporal_pooling,
+        param_input_dim=param_input_dim,
         **task_config["model"]["params"],
     ).to(device)
 
@@ -676,6 +688,7 @@ def evaluate(
         split="test",
         download=False,
         item_format="raw",
+        itemization=False,
     )
 
     if not device:
@@ -689,7 +702,7 @@ def evaluate(
         )
 
     # If dataset returns subitems per item, need to wrap it
-    if dataset != "ImageNet" and test_dataset[0][0].dim() == 3:
+    if transform_config and test_dataset[0][0].dim() == 3:
         wrapped_test = SubitemDataset(test_dataset)
         del test_dataset
         test_dataset = wrapped_test
@@ -703,7 +716,7 @@ def evaluate(
             transform_config,
             sample_rate=feature_config["sample_rate"],
         )
-    elif dataset == "ImageNet":
+    elif not transform_config:
         transform_obj = None
     else:
         transform_obj = get_transform(transform_config)
@@ -715,7 +728,13 @@ def evaluate(
         drop_last=True if task_config["model"]["batch_norm"] else False,
     )
 
-    sample_item, _ = test_dataset[0]
+    sample_item, sample_target = test_dataset[0]
+    if any(
+        tf in transform
+        for tf in ["HueShift", "BrightnessShift", "SaturationShift", "JPEGCompression", "InstrumentShift"]
+    ):
+        sample_item = sample_item[0]
+
     with torch.no_grad():
         extracted_features = feature_extractor(sample_item)
 
@@ -729,6 +748,11 @@ def evaluate(
     else:
         use_temporal_pooling = False
 
+    try:
+        param_input_dim = sample_target.shape[0]
+    except:
+        param_input_dim = 1
+
     if isinstance(model, str):
         # Load model from wandb artifact
         artifact = get_artifact(model)
@@ -741,6 +765,7 @@ def evaluate(
             n_outputs=in_features,
             use_batch_norm=task_config["model"]["batch_norm"],
             use_temporal_pooling=use_temporal_pooling,
+            param_input_dim=param_input_dim,
             **task_config["model"]["params"],
         ).to(device)
         model.load_state_dict(torch.load(Path(artifact_dir) / f"{feature}.pt"))

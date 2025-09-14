@@ -5,11 +5,13 @@ import zipfile
 from pathlib import Path
 from typing import Optional, Tuple, Union
 import json
+import sys
 
 import numpy as np
 import pandas as pd
 import torch
 import wget
+import librosa
 from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -17,6 +19,8 @@ from tqdm import tqdm
 
 from config.features import configs as feature_configs
 from synesis.datasets.dataset_utils import load_track
+
+from ss_vq_vae.models import triplet_network
 
 
 class SynTheory(Dataset):
@@ -33,6 +37,7 @@ class SynTheory(Dataset):
         seed: int = 42,
         label: str = "notes",  # Mandatory - the concept to probe
         transform: Optional[str] = None,  # Transform to apply (e.g., "InstrumentShift")
+        timbre_model_path: Optional[str] = "./externals/ss-vq-vae/experiments/timbre_metric/checkpoint.ckpt",  # Path to timbre similarity model
     ) -> None:
         """SynTheory dataset implementation.
 
@@ -51,6 +56,7 @@ class SynTheory(Dataset):
             seed: Random seed for reproducibility.
             label: The music theory concept to predict: ["notes", "tempos", "time_signatures", etc.]
             transform: Ignored, for compatibility with other datasets.
+            timbre_model_path: Path to the timbre similarity model checkpoint.
         """
         self.tasks = ["classification", "regression"]
         
@@ -85,7 +91,13 @@ class SynTheory(Dataset):
         self.seed = seed
         self.label = label  # This is our concept to probe
         self.transform = transform  # Store the transform
+        self.timbre_model_path = timbre_model_path
+        self.timbre_model = None  # Will be loaded lazily
         self.dataset_dir = None
+        
+        # Constants for timbre similarity
+        self.SR = 16000
+        self.MFCC_KWARGS = dict(n_mfcc=13, hop_length=500)
         
         # Validate concept
         if self.label not in self.concepts:
@@ -113,6 +125,66 @@ class SynTheory(Dataset):
         self.feature_config = feature_config
 
         self._load_metadata()
+
+    def _load_timbre_model(self):
+        """Load the timbre similarity model lazily."""
+        if self.timbre_model is None and self.timbre_model_path is not None:
+            try:
+                timbre_model, triplet_backbone = triplet_network.build_model(num_features=12)
+                timbre_model.load_weights(self.timbre_model_path)
+                self.timbre_model = timbre_model
+            except ImportError as e:
+                raise ImportError(f"Could not import ss_vq_vae. Make sure it's available at {ss_vq_vae_path}. Error: {e}")
+            except Exception as e:
+                raise RuntimeError(f"Could not load timbre model from {self.timbre_model_path}. Error: {e}")
+
+    def _extract_mfcc(self, audio):
+        """Extract MFCC features, skipping the first coefficient (energy)"""
+        return librosa.feature.mfcc(y=audio, sr=self.SR, **self.MFCC_KWARGS)[1:]
+
+    def _pad_or_truncate(self, audio, ref):
+        """Align audio lengths by padding or truncating"""
+        if len(audio) < len(ref):
+            return np.pad(audio, (0, len(ref) - len(audio)))
+        return audio[:len(ref)]
+
+    def _compute_timbre_similarity(self, audio_path1, audio_path2):
+        """
+        Compute timbre similarity between two audio files using trained model
+        
+        Args:
+            audio_path1: Path to first audio file
+            audio_path2: Path to second audio file
+            
+        Returns:
+            float: Similarity score (0-1, higher = more similar)
+        """
+        if self.timbre_model_path is None:
+            raise ValueError("timbre_model_path must be provided to compute timbre similarity")
+        
+        # Load model if not already loaded
+        self._load_timbre_model()
+        
+        # Load audio files
+        audio1, _ = librosa.load(audio_path1, sr=self.SR)
+        audio2, _ = librosa.load(audio_path2, sr=self.SR)
+        
+        # Align lengths
+        audio2 = self._pad_or_truncate(audio2, audio1)
+        audio1 = self._pad_or_truncate(audio1, audio2)
+        
+        # Extract MFCC features
+        mfcc1 = self._extract_mfcc(audio1)
+        mfcc2 = self._extract_mfcc(audio2)
+        
+        # Prepare triplet format and compute similarity
+        sim = self.timbre_model.predict([
+            mfcc1.T[None, :, :],  # Reference
+            mfcc2.T[None, :, :],  # Query
+            mfcc2.T[None, :, :]   # Duplicate query for triplet format
+        ], verbose=0)[0][0]  # Extract cosine similarity score
+        
+        return sim
 
     def _load_metadata(self) -> None:
         """Load metadata and create train/test/validation splits."""
@@ -432,8 +504,6 @@ class SynTheory(Dataset):
             # Find a sample with different instrument
             shifted_idx = self.find_instrument_shifted_sample(idx)
             
-
-            
             # Load the shifted sample (could be same if no different instrument found)
             shifted_path = (
                 self.raw_data_paths[shifted_idx]
@@ -450,18 +520,28 @@ class SynTheory(Dataset):
             
             # Determine which label to return based on label/transform relationship
             if self.label == "instruments":
-                # For equivariance: return the transform (original -> transformed)
-                original_label = self.labels[idx]
-                shifted_label = self.labels[shifted_idx]
-                
-                # Create one-hot encodings for both original and transformed
-                original_one_hot = torch.zeros(92, dtype=torch.float32)
-                original_one_hot[original_label] = 1.0
-                
-                shifted_one_hot = torch.zeros(92, dtype=torch.float32)
-                shifted_one_hot[shifted_label] = 1.0
-                
-                transform_param = shifted_one_hot - original_one_hot
+                # For equivariance: return the timbre similarity as transform parameter
+                if self.item_format == "raw":
+                    # Compute timbre similarity between original and shifted audio files
+                    original_audio_path = self.raw_data_paths[idx]
+                    shifted_audio_path = self.raw_data_paths[shifted_idx]
+                    timbre_similarity = self._compute_timbre_similarity(original_audio_path, shifted_audio_path)
+                    
+                    transform_param = torch.tensor(timbre_similarity, dtype=torch.float32)
+                else:
+                    # For feature format, we can't compute timbre similarity directly
+                    # Fall back to one-hot encoding difference
+                    original_label = self.labels[idx]
+                    shifted_label = self.labels[shifted_idx]
+                    
+                    # Create one-hot encodings for both original and transformed
+                    original_one_hot = torch.zeros(92, dtype=torch.float32)
+                    original_one_hot[original_label] = 1.0
+                    
+                    shifted_one_hot = torch.zeros(92, dtype=torch.float32)
+                    shifted_one_hot[shifted_label] = 1.0
+                    
+                    transform_param = shifted_one_hot - original_one_hot
                 
                 track = torch.stack([original_track, shifted_track], dim=0)
                 return track, transform_param

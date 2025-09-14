@@ -126,6 +126,8 @@ def preprocess_batch(
             transform_params = 1 - (transform_params + 30) / 80
             # convert to tensor of shape [batch, 1, 1] and move to device
             transform_params = torch.tensor(transform_params).to(device)
+        elif "LowPassFilter" in transform:
+            transform_params = transform_obj.transform_parameters["cutoff_freq"]
         else:
             # they will be of shape [batch, channel, 1], and on device
             transform_params = transform_obj.transform_parameters[
@@ -225,7 +227,7 @@ def feature_distances(
     feature_extractor = get_feature_extractor(feature)
     feature_extractor = feature_extractor.to(device)
 
-    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise"]):
+    if any(tf in transform for tf in ["PitchShift", "AddWhiteNoise", "LowPassFilter"]):
         transform_obj = get_transform(
             transform_config,
             sample_rate=feature_config["sample_rate"],
