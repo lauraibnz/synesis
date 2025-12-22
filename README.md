@@ -24,7 +24,7 @@ The figure below illustrates the structure–timbre disentanglement setup used i
 this repository, specialized to music audio representations.
 
 <p align="center">
-  <img src="assets/disentanglement.png" width="500">
+  <img src="assets/disentanglement.png" width="550">
 </p>
 
 All other evaluation axes and workflows follow the original design.
