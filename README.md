@@ -1,23 +1,43 @@
 # synesis
-Tools for holistic representation evaluation and understanding
+This repository extends the *synesis* framework with additional components for the evaluation of disentangled representations in music audio, as described in an accompanying paper (currently under review). The core design and evaluation axes are preserved.
 
-*synesis*: unification, to bring (something) together that thereby gives meaning
-
-
-This is the official repository for the [paper](https://arxiv.org/abs/2505.06224) **Towards a Unified Representation Evaluation Framework Beyond Downstream Tasks**, by Christos Plachouras, Julien Guinot, George Fazekas, Elio Quinton, Emmanouil Benetos, and Johan Pauwels.
+The original repository can be found at: https://github.com/chrispla/synesis
 
 ![Synesis Framework Overview](assets/synesis.png)
+
+## What's new
+
+The current repository includes a small set of additions to support the analysis of
+disentangled structure–timbre representations in music audio, while preserving
+the core design of the original framework.
+
+In particular, it adds:
+
+- Music-specific feature extractors exposing separate structure and timbre embeddings (e.g. AFTER, SS-VQ-VAE, TS-DSAE) under `synesis/features/`
+- Additional music-related probing datasets, including SynTheory for different music-theoretic concepts, under `synesis/datasets/`
+- Configuration files tailored to structure–timbre disentangled representations
+- Utilities for disentanglement evaluation based on probing concatenated embeddings under `synesis/disentanglement/`
+
+### Structure–timbre disentanglement
+
+The figure below illustrates the structure–timbre disentanglement setup used in
+this repository, specialized to music audio representations.
+
+<p align="center">
+  <img src="assets/disentanglement.png" width="450">
+</p>
+
+All other evaluation axes and workflows follow the original design.
 
 ## Run
 Install the requirements in `requirements.txt`.
 
-Create a symlink to [ImagetNet](https://image-net.org/download.php) under `data/ImageNet` and [LibriSpeech](https://www.openslr.org/12) under `data/LibriSpeech`. For example:
+Create a symlink to the [SynTheory](https://github.com/brown-palm/syntheory) dataset under `data/syntheory`. For example:
 ```
-mkdir data
-cd data
-ln -s /my/server/datasets/ImageNet
+mkdir -p data/syntheory
+cd data/syntheory
+ln -s /my/server/code/syntheory/data
 ```
-Currently, Librispeech `train-clean-100`, `test-clean`, and `dev-clean` are used.
 
 #### Configuration
 * A list of models (used as feature extractors) is available in `config/features.py`. 
@@ -44,6 +64,11 @@ python -m synesis.equivariance.features -tf <transform_name> -l <label> -f <feat
 ```
 python -m synesis.invariance.covariate_shift -tf <transform_name> -f <feature_name> -d <dataset_name> -b <batch_size> -p <dataset_passes>
 ```
+### Disentanglement
+**Concatenation**: Calculate the difference in downstream performance between a probe trained on an individual feature and a probe trained on the concatenation of features.
+```
+python -m synesis.disentanglement.concatenate -f1 <feature_name1> -f2 <feature_name2> -d <dataset_name> -l <label> (-t <task_name>)
+```
 
 #### Logging
 By default, each task logs artifacts, metrics, and tables to Weights & Biases (WandB). This is to more easily reuse already trained models in other tasks (e.g., a downstream model in invariance). WandB can also be run offline. ``--no-log`` disables WandB logging. However, local logging might be slightly buggy (we'll be testing and fixing this soon).
@@ -56,11 +81,11 @@ export WANDB_PROJECT="my-project"
 ## Extract features
 **Feature extraction** helps speed up downstream training.
 ```
-python -m synesis.extract -f <feature> -d <dataset> (-b <batch_size>)
+python -m synesis.extract -f <feature> -d <dataset> (-b <batch_size>) (-l <label>)
 ```
 
 ## Develop
-We're looking into ways to make contribution simpler, including making it easier to implement new datasets and features. Feel free to raise issues and contact us in the meantime. The process is currently documented below:
+The process for adding new datasets and feature extractors follows the original *synesis* design and is documented below.
 
 ### Adding datasets
 **Follow the structure of one of the existing datasets.**
@@ -108,6 +133,7 @@ self.feature_config = feature_config
 6. add an entry to `config/features` with the feature name (same as class name) that contains at least `feature_dim`. For now, some adjustments might need to be made for other parameters...
 
 ## Cite
+If you use the *synesis* framework in your work, please consider citing the original paper:
 ```bibtex
 @inproceedings{synesis,
     author = {Christos Plachouras and Julien Guinot and George Fazekas and Elio Quinton and Emmanouil Benetos and Johan Pauwels},
@@ -116,3 +142,4 @@ self.feature_config = feature_config
     address = {Rome, Italy},
     year = 2025,
 }
+```
