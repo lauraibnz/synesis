@@ -133,9 +133,19 @@ self.feature_config = feature_config
 6. add an entry to `config/features` with the feature name (same as class name) that contains at least `feature_dim`. For now, some adjustments might need to be made for other parameters...
 
 ## Cite
-If you use the *synesis* framework in your work, please consider citing the original paper:
+If you use this repository for evaluating disentangled representations in music audio, please cite:
 ```bibtex
-@inproceedings{synesis,
+@InProceedings{ibanezmartinez2026evaluating,
+  author    = {Ibáñez-Martínez, Laura and Nkama, Chukwuemeka and Poltronieri, Andrea and Serra, Xavier and Rocamora, Martín},
+  booktitle = {ICASSP 2026 - 2026 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
+  title     = {Evaluating Disentangled Representations for Controllable Music Generation},
+  year      = {2026},
+}
+```
+
+If you use the core *synesis* framework, please also cite the original paper:
+```bibtex
+@InProceedings{synesis,
     author = {Christos Plachouras and Julien Guinot and George Fazekas and Elio Quinton and Emmanouil Benetos and Johan Pauwels},
     title = {Towards a Unified Representation Evaluation Framework Beyond Downstream Tasks},
     booktitle = {International Joint Conference on Neural Networks (IJCNN)},
