@@ -9,13 +9,13 @@ import torch
 
 
 class MusicLatent(nn.Module):
-    def __init__(self, feature_extractor=False, extract_kws={}, **kwargs):
+    def __init__(self, feature_extractor=False, extract_kws=None, **kwargs):
         super(MusicLatent, self).__init__()
 
         self.encoder = EncoderDecoder()
         self.gen = self.encoder.gen
         self.feature_extractor = feature_extractor  # different than extract_features, which is generation vs analysis
-        self.extract_kws = extract_kws
+        self.extract_kws = extract_kws or {}
 
         print("Music2Latent model initialized")
         print(self.encoder)
@@ -25,10 +25,13 @@ class MusicLatent(nn.Module):
             param.requires_grad = False
 
     @torch.no_grad()
-    def extract_features(self, x, pool_hop=-1, extract_features=True):
+    def extract_features(self, x, pool_hop=-1, extract_features=True, pool_time=True):
         latents = self.encoder.encode(x, extract_features=extract_features).permute(
             0, 2, 1
         )
+
+        if not pool_time:
+            return {"latents": latents.transpose(1, 2)}
 
         ## average the latents with average pooling with a hop of pool_hop
         if pool_hop == -1:
@@ -41,7 +44,7 @@ class MusicLatent(nn.Module):
 
         return {"latents": averaged_latents}
 
-    def forward(self, x, pool_hop=-1, extract_features=True):
+    def forward(self, x, pool_hop=-1, extract_features=True, pool_time=True):
         if x.dim() == 3:  # stereo
             x = x.mean(dim=1)
 
@@ -51,7 +54,11 @@ class MusicLatent(nn.Module):
                 "extract_features", extract_features
             )
             pool_hop = self.extract_kws.get("pool_hop", pool_hop)
+            pool_time = self.extract_kws.get("pool_time", pool_time)
 
-        return self.extract_features(x, pool_hop, extract_features=extract_features)[
-            "latents"
-        ]
+        return self.extract_features(
+            x,
+            pool_hop,
+            extract_features=extract_features,
+            pool_time=pool_time,
+        )["latents"]

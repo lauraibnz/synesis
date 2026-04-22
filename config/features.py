@@ -69,6 +69,35 @@ configs = {
         "feature_dim": 64,
         "extract_kws": {
             "extract_features": False,
+            "pool_time": True,
+        },
+    },
+    "Music2Latent_64_Time": {
+        "__cls__": "MusicLatent",
+        "item_len_sec": 3,
+        "sample_rate": 44100,
+        "feature_dim": 64,
+        "extract_kws": {
+            "extract_features": False,
+            "pool_time": False,
+        },
+    },
+    "CodiCodec": {
+        "__cls__": "CodiCodec",
+        "item_len_sec": 3,
+        "sample_rate": 44100,
+        "feature_dim": 512,
+        "extract_kws": {
+            "pool_time": True,
+        },
+    },
+    "CodiCodec_Time": {
+        "__cls__": "CodiCodec",
+        "item_len_sec": 3,
+        "sample_rate": 44100,
+        "feature_dim": 512,
+        "extract_kws": {
+            "pool_time": False,
         },
     },
     "PESTO": {
