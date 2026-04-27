@@ -293,6 +293,26 @@ configs = {
         "mean": [0.485, 0.456, 0.406],
         "std": [0.229, 0.224, 0.225],
     },
+    "MLD_base_Timbre": {
+        "__cls__": "MLD_Timbre",
+        "sample_rate": 44100,
+        "extract_kws": {
+            "repo_path": "./externals/music-latent-disentanglement",
+            "checkpoint_path": "experiments/runs/base/best_model.pt",
+            "config_path": "experiments/runs/base/config.gin",
+            "use_ema": True,
+        }
+    },
+    "MLD_base_Structure": {
+        "__cls__": "MLD_Structure",
+        "sample_rate": 44100,
+        "extract_kws": {
+            "repo_path": "./externals/music-latent-disentanglement",
+            "checkpoint_path": "experiments/runs/base/best_model.pt",
+            "config_path": "experiments/runs/base/config.gin",
+            "use_ema": True,
+        }
+    },
     "AFTER_Timbre": {
         "__cls__": "AFTER_Timbre",
         "sample_rate": 44100,
