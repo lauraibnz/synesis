@@ -313,6 +313,26 @@ configs = {
             "use_ema": True,
         }
     },
+    "MLD_base_no_pitch_Timbre": {
+        "__cls__": "MLD_Timbre",
+        "sample_rate": 44100,
+        "extract_kws": {
+            "repo_path": "./externals/music-latent-disentanglement",
+            "checkpoint_path": "experiments/runs/base_no_pitch/best_model.pt",
+            "config_path": "experiments/runs/base_no_pitch/config.gin",
+            "use_ema": True,
+        }
+    },
+    "MLD_base_no_pitch_Structure": {
+        "__cls__": "MLD_Structure",
+        "sample_rate": 44100,
+        "extract_kws": {
+            "repo_path": "./externals/music-latent-disentanglement",
+            "checkpoint_path": "experiments/runs/base_no_pitch/best_model.pt",
+            "config_path": "experiments/runs/base_no_pitch/config.gin",
+            "use_ema": True,
+        }
+    },
     "AFTER_Timbre": {
         "__cls__": "AFTER_Timbre",
         "sample_rate": 44100,
